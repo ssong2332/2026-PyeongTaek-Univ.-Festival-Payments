@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|shell|local_shell",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/block-main-writes.js", "timeout": 10, "statusMessage": "브랜치 규칙 확인" },
+          { "type": "command", "command": "node .claude/hooks/block-no-verify.js", "timeout": 10, "statusMessage": "훅 우회 확인" },
+          { "type": "command", "command": "node .claude/hooks/block-env-access.js", "timeout": 10, "statusMessage": "시크릿 보호" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Read|Edit|Write|Grep",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/block-env-access.js", "timeout": 10, "statusMessage": "시크릿 보호" }
+        ]
+      }
+    ]
+  }
+}

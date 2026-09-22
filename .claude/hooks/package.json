@@ -1,0 +1,12 @@
+{
+  "name": "start-coding-hooks",
+  "private": true,
+  "description": "PreToolUse 가드·PostToolUse 노티파이어 스크립트. 프로젝트 자체(루트 package.json)와는 별개 — 언어를 확정하기 전에도 이 훅들은 순수 Node 내장 모듈만으로 동작하므로 프로젝트의 실제 스택과 충돌하지 않는다.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node test-guards.js",
+    "contract-check": "node contract-check.js --report"
+  }
+}

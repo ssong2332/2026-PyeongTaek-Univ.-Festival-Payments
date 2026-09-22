@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/block-main-writes.js" },
+          { "type": "command", "command": "node .claude/hooks/block-no-verify.js" },
+          { "type": "command", "command": "node .claude/hooks/block-env-access.js" }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write|NotebookEdit|Grep",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/block-env-access.js" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/contract-check.js" },
+          { "type": "command", "command": "node scripts/check-syntax.js" }
+        ]
+      }
+    ]
+  }
+}
