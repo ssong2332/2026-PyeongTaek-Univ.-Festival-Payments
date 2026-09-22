@@ -34,7 +34,7 @@
 |---|---|---|---|---|---|---|---|
 | 예시 | 2026-08-17 | book-log | Codex | T-01 완료 전엔 기능 작업 금지인데 T-01 자신도 막혔다 | AGENTS.md 검증 루프 표 | "T-02 이후"로 한정 | 반영됨 (756add0) |
 | 1 | 2026-08-18 | 북마크함 (킷 실전 테스트) | Claude Code | planner·architect가 작성한 ADR·DECISIONS의 날짜가 전부 "2026-08-26"으로, 실제 세션 날짜(2026-08-18)와 8일 어긋났다 — 서브에이전트를 호출할 때 오늘 날짜를 알려주지 않아서 생긴 것으로 추정 | planner.md·architect.md 절차(호출 시 날짜 컨텍스트 전달 규칙 없음) | 메인 세션이 서브에이전트 호출 프롬프트에 오늘 날짜를 명시하거나, 각 에이전트 파일에 "날짜가 필요하면 호출자에게 확인, 추측 금지" 규칙 추가 | 반영됨 (e1ccf73) |
-| 2 | 2026-08-18 | 북마크함 (킷 실전 테스트) | Claude Code | 마스터 템플릿 개선사항을 진행 중인 프로젝트에 반영할 안전한 절차가 없다 — `docs/*.md`는 init.sh가 이미 프로젝트명을 치환해 놓은 상태라, 마스터 파일을 통째로 덮으면 `{{PROJECT_NAME}}` 플레이스홀더가 되살아난다. 이번엔 4개 파일을 손으로 골라 반영했다 | scripts/ 에 init만 있고 update/sync 스크립트가 없음 | `scripts/sync-from-template.ps1`·`.sh` 신설 검토(변경된 파일만, 프로젝트별 치환값은 보존) — 최소한 HarnessAudit.md나 README에 "마스터 갱신을 기존 프로젝트에 반영하는 법(수동, 파일별 diff 검토)" 절차만이라도 문서화 | 반영됨 (e1ccf73) |
+| 2 | 2026-08-18 | 북마크함 (킷 실전 테스트) | Claude Code | 마스터 템플릿 개선사항을 진행 중인 프로젝트에 반영할 안전한 절차가 없다 — `docs/*.md`는 init.sh가 이미 프로젝트명을 치환해 놓은 상태라, 마스터 파일을 통째로 덮으면 `2026-PyeongTaek-Univ.-Festival-Payments` 플레이스홀더가 되살아난다. 이번엔 4개 파일을 손으로 골라 반영했다 | scripts/ 에 init만 있고 update/sync 스크립트가 없음 | `scripts/sync-from-template.ps1`·`.sh` 신설 검토(변경된 파일만, 프로젝트별 치환값은 보존) — 최소한 HarnessAudit.md나 README에 "마스터 갱신을 기존 프로젝트에 반영하는 법(수동, 파일별 diff 검토)" 절차만이라도 문서화 | 반영됨 (e1ccf73) |
 | 3 | 2026-08-18 | 북마크함 (킷 실전 테스트) | Claude Code | `git checkout -b X && git add ... && git commit ...`처럼 커밋을 포함한 복합 명령을 한 Bash 호출에 담으면 block-main-writes.js가 (checkout이 실행되기도 전에) 명령 문자열 전체를 현재 HEAD 기준으로 미리 스캔해 통째로 차단한다 — 실제로는 checkout 이후 브랜치가 바뀌어 정당한 커밋인데도 막힘. 이번 세션에 3회 반복해서 부딪혔다 | `.claude/hooks/block-main-writes.js`(문서화된 한계, `.claude/hooks/README.md`에 "복합 명령의 브랜치 판정은 실행 전 HEAD 기준"으로 이미 안내는 돼 있음) | 안내를 아는 것과 실전에서 반복해서 부딪히는 것은 다르다 — AGENTS.md "명령어는 검증된 원문 재사용" 절이나 GitWorkflow.md에 "git checkout -b와 commit은 반드시 별도 Bash 호출로 나눠 실행"이라는 실행 팁을 명시적으로 추가하면 반복 실수를 줄일 수 있다 | 반영됨 (e1ccf73) |
 | 4 | 2026-08-31 | 변경테스트 (진행 중 요구사항 변경 실전 테스트) | Claude Code | "진행 중 요구사항 변경" 표 3행(완료 태스크 재작업)을 실전 검증하다가 발견: `docs/CodingRules.md` "검증된 명령어" 절은 문서 소유권 표상 implementer가 **행 추가만** 가능하고 사용자만 전체 수정 가능하다. 패키지 매니저를 npm→pnpm처럼 완전히 교체하는 변경에서는 옛 명령 행을 "지워야" 하는데 그 권한이 아무 에이전트에게도 없다 — planner가 이 문제를 스스로 발견해 Open Question(OQ-20)으로 올리고 "미해결이면 재작업 태스크 완료 불가"라고 명시했다 | AGENTS.md 문서 소유권 표 "docs/CodingRules.md — 검증된 명령어 절만 implementer 추가 가능" (교체·삭제 권한 없음) | "진행 중 요구사항 변경" 표에 "검증된 명령어를 교체해야 하는 변경"을 별도 행으로 추가하거나, CodingRules.md 소유권 각주에 "기존 명령을 교체할 때는 implementer가 옛 행에 취소선 + 새 행을 추가하고 사용자 확인을 받는다"처럼 명시적 절차를 두는 것을 검토 | 반영됨 (0b95738) |
 
@@ -53,7 +53,7 @@
 `scripts/init.ps1`·`init.sh`는 템플릿→프로젝트 방향(1회성 초기화)만 다룬다. 프로젝트를 진행하다 start_coding 마스터가 개선되면, 그 개선을 이미 시작한 프로젝트로 가져오는 자동화된 절차는 이 킷에 없다 — 아래는 수동 절차다.
 
 1. start_coding 마스터에서 무엇이 바뀌었는지 `git log`·`git diff`로 확인한다.
-2. 바뀐 파일이 `{{PROJECT_NAME}}`·`{{DATE}}` 플레이스홀더를 담지 않는 파일(`AGENTS.md`, `.claude/agents/*.md`, `.claude/hooks/*`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/skills/*` 등 — init 스크립트의 치환 대상이 아닌 파일)이면, 마스터의 최신 버전을 프로젝트에 그대로 덮어써도 안전하다.
+2. 바뀐 파일이 `2026-PyeongTaek-Univ.-Festival-Payments`·`2026-09-22` 플레이스홀더를 담지 않는 파일(`AGENTS.md`, `.claude/agents/*.md`, `.claude/hooks/*`, `.codex/hooks.json`, `.agents/hooks.json`, `.agents/skills/*` 등 — init 스크립트의 치환 대상이 아닌 파일)이면, 마스터의 최신 버전을 프로젝트에 그대로 덮어써도 안전하다.
 3. 바뀐 파일이 `docs/*.md`·`README.md`(init 스크립트의 치환 대상)면 통째로 덮지 않는다 — 이미 프로젝트명·날짜가 치환돼 있고, 실제 프로젝트 내용(PRD 요구사항 등)이 같은 파일에 섞여 있을 수 있다. 마스터의 diff를 보고 **바뀐 줄만** 프로젝트 파일에 수동으로 반영한다.
 4. 반영 후 프로젝트에서 `node .claude/hooks/contract-check.js --report`로 확인한다.
 

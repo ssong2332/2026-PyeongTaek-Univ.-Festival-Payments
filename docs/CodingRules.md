@@ -1,6 +1,6 @@
-# CodingRules — {{PROJECT_NAME}}
+# CodingRules — 2026-PyeongTaek-Univ.-Festival-Payments
 
-> 소유자: 사용자 | 최종 수정: {{DATE}}
+> 소유자: 사용자 | 최종 수정: 2026-09-22
 
 ## 금지
 

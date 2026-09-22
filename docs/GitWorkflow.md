@@ -1,4 +1,4 @@
-# GitWorkflow — {{PROJECT_NAME}}
+# GitWorkflow — 2026-PyeongTaek-Univ.-Festival-Payments
 
 > 소유자: 사용자 | implementer는 이 규칙대로만 커밋한다.
 

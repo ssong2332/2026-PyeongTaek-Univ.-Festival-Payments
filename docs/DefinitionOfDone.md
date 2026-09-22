@@ -1,4 +1,4 @@
-# DefinitionOfDone — {{PROJECT_NAME}}
+# DefinitionOfDone — 2026-PyeongTaek-Univ.-Festival-Payments
 
 > 소유자: 사용자 | implementer가 검증 전환 요청 전에 자가 점검하고, QA가 최종 판정한다.
 > 예외: "Tasks 검증중 상태" 항목은 implementer 자가 점검 대상이 아니다 (그 전환은 요청을 받은 planner가 수행 → QA가 확인).

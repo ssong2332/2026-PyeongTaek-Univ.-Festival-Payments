@@ -1,4 +1,4 @@
-# {{PROJECT_NAME}}
+# 2026-PyeongTaek-Univ.-Festival-Payments
 
 > 이 리포는 [start_coding](https://github.com/) 템플릿에서 생성되었다. 초기화 전이라면 아래 "새 프로젝트 시작"을 먼저 실행할 것.
 
@@ -34,7 +34,7 @@ bash scripts/init.sh "프로젝트명"
 ## 구조
 
 ```
-{{PROJECT_NAME}}/
+2026-PyeongTaek-Univ.-Festival-Payments/
 ├── AGENTS.md          # 마스터 규칙 (단일 원본)
 ├── CLAUDE.md          # Claude Code 어댑터
 ├── docs/              # 프로젝트 문서 + ToolPacks.md(스킬·MCP 팩) + KitFeedback.md(템플릿 개선 대기열)

@@ -1,4 +1,4 @@
-# 문서 갱신 요청 — {{PROJECT_NAME}}
+# 문서 갱신 요청 — 2026-PyeongTaek-Univ.-Festival-Payments
 
 > 소유자: docs (행 추가 전담, append-only). docs는 README·CHANGELOG 외 문서(PRD·Architecture·DECISIONS·adr·Tasks)를 직접 고치지 않는다 — 실제 상태와 어긋난 것을 발견하면 여기 행을 남겨 소유 에이전트가 세션이 바뀌어도 처리하게 한다.
 
