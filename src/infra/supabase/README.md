@@ -1,0 +1,1 @@
+# infra/supabase — `server.ts`(service_role, 서버 전용 — 클라이언트 컴포넌트 import 금지), `session.ts`(@supabase/ssr 쿠키 세션 + requireAdmin()), `browser.ts`(관리자 Auth·Realtime 전용), `database.types.ts`(`supabase gen types` 생성물, 수정 금지). Task: T-02, T-13.

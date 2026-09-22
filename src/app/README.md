@@ -1,0 +1,1 @@
+# src/app — Next.js App Router. 페이지·레이아웃·Route Handler만 두고 로직은 두지 않는다 (Architecture "모듈 경계와 책임": "라우트·레이아웃·인증 가드. features 훅을 컴포넌트에 연결" / api는 "HTTP 경계: zod 파싱 → 서비스 호출 → DTO 응답. 로직 없음"). 담당: 프론트(페이지) · 백엔드(api).

@@ -29,3 +29,18 @@ venv/
 .env.*
 !.env.example
 *.local
+
+# Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# 테스트 산출물
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Supabase CLI 로컬 스택
+supabase/.temp/
+supabase/.branches/

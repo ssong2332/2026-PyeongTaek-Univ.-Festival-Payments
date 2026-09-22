@@ -1,0 +1,1 @@
+# src/services — 유즈케이스. "검증된 DTO → 포트 호출 → 도메인 규칙 → 결과. 예외 던짐" (Architecture 모듈 경계 표). `ports.ts` 인터페이스와 `domain`만 import — `next/*`·`@supabase/*` 금지(ESLint no-restricted-imports). 주입은 함수 인자 기본값(DI 컨테이너 없음). 담당: 백엔드.
