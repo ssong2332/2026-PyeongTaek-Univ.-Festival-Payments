@@ -1,6 +1,6 @@
 # DECISIONS — 평택대 축제 부스 QR 주문·결제 시스템
 
-> 소유자: architect | 결정 한 줄 로그. 배경·대안 비교가 필요한 결정은 adr/에 별도 기록하고 여기서 링크한다.
+> 소유자: 팀장 | 결정 한 줄 로그. 배경·대안 비교가 필요한 결정은 adr/에 별도 기록하고 여기서 링크한다.
 
 ## 결정 로그
 
@@ -39,8 +39,8 @@
 | 31 | 2026-09-22 | 대시보드 미확인(F-21) = `acknowledged_at IS NULL AND status ∈ {pending, paid, cooking}`. `POST /api/admin/orders/{id}/acknowledge`로 해제 | 활성 주문만 강조, 만료·취소는 자동 소거 | — |
 | 32 | 2026-09-22 | 대기 수(F-11): 상태 페이지 = `count(status ∈ {pending,paid,cooking} AND created_at < 내 created_at)`, 메뉴판 = `count(status ∈ {pending,paid,cooking})` | PRD F-11 정의 그대로 | — |
 | 33 | 2026-09-22 | 2차 기능(F-32~F-41, F-46)의 스키마 변경은 1차 마이그레이션에 넣지 않고 Architecture.md "2차 예정 스키마" 표에 예약만 한다 | 1차 DB를 최소로, 세부 미정(#25~#33) 확정 전 구조 고정 금지 | — |
-| 34 | 2026-09-22 | (A) CI = GitHub Actions `.github/workflows/ci.yml` — push·PR마다 `unit-build` 잡(lint·unit·build, T-01), `integration` 잡(`supabase start` + 통합 테스트, T-02 추가). E2E는 CI 미포함. `main` 보호는 PR + 필수 체크 | 사용자 승인(원문 "전부 추천대로, 승인", PRD Open Question #34). AGENTS.md "CI를 쓰는 프로젝트면 워크플로 생성도 T-01" | — |
-| 35 | 2026-09-22 | (B) 호스팅은 Vercel Hobby로 설계하되 **T-50 약관 확인 전 미확정** — Hobby 상업적 이용 제한(추정)에 해당하면 Vercel Pro 1개월(설계 영향 없음) 또는 Cloudflare Pages 무료(어댑터·IP 헤더·도메인 변경 → architect 재호출) | 사용자 승인(PRD Open Question #35, N-14 예외). 전환 여부는 사실 확인 사항이라 지금 결정하지 않는다 | — |
+| 34 | 2026-09-22 | (A) CI = GitHub Actions `.github/workflows/ci.yml` — push·PR마다 `unit-build` 잡(lint·unit·build, T-01), `integration` 잡(`supabase start` + 통합 테스트, T-02 추가). E2E는 CI 미포함. `main` 보호는 PR + 필수 체크 | 사용자 승인(원문 "전부 추천대로, 승인", PRD Open Question #34). 검증 루프 규칙 "CI를 쓰는 프로젝트면 워크플로 생성도 T-01" | — |
+| 35 | 2026-09-22 | (B) 호스팅은 Vercel Hobby로 설계하되 **T-50 약관 확인 전 미확정** — Hobby 상업적 이용 제한(추정)에 해당하면 Vercel Pro 1개월(설계 영향 없음) 또는 Cloudflare Pages 무료(어댑터·IP 헤더·도메인 변경 → 팀장 확인) | 사용자 승인(PRD Open Question #35, N-14 예외). 전환 여부는 사실 확인 사항이라 지금 결정하지 않는다 | — |
 | 36 | 2026-09-22 | (C) `POST /api/orders` 속도 제한 = IP당 분당 5건, 초과 429 `RATE_LIMITED`. 카운터는 Postgres `rate_limits` 테이블 + `consume_rate_limit` 함수(고정 윈도), 키는 IP sha256, 멱등 재요청은 제한 전에 반환, 한도는 `domain/order/rateLimit.ts` 상수 한 곳. `purge_2026-11-08.sql`에 `rate_limits` TRUNCATE 포함 | 사용자 승인(F-47, PRD Open Question #36). 서버리스 인메모리는 인스턴스별로 세어 무의미 — 대안 비교는 ADR | [ADR-0009](adr/0009-order-rate-limit.md) |
 | 37 | 2026-09-22 | (D) 송금 정보·자동 완료·자동 만료 편집 UI는 대시보드 `SettingsPanel`(ADR-0004 키 8개 전부, `useSettings` 훅, 클라이언트도 `lib/dto/settings.ts` zod 공유). `PUT /api/admin/settings`는 부분 갱신, 규격 변경 없음. Table Editor 직접 편집은 폴백으로 유지 | 사용자 승인(F-48, PRD Open Question #37). ADR-0004의 "(1) 설정 패널 또는 (2) Table Editor" 중 (1)을 주 경로로 확정 | ADR-0004 |
 | 38 | 2026-09-22 | (E) 통합·E2E 테스트 실행 지침(운영 지침, 요구사항 아님): Docker 가능 팀원은 전원 로컬 Supabase 스택으로 실행, 불가 팀원은 단위만 로컬 + 통합은 DB 담당·CI 잡에 위임. Docker 가능 범위는 미정(#38, 팀장 확인) | 사용자 승인(PRD Open Question #38). ADR-0007 규격은 그대로 — 실행 주체만 정함 | ADR-0007 |

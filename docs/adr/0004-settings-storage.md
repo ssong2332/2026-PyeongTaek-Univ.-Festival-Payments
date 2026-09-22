@@ -36,7 +36,7 @@ F-44(송금 정보 — 은행명·계좌번호·예금주·카카오페이 URL·
 - `{amount}` 자리표시자: T-34 실기기 검증에서 금액 파라미터가 동작하는 수단만 템플릿에 `{amount}`를 넣는다. 템플릿에 `{amount}`가 없으면 고객 화면은 자동으로 폴백(금액 크게 표시 + "직접 입력" 안내)을 렌더링한다 — 코드 분기가 아니라 데이터로 결정(F-42 폴백).
 - 고객 API `GET /api/settings/transfer`는 `transfer.*` 키만 화이트리스트로 노출. 다섯 값 중 선택한 하위 수단에 필요한 값이 비어 있으면 응답 `configured=false` + 서버 로그 `warn settings.transfer.missing`(F-44).
 - 서버 읽기 캐시 없음(요청마다 조회 — 200건/일 규모). 변경 즉시 반영.
-- 환경변수로 남는 것은 인프라 시크릿뿐: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`. 새 변수 도입 시 `.env.example` 플레이스홀더 갱신은 implementer 몫(T-02·T-49).
+- 환경변수로 남는 것은 인프라 시크릿뿐: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`. 새 변수 도입 시 `.env.example` 플레이스홀더 갱신은 담당 팀원 몫(T-02·T-49).
 
 ## 결과 (트레이드오프 포함)
 

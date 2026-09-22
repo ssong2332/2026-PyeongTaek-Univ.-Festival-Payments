@@ -1,9 +1,9 @@
 # Architecture — 평택대 축제 부스 QR 주문·결제 시스템
 
-> 소유자: architect | 상태: 승인 | 최종 수정: 2026-09-22
+> 소유자: 팀장 | 상태: 승인 | 최종 수정: 2026-09-22
 > 상태는 초안/승인 두 가지. "승인"으로 바꾸는 것은 팀장만 한다 — 승인 전 구현 착수 금지.
 
-이 문서의 목적: 팀원 5~6명이 각자 AI 도구로 **합의 없이 병렬 구현해도 합쳐지도록** 스키마·API·상태 머신·폴더 구조를 못 박는다. implementer는 여기 정의된 규격만 사용한다 — 규격에 없는 것이 필요하면 구현하지 말고 architect에게 보고한다. 수치 중 "추정"으로 표시된 것은 구현 시 확인한다.
+이 문서의 목적: 팀원 5~6명이 각자 AI 도구로 **합의 없이 병렬 구현해도 합쳐지도록** 스키마·API·상태 머신·폴더 구조를 못 박는다. 담당 팀원은 여기 정의된 규격만 사용한다 — 규격에 없는 것이 필요하면 구현하지 말고 architect에게 보고한다. 수치 중 "추정"으로 표시된 것은 구현 시 확인한다.
 
 ## 기술 스택
 
@@ -136,7 +136,7 @@
 | `messages/*.json` | UI 문자열(ko 필수, en) | 없음 | 프론트 · T-04 |
 | `tests/*` | 단위·통합·E2E | 전체 | 각 Task 담당 + T-01(하네스), T-24(E2E) |
 
-병렬 분담 규칙: 한 Task는 위 표의 모듈 1~2개만 건드린다. `lib/dto`·`domain/order/status.ts`·`stateMachine.ts`·`migrations`는 **계약 모듈** — 변경이 필요하면 architect 보고 후 갱신(임의 변경 금지).
+병렬 분담 규칙: 한 Task는 위 표의 모듈 1~2개만 건드린다. `lib/dto`·`domain/order/status.ts`·`stateMachine.ts`·`migrations`는 **계약 모듈** — 변경이 필요하면 팀장 보고 후 갱신(임의 변경 금지).
 
 ## 데이터 흐름
 
@@ -298,7 +298,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 | F-36 재고 임박 | `app_settings 'stock.low_threshold'`, `stock_alerts(id, menu_item_id, kind, created_at, acknowledged_at)` | #26 확인 후 T-40 |
 | F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
-| F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 architect 재검토 |
+| F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 팀장 재검토 |
 | F-40 스케줄 | `shifts(id, person_name, date, starts_at, ends_at, role)` | #30 확인 후 T-46 |
 | F-46 메뉴 등록·삭제 | 스키마 변경 없음(`is_active` 사용, DECISIONS #22) | T-37 |
 
@@ -372,7 +372,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
 | 통계 | `/admin/stats` | `useStats(date)` | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도 |
-| (2차) 수기 입력·스케줄·프로모션 | `/admin/manual-orders`, `/admin/shifts`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 architect 갱신 |
+| (2차) 수기 입력·스케줄·프로모션 | `/admin/manual-orders`, `/admin/shifts`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
 
 설정 패널(F-48, `/admin` 안의 `SettingsPanel` — 별도 라우트 없음, 접힘/펼침 UI는 디자인 재량):
 
@@ -393,7 +393,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 
 ### 계층 규칙 (DB·외부 API가 있는 프로젝트만 — 없으면 "해당 없음" 기재)
 
-기준은 `.agents/skills/clean-architecture/SKILL.md`. 이 프로젝트에 적용할 결정만 아래에 적는다.
+기준은 [docs/guides/clean-architecture.md](guides/clean-architecture.md). 이 프로젝트에 적용할 결정만 아래에 적는다.
 
 | 항목 | 결정 |
 |---|---|
@@ -413,7 +413,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 | 커버 범위 기준 | N-13 목록을 최소 필수로: 가격 재계산·옵션 추가 가격·멱등키·재고 차감·연속 픽업 번호(통합), 재고 복구·환불(통합), 자동 만료 경계 + 송금 신고 제외(통합, `p_now` 주입), 송금 신고·취소 요청 멱등(통합), 대기 수(통합), 토큰 검증(통합), 상태 머신 표 전수(단위 — 7상태 × 8action 매트릭스, 불허가 409인지), 장바구니 합계·수량 경계(단위), 번역 폴백(단위), 피드 병합·연결 감시 타이머(단위, fake timers), CSV 헤더·합계 일치(단위). 속도 제한(F-47, T-51): `consume_rate_limit` 5회 `true`·6회째 `false`·`p_now`+60초 `true`(통합), 같은 멱등키 재요청 시 카운트 불변(통합), `getClientIp` 헤더 우선순위·없음→`'unknown'`(단위). 설정 패널(F-48, T-52): 키별 zod 범위(단위), `PUT` 부분 갱신·알 수 없는 키 400(통합). E2E 1개(T-24 시나리오). 수치 커버리지 임계값은 두지 않는다(요구 없음) |
 | Mock/Stub 대상 (외부 의존성) | 단위: `ports.ts` 인터페이스를 in-memory 구현(`tests/unit/fakes/*.ts`)으로 대체, `Clock`은 고정 시각. 시간은 `vi.useFakeTimers()`. 통합: mock 없음 — 로컬 Supabase 실물(ADR-0007). E2E: 로컬 Supabase + `next dev`, 관리자 계정은 셋업에서 로컬 Auth Admin API로 생성. 외부 송금 앱(카카오페이·토스)은 테스트하지 않음 — T-34 실기기 검증 |
 | T-01 스모크 범위 | (1) `tests/unit/smoke.test.ts` — `domain/i18n/locales.ts`의 `DEFAULT_LOCALE === 'ko'` 단언(도메인 모듈 import 경로 검증) (2) `tests/e2e/smoke.spec.ts` — `/` 접속 시 `<html lang>` 존재 + 200. (3) `npm run build` 성공. (4) CodingRules "검증된 명령어"에 `npm run dev` / `npm run build` / `npm run test` / `npm run test:e2e` / `npx supabase start` 원문 등록. (5) `.github/workflows/ci.yml` 생성 + 첫 push에서 녹색 확인(아래 CI 행). 통합 테스트 명령(`npm run test:integration`)은 T-02(로컬 Supabase 연결)에서 등록 |
-| CI | **GitHub Actions 도입**(PRD Open Question #34 — 승인, DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(implementer). 트리거: 모든 브랜치 `push` + `main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능) |
+| CI | **GitHub Actions 도입**(PRD Open Question #34 — 승인, DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(BE2). 트리거: 모든 브랜치 `push` + `main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능) |
 | 통합·E2E 로컬 실행 지침 (Docker) | PRD Open Question #38 운영 지침: **팀원 전원 Docker Desktop 설치 불가 판정(2026-09-22 팀장 지시)**. 로컬에서는 단위 테스트 위주로 실행하고, 통합 테스트는 GitHub Actions CI 잡 ②(`supabase start` 기반)에 맡긴다(ADR-0007 규격 유지). 검증 전환 요청에 첨부하는 통합 테스트 근거는 CI 실행 링크로 갈음한다 |
 
 ## 배포
@@ -422,10 +422,10 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 
 | 항목 | 결정 |
 |---|---|
-| 호스팅 / 실행 대상 | Vercel Hobby(Next.js, 서버리스 함수) + Supabase Free 프로젝트 1개(프로덕션). 도메인 `{project}.vercel.app`(N-14) — T-25에서 확정 후 QR 인쇄. **무료 티어 한도(전부 추정 — T-25에서 각 서비스 요금 페이지로 확인)**: Supabase Free: DB 500MB, Realtime 동시 연결 200·월 메시지 200만, MAU 5만, **비활성 7일 후 프로젝트 일시정지** → 축제 전주(10-01~06) 매일 접속하고 10-06 저녁 상태 확인을 T-30 절차에 포함. Vercel Hobby: 대역폭 100GB/월, 함수 기본 타임아웃 10초. **호스팅 확정 여부: 확인 전 미확정** — Hobby 플랜의 상업적 이용 제한 조항(추정)에 학과 축제 부스 판매가 해당하는지 **T-50에서 약관 확인**(N-14 예외, PRD Open Question #35, DECISIONS #35). 해당 시 (a) Vercel Pro 1개월 — 설계 영향 없음(도메인·함수·헤더 동일), 또는 (b) Cloudflare Pages 무료 — 설계 영향 있음: Next.js 어댑터(`@opennextjs/cloudflare` 또는 `@cloudflare/next-on-pages` — 추정) 필요, Route Handler가 Workers 런타임에서 실행되므로 `node:crypto` 사용처(`clientIp.ts` 해시)는 `crypto.subtle`로, 클라이언트 IP 헤더는 `cf-connecting-ip`(ADR-0009), 도메인 `*.pages.dev`로 QR 인쇄 전 확정, 롤백은 Cloudflare 배포 이력 승격. (b)로 확정되면 architect 재호출로 이 절·ADR-0009 클라이언트 키 우선순위를 갱신한다(planner 메모와 동일) |
+| 호스팅 / 실행 대상 | Vercel Hobby(Next.js, 서버리스 함수) + Supabase Free 프로젝트 1개(프로덕션). 도메인 `{project}.vercel.app`(N-14) — T-25에서 확정 후 QR 인쇄. **무료 티어 한도(전부 추정 — T-25에서 각 서비스 요금 페이지로 확인)**: Supabase Free: DB 500MB, Realtime 동시 연결 200·월 메시지 200만, MAU 5만, **비활성 7일 후 프로젝트 일시정지** → 축제 전주(10-01~06) 매일 접속하고 10-06 저녁 상태 확인을 T-30 절차에 포함. Vercel Hobby: 대역폭 100GB/월, 함수 기본 타임아웃 10초. **호스팅 확정 여부: 확인 전 미확정** — Hobby 플랜의 상업적 이용 제한 조항(추정)에 학과 축제 부스 판매가 해당하는지 **T-50에서 약관 확인**(N-14 예외, PRD Open Question #35, DECISIONS #35). 해당 시 (a) Vercel Pro 1개월 — 설계 영향 없음(도메인·함수·헤더 동일), 또는 (b) Cloudflare Pages 무료 — 설계 영향 있음: Next.js 어댑터(`@opennextjs/cloudflare` 또는 `@cloudflare/next-on-pages` — 추정) 필요, Route Handler가 Workers 런타임에서 실행되므로 `node:crypto` 사용처(`clientIp.ts` 해시)는 `crypto.subtle`로, 클라이언트 IP 헤더는 `cf-connecting-ip`(ADR-0009), 도메인 `*.pages.dev`로 QR 인쇄 전 확정, 롤백은 Cloudflare 배포 이력 승격. (b)로 확정되면 이 절과 ADR-0009의 클라이언트 IP 판정을 갱신해야 한다(설계 변경 → 팀장 확인) |
 | 빌드·릴리스 파이프라인 | Vercel Git 연동: `main` push → 프로덕션 빌드·배포(자동), feature 브랜치 push → 프리뷰 배포. 빌드 = `npm run build`. 테스트는 GitHub Actions(테스트 전략 "CI" 행)가 push·PR마다 실행하고, 병합 전 DoD가 CI 녹색을 요구한다. Vercel 배포와 CI는 독립(Vercel은 CI 결과를 기다리지 않음) — `main` 보호는 GitHub 브랜치 규칙(PR 필수 + `unit-build` 필수 체크)으로 강제(T-01에서 설정, 리포 관리자 권한 필요 — 없으면 Open Question) |
 | 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Vercel 프리뷰 URL, **DB는 프로덕션 Supabase 공유** — 스테이징 DB 없음, 무료 프로젝트 1개) → 프로덕션(`main`). 프리뷰가 프로덕션 DB를 쓰므로 축제 당일(10-07~08)에는 `main` 외 배포·마이그레이션 금지(T-30 동결 규칙) |
-| 환경별 설정 | Vercel 환경변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`(공개 가능), `SUPABASE_SERVICE_ROLE_KEY`(서버 전용, Sensitive), (2차) `PHONE_ENCRYPTION_KEY`. 로컬은 `.env.local`(미커밋), `.env.example`에 플레이스홀더(implementer가 T-02·T-49에서 갱신). 송금 정보·운영값은 환경변수가 아니라 `app_settings`(ADR-0004) |
+| 환경별 설정 | Vercel 환경변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`(공개 가능), `SUPABASE_SERVICE_ROLE_KEY`(서버 전용, Sensitive), (2차) `PHONE_ENCRYPTION_KEY`. 로컬은 `.env.local`(미커밋), `.env.example`에 플레이스홀더(담당 팀원이 T-02·T-49에서 갱신). 송금 정보·운영값은 환경변수가 아니라 `app_settings`(ADR-0004) |
 | DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후(1차엔 삭제 없음). 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36) |
 | 롤백 절차 | 앱: Vercel 대시보드 "Instant Rollback"(이전 배포 승격, 1분 이내). DB: 되돌리기 마이그레이션 없음 — 전진 수정(새 마이그레이션) 원칙. 데이터 손상 시 Supabase 일일 백업은 무료 티어에 없음(추정) → 축제 전 `supabase db dump`로 수동 백업 1회(T-25) |
 | 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 이 스모크의 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 |
