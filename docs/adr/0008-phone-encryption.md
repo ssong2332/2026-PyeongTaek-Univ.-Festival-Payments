@@ -27,7 +27,7 @@ N-17(전화번호는 애플리케이션 계층에서 암호화 저장, 평문 �
 **A + S2.** 결정적 이유: N-17이 애플리케이션 계층 암호화를 지명했고, 1차 스키마에 개인정보 컬럼이 없어야 F-12 1차 고지문("수집 항목 없음")이 스키마로 증명된다.
 
 규격(T-49에서 구현):
-- 모듈 `src/infra/crypto/phoneCipher.ts`: `encryptPhone(plain): string`, `decryptPhone(cipher): string`. 저장 형식 `v1:{iv_b64}:{tag_b64}:{ct_b64}`(버전 접두사로 키 교체 대비). 키는 `PHONE_ENCRYPTION_KEY`(서버 전용, `NEXT_PUBLIC_` 금지) — `.env.example`에 플레이스홀더 추가(implementer).
+- 모듈 `src/infra/crypto/phoneCipher.ts`: `encryptPhone(plain): string`, `decryptPhone(cipher): string`. 저장 형식 `v1:{iv_b64}:{tag_b64}:{ct_b64}`(버전 접두사로 키 교체 대비). 키는 `PHONE_ENCRYPTION_KEY`(서버 전용, `NEXT_PUBLIC_` 금지) — `.env.example`에 플레이스홀더 추가(담당 팀원).
 - 2차 마이그레이션: `orders.phone_encrypted text NULL`, `orders.phone_consented_at timestamptz NULL`, CHECK `(phone_encrypted IS NULL) OR (phone_consented_at IS NOT NULL)` (동의 없는 저장 거부, F-12 2차).
 - 복호화 경계: `GET /api/admin/orders/{id}/phone`(관리자 세션 필수) 한 곳에서만 복호화. 목록 DTO·Realtime 행·CSV·고객 DTO에는 `phone_encrypted`를 절대 매핑하지 않는다(`toAdminOrderDto`가 필드를 명시적으로 나열 — 스프레드 금지). `authenticated` SELECT 정책은 컬럼 수준으로 `phone_encrypted`를 제외한다(RLS는 행 단위이므로 `REVOKE SELECT (phone_encrypted) ON orders FROM authenticated` 사용 — Realtime 페이로드에도 안 실림. 컬럼 REVOKE와 Realtime 페이로드 동작은 추정 — T-49에서 확인).
 - 로그: `src/lib/logger.ts`는 허용 필드 화이트리스트만 직렬화 — `phone`, `phone_encrypted`, `phonePlain` 키는 직렬화 전에 `[redacted]`로 치환(단위 테스트: 로그 출력에 평문 0건).
