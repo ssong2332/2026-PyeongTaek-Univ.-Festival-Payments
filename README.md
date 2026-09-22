@@ -1,61 +1,78 @@
-# 2026-PyeongTaek-Univ.-Festival-Payments
+# 2026 평택대 축제 부스 QR 주문·결제 시스템
 
-> 이 리포는 [start_coding](https://github.com/) 템플릿에서 생성되었다. 초기화 전이라면 아래 "새 프로젝트 시작"을 먼저 실행할 것.
+축제 방문객이 QR로 접속해 메뉴·옵션을 고르고 현금 또는 송금(계좌이체·카카오페이·토스 개인 송금)으로 주문하고, 부스 운영진이 실시간 대시보드에서 입금 확인·조리·완료를 처리하는 웹 서비스.
 
-## 새 프로젝트 시작 (템플릿 사용법)
+| 항목 | 값 |
+|---|---|
+| 개발 마감 | 2026-10-04 (1차) · 10-05~06 (2차) |
+| 축제 | 2026-10-07 ~ 10-08, 부스 1개, 예상 200건/일 |
+| 스택 | Next.js(App Router) + React + TypeScript + Tailwind CSS / Supabase(PostgreSQL·Auth·Realtime) / Vercel |
+| 결제 | 현금 · 송금(계좌이체·카카오페이·토스) — PG 없음(사업자 없음), 관리자 수동 확인 |
 
-1. GitHub에서 **Use this template** → 새 리포 생성 → clone
-2. 초기화 스크립트 실행 (Windows):
+## 문서 (읽는 순서)
 
-```bash
-powershell -ExecutionPolicy Bypass -File scripts/init.ps1 -ProjectName "프로젝트명"
-```
+| 순서 | 문서 | 내용 | 상태 |
+|---|---|---|---|
+| 1 | [docs/PRD.md](docs/PRD.md) | 요구사항 F-01~F-48, 비기능 N-01~N-17, 화면 12개, 성공 기준, Open Questions | 승인 (2026-09-22) |
+| 2 | [docs/Architecture.md](docs/Architecture.md) | 상태 머신, DB 스키마, RLS, API 규격, 폴더 구조, 테스트 전략, 배포 | 승인 (2026-09-22) |
+| 3 | [docs/DECISIONS.md](docs/DECISIONS.md) · [docs/adr/](docs/adr/) | 기술 결정 38건, ADR 9건(데이터 접근 경로·주문 트랜잭션·실시간·설정·다국어·스윕·테스트 DB·전화번호 암호화·속도 제한) | 승인 |
+| 4 | [docs/Tasks.md](docs/Tasks.md) | 작업 T-01~T-52, 담당 열, 선행 관계, 일정 골격, 인수인계 메모 | — |
+| 5 | [docs/GitWorkflow.md](docs/GitWorkflow.md) · [docs/DefinitionOfDone.md](docs/DefinitionOfDone.md) · [docs/CodingRules.md](docs/CodingRules.md) | 브랜치·커밋 규칙, 완료 판정 체크리스트, 코딩 규칙·검증된 명령어 | — |
 
-   macOS/Linux:
+문서 충돌 시 우선순위: PRD > Architecture > DECISIONS/ADR > CodingRules > GitWorkflow > DefinitionOfDone > Tasks.
 
-```bash
-bash scripts/init.sh "프로젝트명"
-```
+> 문서 본문의 `AGENTS.md`·`.claude/`·`.agents/` 참조는 초기 기획에 쓴 AI 에이전트 하네스를 가리키며, 하네스는 2026-09-22 리포에서 제거됐다. 해당 참조는 무시하고 이 README의 우선순위를 따른다.
 
-3. **Codex를 쓸 계획이면 먼저 `/hooks`로 훅 정의를 신뢰 승인한다** — 승인 전에는 main 직접 커밋·`.env` 접근 차단이 조용히 무동작한다. 안티그래비티는 `.env` 열기를 1회 시도해 차단되는지 확인한다(자동이지만 cwd 전제가 있음).
-4. 아이디어를 도구(Claude Code·Codex·안티그래비티 아무거나)에 말한다 → **대화형 인터뷰**로 명세를 완성한 뒤 `docs/PRD.md`가 작성된다 (파이프라인 0~1단계)
-5. Claude Code / Codex / 안티그래비티 어느 도구로 열어도 같은 규칙(AGENTS.md)이 적용된다.
+## 팀 구성과 담당
 
-| 도구 | 규칙 읽는 방식 | 강제 계층 활성 조건 |
+| 약어 | 역할 | 담당 폴더 |
 |---|---|---|
-| Claude Code | CLAUDE.md의 `@AGENTS.md` import | 자동 |
-| Codex | 루트 AGENTS.md 직접 읽음 | **최초 1회 `/hooks` 신뢰 승인 필요 — 안 하면 무동작** |
-| 안티그래비티 (Gemini) | 루트 AGENTS.md 직접 읽음 | cwd=워크스페이스 루트 전제 — `.env` 차단 1회 확인 필수 |
+| FE1 | 프론트·디자인 — 고객 화면 | `src/app/(customer)`, `src/components/customer`, `src/features/customer`, `src/lib/i18n`, `messages/` |
+| FE2 | 프론트·디자인 — 관리자 화면 | `src/app/admin`, `src/components/admin`, `src/features/admin` |
+| BE1 | 백엔드 — 주문 도메인 | `src/domain/order`, `src/services`, `src/app/api` (주문·상태 전환) |
+| BE2 | 백엔드 — 관리자·조회·인프라 | `src/app/api` (관리자·조회), `src/infra/supabase`, `src/lib/api`, 배포·CI |
+| DB1 | DB — 스키마·트랜잭션 | `supabase/migrations` (스키마·함수·RLS), 시드 |
+| DB2 | DB — 스윕·집계 | `supabase/migrations` (스윕 함수), `src/domain/stats`, 집계·CSV |
+| 팀장 | 상태 전환·리뷰 판정·Open Questions 답변 | `docs/Tasks.md` 상태 열 |
 
-## 프로젝트 개요
+작업별 배정은 [docs/Tasks.md](docs/Tasks.md) "담당" 열. 각 폴더의 책임은 폴더 안 `README.md` 한 줄.
 
-<!-- 초기화 후 docs 에이전트가 채운다 -->
+## 일정
 
-## 구조
+| 구간 | 기간 | 작업 |
+|---|---|---|
+| 0 기반 | 09-23 ~ 09-24 | T-01 하네스·CI → T-02 Supabase 연결 → T-03 스키마 → T-36 시드 (BE1·DB1). FE1·FE2는 Figma 화면 설계 |
+| 1 병렬 | 09-25 ~ 09-30 | 선행이 풀린 1차 작업 병렬 |
+| 2 통합 | 10-01 ~ 10-03 | T-24 E2E · T-25 배포 · T-30 운영 문서 |
+| 버퍼 | 10-04 | 잔여·결함 수정 |
+| 2차 | 10-05 ~ 10-06 | T-26~T-29 우선, 나머지는 여력 시 |
+
+임계 경로: T-01 → T-03 → `create_order` 함수 → T-07/T-08 → T-09 → T-24 → T-25.
+
+## 작업 규칙 요약
+
+- **T-01(테스트 하네스 + CI)이 첫 작업** — 완료 전 다른 작업 착수 금지.
+- 새 기능은 실패하는 테스트부터(Red-Green-Refactor). 테스트 없는 기능은 미완료.
+- `main` 직접 커밋 금지. 브랜치 `feat/T-xx-설명`, 커밋은 Conventional Commits, 병합 전 [DefinitionOfDone](docs/DefinitionOfDone.md) 통과.
+- 실제 `.env`는 커밋하지 않는다. 계좌번호·송금 링크는 코드에 넣지 않고 설정 테이블로(ADR-0004).
+- 작업 상태(대기→진행→검증중→완료)는 팀장만 바꾼다. 팀원은 구현·테스트 근거를 첨부해 "검증 전환 요청".
+
+## 폴더 구조
 
 ```
-2026-PyeongTaek-Univ.-Festival-Payments/
-├── AGENTS.md          # 마스터 규칙 (단일 원본)
-├── CLAUDE.md          # Claude Code 어댑터
-├── docs/              # 프로젝트 문서 + ToolPacks.md(스킬·MCP 팩) + KitFeedback.md(템플릿 개선 대기열)
-├── scripts/           # 초기화 스크립트 init.ps1·init.sh(1회 실행) + agy-guard.js(안티그래비티 가드, 상주)
-├── .agents/skills/    # 공통 호환 스킬 팩 (안티그래비티·Codex·Claude 공유)
-├── .claude/agents/    # 6-에이전트 팩 (Claude Code 전용)
-├── .claude/hooks/     # 강제 가드 3종 + 정합성 검사 (Claude Code·Codex 공유)
-├── .codex/hooks.json  # Codex 배선 (최초 1회 /hooks 신뢰 승인 필요)
-└── .agents/hooks.json # 안티그래비티 배선 → scripts/agy-guard.js
+src/
+├── app/            # Next.js App Router — (customer)/ admin/ api/
+├── components/     # 표현 컴포넌트 — customer/ admin/ ui/
+├── features/       # 화면 상태 훅 — customer/ admin/
+├── domain/         # 순수 TS 규칙 — order/(상태 머신·가격) stats/
+├── services/       # 유즈케이스 (포트 호출)
+├── infra/          # supabase/ repositories/ (SQL·RPC는 여기만)
+└── lib/            # api/ dto/(zod) i18n/
+supabase/migrations/  # 0001_schema ~ 0006_rate_limit
+tests/                # unit/ integration/ e2e/
+messages/             # ko.json / en.json
 ```
 
-## 개발 파이프라인
+## 실행·빌드·테스트
 
-아이디어 인터뷰 → 기획 → 설계 → 구현 → 리뷰/검증 → 문서화. 단계별 산출물과 게이트는 [AGENTS.md](AGENTS.md) 참조.
-
-인터뷰는 아이디어를 받아 적는 단계가 아니라 **같이 설계하는 대화**다: 개인/팀·언어·배포·기능 범위 등 빈칸을 질문으로 채우고, 선택지마다 추천 방향과 반대 방향을 함께 제시하며, 사용자가 "완성"을 선언할 때까지 계속된다. 절차는 [.agents/skills/idea-interview/SKILL.md](.agents/skills/idea-interview/SKILL.md).
-
-## 이 킷 자체의 문제를 발견하면
-
-규칙 때문에 막히거나 우회했다면 **여기서 규칙을 고치지 말고** [docs/KitFeedback.md](docs/KitFeedback.md)에 행을 추가한다. 나중에 템플릿 리포에서 그 표를 읽고 원본을 고치면 다음 프로젝트부터 반영된다.
-
-## 실행/빌드/테스트
-
-<!-- 검증된 명령어는 docs/CodingRules.md "검증된 명령어" 절에 기록 후 여기에 반영 -->
+T-01에서 명령이 확정되면 [docs/CodingRules.md](docs/CodingRules.md) "검증된 명령어" 절에 기록하고 여기에 반영한다.
