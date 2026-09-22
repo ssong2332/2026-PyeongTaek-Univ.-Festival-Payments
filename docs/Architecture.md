@@ -1,7 +1,7 @@
 # Architecture — 평택대 축제 부스 QR 주문·결제 시스템
 
 > 소유자: architect | 상태: 승인 | 최종 수정: 2026-09-22
-> 상태는 초안/승인 두 가지. "승인"으로 바꾸는 것은 사용자만 한다 — 승인 전 구현 착수 금지 (AGENTS.md 파이프라인 규칙).
+> 상태는 초안/승인 두 가지. "승인"으로 바꾸는 것은 팀장만 한다 — 승인 전 구현 착수 금지.
 
 이 문서의 목적: 팀원 5~6명이 각자 AI 도구로 **합의 없이 병렬 구현해도 합쳐지도록** 스키마·API·상태 머신·폴더 구조를 못 박는다. implementer는 여기 정의된 규격만 사용한다 — 규격에 없는 것이 필요하면 구현하지 말고 architect에게 보고한다. 수치 중 "추정"으로 표시된 것은 구현 시 확인한다.
 
@@ -404,7 +404,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 
 ## 테스트 전략
 
-케이스 도출·부실 테스트 방지 기준은 `.agents/skills/tdd-practitioner/SKILL.md`를 따른다 (정상 1 + 경계 2 + 예외 2 이상, 실제 값 단언, 비동기 대기, 외부 의존성 격리). 아래에는 이 프로젝트의 선택만 적는다.
+케이스 도출·부실 테스트 방지 기준은 TDD 원칙을 따른다 (정상 1 + 경계 2 + 예외 2 이상, 실제 값 단언, 비동기 대기, 외부 의존성 격리). 아래에는 이 프로젝트의 선택만 적는다.
 
 | 항목 | 결정 |
 |---|---|
@@ -413,8 +413,8 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 | 커버 범위 기준 | N-13 목록을 최소 필수로: 가격 재계산·옵션 추가 가격·멱등키·재고 차감·연속 픽업 번호(통합), 재고 복구·환불(통합), 자동 만료 경계 + 송금 신고 제외(통합, `p_now` 주입), 송금 신고·취소 요청 멱등(통합), 대기 수(통합), 토큰 검증(통합), 상태 머신 표 전수(단위 — 7상태 × 8action 매트릭스, 불허가 409인지), 장바구니 합계·수량 경계(단위), 번역 폴백(단위), 피드 병합·연결 감시 타이머(단위, fake timers), CSV 헤더·합계 일치(단위). 속도 제한(F-47, T-51): `consume_rate_limit` 5회 `true`·6회째 `false`·`p_now`+60초 `true`(통합), 같은 멱등키 재요청 시 카운트 불변(통합), `getClientIp` 헤더 우선순위·없음→`'unknown'`(단위). 설정 패널(F-48, T-52): 키별 zod 범위(단위), `PUT` 부분 갱신·알 수 없는 키 400(통합). E2E 1개(T-24 시나리오). 수치 커버리지 임계값은 두지 않는다(요구 없음) |
 | Mock/Stub 대상 (외부 의존성) | 단위: `ports.ts` 인터페이스를 in-memory 구현(`tests/unit/fakes/*.ts`)으로 대체, `Clock`은 고정 시각. 시간은 `vi.useFakeTimers()`. 통합: mock 없음 — 로컬 Supabase 실물(ADR-0007). E2E: 로컬 Supabase + `next dev`, 관리자 계정은 셋업에서 로컬 Auth Admin API로 생성. 외부 송금 앱(카카오페이·토스)은 테스트하지 않음 — T-34 실기기 검증 |
 | T-01 스모크 범위 | (1) `tests/unit/smoke.test.ts` — `domain/i18n/locales.ts`의 `DEFAULT_LOCALE === 'ko'` 단언(도메인 모듈 import 경로 검증) (2) `tests/e2e/smoke.spec.ts` — `/` 접속 시 `<html lang>` 존재 + 200. (3) `npm run build` 성공. (4) CodingRules "검증된 명령어"에 `npm run dev` / `npm run build` / `npm run test` / `npm run test:e2e` / `npx supabase start` 원문 등록. (5) `.github/workflows/ci.yml` 생성 + 첫 push에서 녹색 확인(아래 CI 행). 통합 테스트 명령(`npm run test:integration`)은 T-02(로컬 Supabase 연결)에서 등록 |
-| CI | **GitHub Actions 도입**(PRD Open Question #34 — 사용자 "전부 추천대로, 승인", DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(implementer). 트리거: 모든 브랜치 `push` + `main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능). 전제(추정): 원격 저장소가 GitHub이고 Actions 무료 한도(공개 리포 무제한 / 비공개 월 2,000분) 안 — T-01에서 확인 |
-| 통합·E2E 로컬 실행 지침 (Docker) | PRD Open Question #38 운영 지침(요구사항 아님): **팀원 PC에서 Docker Desktop 설치가 가능하면 전원이 로컬 Supabase 스택으로 통합 테스트를 실행한다. 불가한 팀원은 단위 테스트만 로컬 실행하고, 통합·E2E는 DB 담당 + CI 잡 ②에 맡긴다**(ADR-0007 규격 유지). Docker 설치 가능 팀원 범위는 미정(#38 — 팀장 확인). 검증 전환 요청(AGENTS.md)에 첨부하는 통합 테스트 근거는 CI 실행 링크로 갈음 가능 |
+| CI | **GitHub Actions 도입**(PRD Open Question #34 — 승인, DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(implementer). 트리거: 모든 브랜치 `push` + `main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능) |
+| 통합·E2E 로컬 실행 지침 (Docker) | PRD Open Question #38 운영 지침: **팀원 전원 Docker Desktop 설치 불가 판정(2026-09-22 팀장 지시)**. 로컬에서는 단위 테스트 위주로 실행하고, 통합 테스트는 GitHub Actions CI 잡 ②(`supabase start` 기반)에 맡긴다(ADR-0007 규격 유지). 검증 전환 요청에 첨부하는 통합 테스트 근거는 CI 실행 링크로 갈음한다 |
 
 ## 배포
 

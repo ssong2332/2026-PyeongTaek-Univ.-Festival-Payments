@@ -1,7 +1,7 @@
 # PRD — 평택대 축제 부스 QR 주문·결제 시스템
 
 > 소유자: planner | 상태: 승인 | 최종 수정: 2026-09-22
-> 상태는 초안/승인 두 가지. "승인"으로 바꾸는 것은 사용자만 한다 — 승인 전 구현 착수 금지 (AGENTS.md 파이프라인 규칙).
+> 상태는 초안/승인 두 가지. "승인"으로 바꾸는 것은 팀장만 한다 — 승인 전 구현 착수 금지.
 
 ## 한 줄 정의
 
@@ -187,9 +187,9 @@
 | 30 | F-40 세부: 스케줄 인원 등록 방식(이름 텍스트 vs 관리자 계정 연결 — 계정 2~3개 vs 인원 5~6명), 시간대 단위(30분/1시간/자유), 교대 시각 알림 필요 여부, 같은 시간대 인원 겹침 허용 여부 | 미정 — 2026-09-22 planner 추가. 승인 기준은 이름 텍스트·자유 시간대·알림 없음 가정 |
 | 31 | F-41 세부: 리포트 출력 형식(화면/PDF/Markdown 다운로드), 생성 시점(관리자 수동 버튼 vs 축제 종료 후 자동), AI 요약(후기 텍스트 요약 등) 포함 여부 — 포함 시 외부 LLM API 비용·시크릿 관리 필요 | 미정 — 2026-09-22 planner 추가. 승인 기준은 수동 버튼·화면 표시·AI 요약 없음(집계만) 가정 |
 | 32 | 2차 구간(10-05~06, 2일)에 기존 2차 작업(T-26~T-30, T-37) + 승격된 F-35~F-41 작업(T-38~T-48, 11개) + 전화번호 확장(T-49, 2026-09-22 추가)을 전부 넣으면 반나절 단위 18개 작업 = 5~6명 기준으로도 빠듯함. 2차 안에서 우선순위(먼저 할 F)를 정할 것인가, 일부는 축제 후로 미룰 것인가? | 미정 — 2026-09-22 planner 추가. 사용자 원문 "일단 2차 기능으로 승격"의 "일단"이 우선순위 유보를 뜻하는지 확인 필요 |
-| 34 | (architect Open Question A, Architecture.md 테스트 전략 "CI" 행) CI를 도입하는가? 도입 시 GitHub Actions(unit + build)를 T-01에 포함 | 추천대로 — 사용자 원문 "전부 추천대로, 승인. 여기서 멈추고 팀원에게 넘길게" (2026-09-22, A~E 공통 답변). 메인 세션 해석: GitHub Actions(unit 테스트 + build)를 T-01 범위에 포함 (AGENTS.md 검증 루프 "CI를 쓰는 프로젝트면 CI 워크플로 생성도 T-01에 포함"). T-01 문구 갱신. Architecture.md CI 행 갱신은 architect 몫(planner 미수정) |
-| 35 | (architect Open Question B, Architecture.md 배포 "호스팅" 행) Vercel Hobby 플랜의 상업적 이용 제한 조항(추정)에 학과 축제 부스 판매가 해당하는가? | 추천대로 — 사용자 원문 #34와 동일 (2026-09-22). 메인 세션 해석: T-25(배포) 선행 작업 T-50 신설 — Vercel 약관 확인, 해당 시 Vercel Pro 1개월 또는 Cloudflare Pages 무료 전환. N-14에 예외 조건 추가. planner 메모: Cloudflare Pages 전환으로 확정되면 Next.js 서버 함수(Route Handler·Realtime 폴백) 호환 어댑터가 필요할 수 있고(추정 — T-50에서 확인) 배포 절(Architecture.md)이 바뀌므로 그 시점에 architect 호출 필요 |
-| 36 | (architect Open Question C, Architecture.md 보안 체크 "남용" 행) 익명 주문 생성 스팸으로 재고가 소진될 수 있음 — 요청 속도 제한을 두는가? | 추천대로 — 사용자 원문 #34와 동일 (2026-09-22). 메인 세션 해석: F-47 신설(IP당 분당 5건, 초과 시 429), T-51 신설(T-08 이후). 카운터 저장·IP 판별 메커니즘은 architect 확정. IP 공유 환경의 오차단 가능성은 #39 |
-| 37 | (architect Open Question D, ADR-0004 "실제 값 입력은 (1) 관리자 대시보드 설정 패널 또는 (2) Supabase Table Editor") 송금 정보 입력 UI를 대시보드에 두는가? | 추천대로 — 사용자 원문 #34와 동일 (2026-09-22). 메인 세션 해석: F-48 신설(설정 패널에서 송금 정보 5항목 + 자동 완료 N분 + 자동 만료 분 수정), 화면 표 대시보드 행에 설정 패널 추가, T-52 신설(T-33 선행). Architecture.md에 `SettingsPanel`·`PUT /api/admin/settings`(transfer.* 키)가 이미 정의되어 있어 아키텍처 변경 없음 |
-| 38 | (architect Open Question E, ADR-0007) Docker Desktop을 설치할 수 있는 팀원 범위는? 통합·E2E 테스트(로컬 Supabase 스택)를 누가 실행하는가? | 추천대로 — 사용자 원문 #34와 동일 (2026-09-22). 메인 세션 해석(운영 지침, 요구사항 아님 — PRD 요구사항·Tasks에 미반영): "팀원 PC에서 Docker 가능하면 전원 통합 테스트 실행, 불가하면 DB 담당 + CI(#34)만 실행". **Docker 설치 가능 팀원 범위 자체는 미정 — 팀 확인 필요** (팀원별 PC 사양·설치 가능 여부를 팀장이 확인해 이 칸에 기록) |
-| 39 | F-47 세부(2026-09-22 planner 추가): 축제 현장에서 여러 고객이 같은 공인 IP를 공유할 가능성(캠퍼스 Wi-Fi NAT, 통신사 CGNAT — 추정) — IP당 분당 5건이 정상 고객을 오차단할 수 있음. 한도를 올리거나 IP 외 키(예: 멱등키·브라우저 세션)를 병행할 것인가? | 미정 — 승인 기준은 IP당 분당 5건 그대로. 현장 Wi-Fi 공유 여부·예상 동시 주문 수는 팀 확인. 결정 전 T-51은 5건/분으로 구현하되 한도를 설정값 또는 상수 한 곳으로 두어 변경 가능하게 함(해석) |
+| 34 | (architect Open Question A, Architecture.md 테스트 전략 "CI" 행) CI를 도입하는가? 도입 시 GitHub Actions(unit + build)를 T-01에 포함 | 도입 확정 — GitHub Actions(unit 테스트 + build)를 T-01 범위에 포함. 워크플로(`.github/workflows/ci.yml`) 생성 |
+| 35 | (architect Open Question B, Architecture.md 배포 "호스팅" 행) Vercel Hobby 플랜의 상업적 이용 제한 조항(추정)에 학과 축제 부스 판매가 해당하는가? | **Vercel로 일단 진행 확정 (2026-09-22 팀장 지시)** — Vercel 기본 도메인 및 환경으로 배포 진행 |
+| 36 | (architect Open Question C, Architecture.md 보안 체크 "남용" 행) 익명 주문 생성 스팸으로 재고가 소진될 수 있음 — 요청 속도 제한을 두는가? | 도입 확정 — F-47 신설(IP당 분당 5건, 초과 시 429), T-51 신설 |
+| 37 | (architect Open Question D, ADR-0004 "실제 값 입력은 (1) 관리자 대시보드 설정 패널 또는 (2) Supabase Table Editor") 송금 정보 입력 UI를 대시보드에 두는가? | 도입 확정 — F-48 신설(대시보드 설정 패널에서 송금 정보 및 자동 완료/만료 분 수정), T-52 신설 |
+| 38 | (architect Open Question E, ADR-0007) Docker Desktop을 설치할 수 있는 팀원 범위는? 통합·E2E 테스트(로컬 Supabase 스택)를 누가 실행하는가? | **전원 Docker Desktop 설치 불가 판정 (2026-09-22 팀장 지시)** — 로컬에서는 단위 테스트 위주로 실행하고, 통합 테스트는 GitHub Actions CI로 검증 |
+| 39 | F-47 세부: 축제 현장에서 여러 고객이 같은 공인 IP를 공유할 가능성(캠퍼스 Wi-Fi NAT 등) — IP당 분당 5건이 정상 고객을 오차단할 수 있음 | **상수로 분리 확정 (2026-09-22 팀장 지시)** — 기본 5건/분으로 가되 `src/domain/order/rateLimit.ts`에 상수로 분리하여 현장 상황에 따라 즉시 조정 가능하도록 처리 |
