@@ -30,6 +30,9 @@
 
 | 용도 | 명령 (원문) | 검증일 |
 |---|---|---|
-| 빌드 | | |
-| 실행 | | |
-| 테스트 | | |
+| 의존성 설치 | `npm install` | 2026-09-22 |
+| 빌드 | `npm run build` | 2026-09-22 |
+| 실행 | `npm run dev` | 2026-09-22 |
+| 린트 | `npm run lint` | 2026-09-22 |
+| 테스트 (단위, Vitest) | `npm run test` | 2026-09-22 |
+| 테스트 (E2E, Playwright — 최초 1회 `npx playwright install chromium` 필요, dev 서버는 자동 기동) | `npm run test:e2e` | 2026-09-22 |
