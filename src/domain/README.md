@@ -1,1 +1,0 @@
-# src/domain — 순수 TS. next/supabase import 금지(zod 포함 — 타입만). "프레임워크 무관 규칙: 상태 머신, 가격, 대기 수, 집계, CSV" (Architecture 모듈 경계 표). 단위 테스트의 주 대상. `order/status.ts`·`order/stateMachine.ts`는 계약 모듈 — 변경은 architect 보고 후. 담당: 백엔드.

@@ -1,1 +1,0 @@
-# src/infra — 외부 세계와의 접점. `supabase/`(클라이언트 3종·생성 타입·requireAdmin), `repositories/`(ports 구현체 — SQL/RPC는 여기만, DB 에러→AppError 변환), `crypto/`(2차 T-49). `next/*`·`@supabase/*`는 infra와 app에서만 import한다 (Architecture "계층 규칙"). 담당: 백엔드/DB.

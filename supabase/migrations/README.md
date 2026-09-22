@@ -1,1 +1,0 @@
-# supabase/migrations — 0001_schema.sql, 0002_functions.sql, 0003_rls.sql, 0004_realtime.sql, 0005_pg_cron.sql(선택), 0006_rate_limit.sql(T-51). 2차: 01xx_*. 되돌리기 마이그레이션 없음 — 전진 수정 원칙(Architecture "배포").

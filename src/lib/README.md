@@ -1,1 +1,0 @@
-# src/lib — 공용 모듈. `dto/`(zod 스키마 + 추론 타입, 프론트·백 공용 계약 — 계약 모듈), `api/`(errors·handler·client·clientIp), `i18n/`(useT·getLocale·messages 로더), `format.ts`(KST 시각·원화), `logger.ts` (Architecture "구조 개요").

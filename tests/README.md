@@ -1,1 +1,0 @@
-# tests — 소스 옆 co-location 금지, 전부 여기(Architecture "테스트 전략"). `unit/**/*.test.ts(x)`(DB 불필요, ports mock) · `integration/**/*.test.ts`(로컬 Supabase 필수, T-02에서 명령 등록) · `e2e/**/*.spec.ts`(Playwright). 케이스 기준: `.agents/skills/tdd-practitioner/SKILL.md`.
