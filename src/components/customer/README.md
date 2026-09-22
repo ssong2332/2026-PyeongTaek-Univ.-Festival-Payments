@@ -1,0 +1,1 @@
+# components/customer — MenuCard, OptionSelector, QuantityStepper, CartSummary, PaymentMethodPicker, PickupNumberDisplay, TransferGuide, OrderStatusBadge, QueueCount, LanguageToggle (Architecture "구조 개요"). 담당: FE1.

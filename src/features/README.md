@@ -1,0 +1,1 @@
+# src/features — 화면 상태 훅(화면별 데이터·상태 소유자). `customer/`(useMenu·useCart·useOrderStatus·useCheckout), `admin/`(useOrdersFeed·useConnectionMonitor·useStats·useMenuAdmin·useSettings). features → components 단방향(components는 features를 모른다). 담당: 프론트.
