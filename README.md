@@ -75,4 +75,24 @@ messages/             # ko.json / en.json
 
 ## 실행·빌드·테스트
 
-T-01에서 명령이 확정되면 [docs/CodingRules.md](docs/CodingRules.md) "검증된 명령어" 절에 기록하고 여기에 반영한다.
+Node 버전은 `.nvmrc`(20.20.2)를 사용한다. 먼저 `node --version`으로 확인한다.
+
+```bash
+npm ci
+npm run dev
+```
+
+개발 서버는 http://localhost:3000 에서 열며 종료는 Ctrl+C다.
+
+```bash
+npm run lint
+npm run test
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+단위 테스트는 DB 없이 실행한다. E2E는 포트 3100의 개발 서버를 자동 시작·종료하며 현재 스모크에는 DB가 필요 없다.
+Node 버전 선택 도구가 있다면 `.nvmrc`를 적용한다(예: nvm 사용자는 `nvm install` 후 `nvm use`).
+
+검증 결과와 남은 GitHub 설정: [T-01 검증 기록](docs/T-01-validation.md).
