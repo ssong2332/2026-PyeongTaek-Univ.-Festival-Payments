@@ -24,8 +24,7 @@ F-07(주문·항목 생성·재고 차감 단일 트랜잭션, 동시 주문 시
 ```
 create_order(
   p_idempotency_key uuid,
-  p_payment_method  payment_method,      -- 'cash' | 'transfer'
-  p_transfer_method transfer_method,     -- 'bank' | 'kakaopay' | 'toss' | NULL
+  p_payment_method  payment_method,      -- 'cash' | 'transfer'(계좌이체) — 2026-09-24 간편결제 제외로 p_transfer_method 삭제
   p_locale          text,
   p_items           jsonb                -- [{menuItemId, quantity, optionIds:[...]}]
 ) returns jsonb  -- {orderId, pickupNumber, statusToken, totalAmount, status, createdAt, created}
