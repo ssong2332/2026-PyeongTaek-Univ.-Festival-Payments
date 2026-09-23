@@ -3,7 +3,7 @@ name: CI
 on:
   push:
   pull_request:
-    branches: [main]
+    branches: [dev, main]
 
 permissions:
   contents: read
@@ -26,3 +26,45 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: 테스트용 Supabase 시작
+        run: supabase start
+      - name: 테스트용 접속 설정 등록
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { appendFileSync } = require('node:fs');
+          const status = JSON.parse(execFileSync('supabase', ['status', '-o', 'json'], { encoding: 'utf8' }));
+          const entries = {
+            SUPABASE_URL: status.API_URL,
+            SUPABASE_ANON_KEY: status.ANON_KEY,
+            SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+          };
+          for (const [name, value] of Object.entries(entries)) {
+            if (typeof value !== 'string' || !value || /[\r\n]/.test(value)) {
+              throw new Error(`테스트용 ${name} 값을 확인할 수 없습니다.`);
+            }
+            if (name !== 'SUPABASE_URL') console.log(`::add-mask::${value}`);
+            appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`);
+          }
+          NODE
+      - name: DB 연결 및 통합 테스트
+        run: npm run test:integration
+      - name: 테스트용 Supabase 종료
+        if: always()
+        run: supabase stop --no-backup

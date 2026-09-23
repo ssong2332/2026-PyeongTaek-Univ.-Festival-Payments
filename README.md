@@ -53,7 +53,7 @@
 
 - **T-01(테스트 하네스 + CI)이 첫 작업** — 완료 전 다른 작업 착수 금지.
 - 새 기능은 실패하는 테스트부터(Red-Green-Refactor). 테스트 없는 기능은 미완료.
-- `main` 직접 커밋 금지. 브랜치 `feat/T-xx-설명`, 커밋은 Conventional Commits, 병합 전 [DefinitionOfDone](docs/DefinitionOfDone.md) 통과.
+- `dev`·`main` 직접 커밋 금지. 최신 `dev`에서 기능 브랜치를 만들고 PR은 `dev` 대상으로 요청한다. `main`은 최종 완성본 반영에 사용한다. 브랜치 `feat/T-xx-설명`, 커밋은 Conventional Commits, 병합 전 [DefinitionOfDone](docs/DefinitionOfDone.md) 통과.
 - 실제 `.env`는 커밋하지 않는다. 계좌번호·송금 링크는 코드에 넣지 않고 설정 테이블로(ADR-0004).
 - 작업 상태(대기→진행→검증중→완료)는 팀장만 바꾼다. 팀원은 구현·테스트 근거를 첨부해 "검증 전환 요청".
 
@@ -96,3 +96,24 @@ npm run test:e2e
 Node 버전 선택 도구가 있다면 `.nvmrc`를 적용한다(예: nvm 사용자는 `nvm install` 후 `nvm use`).
 
 검증 결과와 남은 GitHub 설정: [T-01 검증 기록](docs/T-01-validation.md).
+
+
+## Supabase 연결 준비 (T-02)
+
+1. 팀 Supabase 프로젝트가 준비되면 루트의 `.env.example`을 `.env.local`로 복사한다.
+2. `.env.local`에 프로젝트 주소, 공개 키, 서버 전용 키를 입력한다. 이 파일은 Git에 올라가지 않는다. 실제 키를 채팅·PR·문서에 붙이지 않는다.
+3. Node 20.20.2에서 `npm ci`를 실행한 뒤 `npm run test:connection`으로 실제 연결을 확인한다.
+
+`test:connection`은 Auth 관리자 API로 사용자 목록 최대 1건을 읽어 연결을 확인하며, 사용자 정보나 키를 출력하지 않는다. 데이터 생성·수정·삭제는 하지 않는다. 테이블·주문 규칙 검증은 T-03 이후 작업이다.
+
+일반 개발은 `npm run dev`, DB 없는 검사는 `npm run test`를 사용한다. 서버의 데이터 접근에는 `src/infra/supabase/server.ts`의 `createServiceClient()`를 사용한다. 호출하는 관리자 API의 인증 검사는 T-13에서 추가해야 한다.
+관리자 브라우저의 Auth·Realtime 연결에는 `createAdminBrowserClient()`를 사용한다. 고객 화면은 Supabase에 직접 접근하지 않고 `/api`를 호출한다. 쿠키 세션·로그인 보호(`session.ts`, `requireAdmin`)는 T-13, DB 타입 생성은 스키마 작성 후에 추가한다.
+
+### GitHub의 테스트 DB
+
+팀의 Docker 설치 불가 방침에 따라 통합 테스트는 GitHub Actions의 `integration` 작업에서 실행한다. 테스트마다 독립된 로컬 Supabase를 켜고 접속 정보를 자동으로 읽으므로 원격 프로젝트나 GitHub Secrets는 필요 없다. 종료 시 테스트 환경을 정리한다.
+`unit-build`와 `integration`은 모든 코드 업로드 및 `dev`·`main` 대상 PR에서 실행된다. `dev` 개발 흐름은 [GitWorkflow](docs/GitWorkflow.md)를 따른다.
+
+Docker를 사용할 수 있는 환경에서만 Supabase CLI 2.117.0으로 `supabase start`를 실행하고, `.env.test.example`을 `.env.test.local`로 복사해 `supabase status`의 로컬 값을 입력한 뒤 `npm run test:integration`을 실행한다. 통합 테스트는 원격 주소를 거부하고 파일을 순서대로 실행한다.
+
+2026-09-23 팀 Supabase 프로젝트에 대한 읽기 전용 연결 검사 1개가 통과했다. Node 20.20.2에서 단위 검사 27개·코드 규칙 검사·빌드도 통과했다. GitHub의 독립 테스트 DB를 사용하는 `integration` 작업은 업로드 후 별도로 확인해야 한다.
