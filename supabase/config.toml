@@ -1,0 +1,46 @@
+# CI와 Docker 사용 가능한 개발 환경의 독립 테스트 DB 설정이다.
+project_id = "pyeongtaek-festival-payments"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+# 초기 데이터는 T-36에서 추가한다.
+[db.seed]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+enable_signup = false
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = false
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = false
+
+[analytics]
+enabled = false
+
+[edge_runtime]
+enabled = false
