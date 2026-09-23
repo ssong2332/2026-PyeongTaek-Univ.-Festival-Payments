@@ -15,7 +15,7 @@
 | 검증·상태 | zod(DTO 공유), zustand(장바구니, sessionStorage persist) | DECISIONS #23, #25 |
 | 차트 | recharts | F-30 메뉴별 판매율 (DECISIONS #28) |
 | 테스트 | Vitest(단위·통합), Playwright(E2E), Supabase CLI 로컬 스택 | ADR-0007 |
-| 배포 | Vercel(Hobby) + Supabase Free, `*.vercel.app` | N-14. 한도는 "배포" 절 |
+| 배포 | Cloudflare Workers Free + Supabase Free, `*.workers.dev` | N-14. 한도는 "배포" 절 |
 | 패키지·런타임 | npm, Node 20 LTS | DECISIONS #28 |
 
 ## 구조 개요
@@ -422,15 +422,14 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 
 | 항목 | 결정 |
 |---|---|
-| 호스팅 / 실행 대상 | Vercel Hobby(Next.js, 서버리스 함수) + Supabase Free 프로젝트 1개(프로덕션). 도메인 `{project}.vercel.app`(N-14) — T-25에서 확정 후 QR 인쇄. **무료 티어 한도(전부 추정 — T-25에서 각 서비스 요금 페이지로 확인)**: Supabase Free: DB 500MB, Realtime 동시 연결 200·월 메시지 200만, MAU 5만, **비활성 7일 후 프로젝트 일시정지** → 축제 전주(10-01~06) 매일 접속하고 10-06 저녁 상태 확인을 T-30 절차에 포함. Vercel Hobby: 대역폭 100GB/월, 함수 기본 타임아웃 10초. **호스팅 확정 여부: 확인 전 미확정** — Hobby 플랜의 상업적 이용 제한 조항(추정)에 학과 축제 부스 판매가 해당하는지 **T-50에서 약관 확인**(N-14 예외, PRD Open Question #35, DECISIONS #35). 해당 시 (a) Vercel Pro 1개월 — 설계 영향 없음(도메인·함수·헤더 동일), 또는 (b) Cloudflare Pages 무료 — 설계 영향 있음: Next.js 어댑터(`@opennextjs/cloudflare` 또는 `@cloudflare/next-on-pages` — 추정) 필요, Route Handler가 Workers 런타임에서 실행되므로 `node:crypto` 사용처(`clientIp.ts` 해시)는 `crypto.subtle`로, 클라이언트 IP 헤더는 `cf-connecting-ip`(ADR-0009), 도메인 `*.pages.dev`로 QR 인쇄 전 확정, 롤백은 Cloudflare 배포 이력 승격. (b)로 확정되면 이 절과 ADR-0009의 클라이언트 IP 판정을 갱신해야 한다(설계 변경 → 팀장 확인) |
-| 빌드·릴리스 파이프라인 | Vercel Git 연동: **`dev` push → 프로덕션 빌드·배포(자동)** (2026-09-23 변경 — 프로토타입 방식에서 작업이 `dev`에 병합되므로 데모·QR 주소에 최신 상태가 바로 반영되도록 Vercel Production Branch를 `dev`로 설정), feature 브랜치 push → 프리뷰 배포. 빌드 = `npm run build`. 테스트는 GitHub Actions(테스트 전략 "CI" 행)가 push·PR마다 실행하고, 병합 전 DoD가 CI 녹색을 요구한다. Vercel 배포와 CI는 독립(Vercel은 CI 결과를 기다리지 않음) — `main` 보호는 GitHub 브랜치 규칙(PR 필수 + `unit-build` 필수 체크)으로 강제(T-01에서 설정, 리포 관리자 권한 필요 — 없으면 Open Question) |
-| 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Vercel 프리뷰 URL, **DB는 프로덕션 Supabase 공유** — 스테이징 DB 없음, 무료 프로젝트 1개) → 프로덕션(`dev`, 2026-09-23 변경). 프리뷰가 프로덕션 DB를 쓰므로 축제 당일(10-07~08)에는 `dev` 외 배포·마이그레이션 금지(T-30 동결 규칙) |
-| 환경별 설정 | Vercel 환경변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`(공개 가능), `SUPABASE_SERVICE_ROLE_KEY`(서버 전용, Sensitive), (2차) `PHONE_ENCRYPTION_KEY`. 로컬은 `.env.local`(미커밋), `.env.example`에 플레이스홀더(담당 팀원이 T-02·T-49에서 갱신). 송금 정보·운영값은 환경변수가 아니라 `app_settings`(ADR-0004) |
-| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후(1차엔 삭제 없음). 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36) |
-| 롤백 절차 | 앱: Vercel 대시보드 "Instant Rollback"(이전 배포 승격, 1분 이내). DB: 되돌리기 마이그레이션 없음 — 전진 수정(새 마이그레이션) 원칙. 데이터 손상 시 Supabase 일일 백업은 무료 티어에 없음(추정) → 축제 전 `supabase db dump`로 수동 백업 1회(T-25) |
-| 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 이 스모크의 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 |
-| 배포 전 필수 설정(Supabase 대시보드) | Auth → 이메일 회원가입 **비활성화**(DECISIONS #26), 관리자 계정 2~3개 생성(F-20), pg_cron 가용 확인(ADR-0006). 절차는 T-30 |
-
+| 호스팅 / 실행 대상 | **Cloudflare Workers Free + Supabase Free** 프로젝트 1개(프로덕션). T-50(2026-09-23) 검증 결과 비용 0원 방침에 따라 Vercel Hobby를 사용하지 않고 Cloudflare Workers Free로 전환 확정. 현재 프로젝트는 Next.js 16 계열이므로 Cloudflare 공식 권장 경로인 `vinext`를 T-25에서 우선 검증한다. `npx vinext check`로 호환성을 확인한 뒤 문제 없으면 `vinext init`을 적용하고, 호환 문제가 있으면 OpenNext 어댑터를 폴백으로 검토한다. 도메인은 구매하지 않고 `{worker}.{account-subdomain}.workers.dev` 사용(N-14). Worker 이름과 account subdomain은 T-25에서 확정한 후 QR 인쇄 전 변경 금지. Workers Free는 100,000 requests/day, CPU 10ms/request 한도이므로 요청량은 예상 200건/일에 충분하나 SSR/API CPU 사용량은 T-25 스모크·T-29 부하 검증에서 확인한다. |
+| 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`dev`를 프로덕션 배포 브랜치로 사용**한다. `dev`에 병합된 코드가 프로토타입 및 실제 운영 배포 대상으로 반영되도록 한다. feature 브랜치는 프리뷰 환경으로 확인한다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
+| 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`dev`). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 `dev` 외 배포·DB 마이그레이션을 금지한다(T-30 동결 규칙). |
+| 환경별 설정 | Cloudflare Workers 환경변수/Secrets에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`를 설정한다. `SUPABASE_SERVICE_ROLE_KEY`와 `PHONE_ENCRYPTION_KEY`는 서버 전용 Secret으로 관리한다. 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
+| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후(1차엔 삭제 없음). 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36). |
+| 롤백 절차 | 앱: Cloudflare Workers Deployments에서 이전 배포 버전으로 Rollback한다. DB는 되돌리기 마이그레이션 없이 전진 수정(새 마이그레이션)을 원칙으로 한다. 데이터 손상 대비 축제 전 `supabase db dump`로 수동 백업 1회(T-25). |
+| 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 테스트 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 한다. |
+| 배포 전 필수 설정(Supabase 대시보드) | Auth → 이메일 회원가입 비활성화, 관리자 계정 2~3개 생성(F-20), pg_cron 가용 확인(ADR-0006). 절차는 T-30에 기록한다. |
 ## 에러 처리
 
 전역 전략이다 — 기능별 메모가 아니다. 모든 행에 결정 또는 명시적 "해당 없음 — 사유"를 적는다.
@@ -448,8 +447,8 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 
 | 항목 | 결정 |
 |---|---|
-| 로깅 | `src/lib/logger.ts`: JSON 1줄 → stdout(Vercel 함수 로그에 수집). 필드: `level, event, requestId, route, orderId?, pickupNumber?, code?, durationMs`. **허용 필드 화이트리스트만 직렬화**, 키 이름에 `phone`이 포함되면 `[redacted]`(N-17 로그 평문 0건 — 단위 테스트). 이벤트 목록: `order.created`, `order.idempotent_replay`, `order.rate_limited`(warn, `keyPrefix` 해시 앞 8자 — IP 원문 금지), `order.transition`, `order.sweep`, `settings.updated`(키 목록만, 값 금지 — 계좌번호 로그 방지), `settings.transfer.missing`(warn), `api.error`. 로그에 `status_token`·`idempotency_key` 전체 금지(앞 8자만). 브라우저 `console.*`는 개발 모드만 |
-| 에러 추적 / 모니터링 | 없음 — 비용 0·2일 운영. 대체: Vercel 함수 로그(보존 짧음 — 추정, 축제 당일 관리자 1명이 "Logs" 탭 확인 절차 T-30) + `ConnectionBanner`(F-31) + `GET /api/health` |
+| 로깅 | `src/lib/logger.ts`: JSON 1줄 → stdout(Cloudflare Workers 로그/관측성에서 확인). 필드: `level, event, requestId, route, orderId?, pickupNumber?, code?, durationMs`. **허용 필드 화이트리스트만 직렬화**, 키 이름에 `phone`이 포함되면 `[redacted]`(N-17 로그 평문 0건 — 단위 테스트). 이벤트 목록: `order.created`, `order.idempotent_replay`, `order.rate_limited`(warn, `keyPrefix` 해시 앞 8자 — IP 원문 금지), `order.transition`, `order.sweep`, `settings.updated`(키 목록만, 값 금지 — 계좌번호 로그 방지), `settings.transfer.missing`(warn), `api.error`. 로그에 `status_token`·`idempotency_key` 전체 금지(앞 8자만). 브라우저 `console.*`는 개발 모드만 |
+| 에러 추적 / 모니터링 | 없음 — 비용 0·2일 운영. 대체: Cloudflare Workers 로그/관측성(보존 짧음 — 추정, 축제 당일 관리자 1명이 "Logs" 탭 확인 절차 T-30) + `ConnectionBanner`(F-31) + `GET /api/health` |
 | 메트릭 | MVP에서는 없음. 대체: `GET /api/admin/stats`의 상태별 건수(`totals`)가 운영 지표(만료·취소 급증 감지). 성능 p95는 2차 T-29 k6 1회 측정으로 갈음 |
 
 ## 보안 체크 (security-audit 스킬 적용 결과 요약)
