@@ -119,4 +119,4 @@ Node 버전 선택 도구가 있다면 `.nvmrc`를 적용한다(예: nvm 사용�
 
 Docker를 사용할 수 있는 환경에서만 Supabase CLI 2.117.0으로 `supabase start`를 실행하고, `.env.test.example`을 `.env.test.local`로 복사해 `supabase status`의 로컬 값을 입력한 뒤 `npm run test:integration`을 실행한다. 통합 테스트는 원격 주소를 거부하고 파일을 순서대로 실행한다.
 
-2026-09-23 팀 Supabase 프로젝트에 대한 읽기 전용 연결 검사 1개가 통과했다. Node 20.20.2에서 단위 검사 27개·코드 규칙 검사·빌드도 통과했다. GitHub의 독립 테스트 DB를 사용하는 `integration` 작업은 업로드 후 별도로 확인해야 한다.
+2026-09-23 팀 Supabase 프로젝트에 대한 읽기 전용 연결 검사 1개가 통과했다. Node 20.20.2에서 단위 검사 27개·코드 규칙 검사·빌드도 통과했다. GitHub의 독립 테스트 DB를 사용하는 `integration` 작업도 통과했다. [CI 성공 근거](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/actions/runs/35806617781).

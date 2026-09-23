@@ -56,12 +56,14 @@ E2E 최초 실행 전 `npx playwright install chromium`이 필요하다. 현재 
 ### T-02 연결 검사 명령
 
 - `npm run test:connection`: `.env.local`의 팀 Supabase 프로젝트에 읽기 전용 연결 검사. 2026-09-23 실제 프로젝트에 대한 검사 1개 통과.
-- `npm run test:integration`: `.env.test.local` 또는 CI 환경변수로 독립 로컬 DB 통합 검사. Docker 사용이 가능한 GitHub Actions에서 성공한 뒤 검증된 명령 표에 추가한다.
+- `npm run test:integration`: `.env.test.local` 또는 CI 환경변수로 독립 로컬 DB 통합 검사. 2026-09-23 GitHub Actions에서 통과했다.
 - 단위 검사는 실제 Supabase에 접속하지 않는다. 통합 검사는 원격 DB를 거부하고 파일 직렬 실행을 유지한다.
 
 
 | 용도 | 명령 (원문) | 검증일 |
 |---|---|---|
 | 실제 프로젝트 연결 검사(읽기 전용) | `npm run test:connection` | 2026-09-23 |
+| CI 테스트 DB 시작 | `supabase start` | 2026-09-23 |
+| CI 통합 테스트 | `npm run test:integration` | 2026-09-23 |
 
-Node 20.20.2에서 연결 검사 1개, 단위 검사 27개, `npm run lint`, `npm run build` 통과. 실제 키와 조회한 사용자 정보는 기록하지 않는다. GitHub 통합 검사는 아직 미검증이다.
+Node 20.20.2에서 연결 검사 1개, 단위 검사 27개, `npm run lint`, `npm run build` 통과. 실제 키와 조회한 사용자 정보는 기록하지 않는다. GitHub 통합 검사도 통과했다. [CI 성공 근거](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/actions/runs/35806617781).
