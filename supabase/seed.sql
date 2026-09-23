@@ -7,7 +7,24 @@
 
 BEGIN;
 
--- 기본 호떡 메뉴
+-- 운영자가 수정한 설정과 이미 발급한 픽업 번호는 재실행 시 보존한다.
+INSERT INTO public.app_settings (key, value)
+VALUES
+    ('payment.expire_minutes', '10'),
+    ('auto_complete.enabled', 'false'),
+    ('auto_complete.minutes', '15'),
+    ('transfer.bank_name', ''),
+    ('transfer.account_number', ''),
+    ('transfer.account_holder', ''),
+    ('transfer.kakaopay_url_template', ''),
+    ('transfer.toss_url_template', '')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO public.counters (key, value)
+VALUES ('pickup_number', 0)
+ON CONFLICT (key) DO NOTHING;
+
+-- 호떡 메뉴 4종
 INSERT INTO public.menu_items (
     id,
     base_price,
