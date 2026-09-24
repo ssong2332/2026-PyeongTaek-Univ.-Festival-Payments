@@ -6,8 +6,11 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withHandler(async () => {
-    const repository = new SupabaseSettingsRepository();
-    const settings = await getTransferSettings(repository, logger);
-    return NextResponse.json(settings, { status: 200 });
-});
+export const GET = withHandler(
+    async () => {
+        const repository = new SupabaseSettingsRepository();
+        const settings = await getTransferSettings(repository, logger);
+        return NextResponse.json(settings, { status: 200 });
+    },
+    { route: "/api/settings/transfer" },
+);

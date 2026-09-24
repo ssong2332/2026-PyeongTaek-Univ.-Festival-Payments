@@ -37,13 +37,15 @@ export class AppError extends Error {
 
 export function toErrorResponse(error: unknown): { status: number; envelope: ErrorResponseEnvelope } {
     if (error instanceof AppError) {
+        // Architecture 5: 500 INTERNAL_ERROR는 내부 DB 메시지나 스택을 절대 고객 응답에 노출하지 않음
+        const isInternal = error.status >= 500 || error.code === "INTERNAL_ERROR";
         return {
             status: error.status,
             envelope: {
                 error: {
                     code: error.code,
-                    message: error.message,
-                    ...(error.details !== undefined ? { details: error.details } : {}),
+                    message: isInternal ? "An internal server error occurred." : error.message,
+                    ...(!isInternal && error.details !== undefined ? { details: error.details } : {}),
                 },
             },
         };

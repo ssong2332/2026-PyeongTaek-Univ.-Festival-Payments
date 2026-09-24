@@ -42,7 +42,7 @@ function createMockLogger(): Logger {
 }
 
 describe("T-33: getTransferSettings (계좌이체 전용)", () => {
-    it("은행 송금 정보 3종(은행명, 계좌번호, 예금주)이 모두 채워져 있으면 configured가 true다", async () => {
+    it("은행 송금 정보 3종(은행명, 계좌번호, 예금주)이 모두 채워져 있으면 configured가 true이고 warn이 발생하지 않는다", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "국민은행",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "123-456-789012",
@@ -59,7 +59,7 @@ describe("T-33: getTransferSettings (계좌이체 전용)", () => {
         expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
-    it("은행 송금 정보가 모두 비어있으면 configured가 false이고 settings.transfer.missing 경고 로그가 남는다 (F-44)", async () => {
+    it("은행 송금 정보 3종이 모두 비어있으면 configured가 false이고 settings.transfer.missing warn 로그가 남는다 (F-44)", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "",
@@ -73,7 +73,21 @@ describe("T-33: getTransferSettings (계좌이체 전용)", () => {
         expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
     });
 
-    it("은행 정보 중 일부(예: 계좌번호)만 누락되어도 configured가 false다", async () => {
+    it("은행명만 누락된 경우 configured가 false이고 settings.transfer.missing warn 로그가 남는다", async () => {
+        const fakeRepo = new FakeSettingsRepository({
+            [TRANSFER_SETTING_KEYS.BANK_NAME]: "", // 누락
+            [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "123-456-789012",
+            [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "홍길동",
+        });
+        const mockLogger = createMockLogger();
+
+        const result = await getTransferSettings(fakeRepo, mockLogger);
+
+        expect(result.configured).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
+    });
+
+    it("계좌번호만 누락된 경우 configured가 false이고 settings.transfer.missing warn 로그가 남는다", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "국민은행",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "", // 누락
@@ -87,7 +101,21 @@ describe("T-33: getTransferSettings (계좌이체 전용)", () => {
         expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
     });
 
-    it("공백만 입력된 설정값은 trim 처리되어 빈 값으로 간주된다", async () => {
+    it("예금주만 누락된 경우 configured가 false이고 settings.transfer.missing warn 로그가 남는다", async () => {
+        const fakeRepo = new FakeSettingsRepository({
+            [TRANSFER_SETTING_KEYS.BANK_NAME]: "국민은행",
+            [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "123-456-789012",
+            [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "", // 누락
+        });
+        const mockLogger = createMockLogger();
+
+        const result = await getTransferSettings(fakeRepo, mockLogger);
+
+        expect(result.configured).toBe(false);
+        expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
+    });
+
+    it("공백 문자열('   ')만 입력된 값은 trim 처리되어 빈 값으로 간주된다", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "   ",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "   ",
@@ -120,17 +148,15 @@ describe("T-33: getTransferSettings (계좌이체 전용)", () => {
         // 결과 객체의 키 목록이 정확히 계좌 정보 DTO 키만 포함하는지 검증
         const returnedKeys = Object.keys(result).sort();
         const expectedKeys = [
-            "configured",
-            "bankName",
-            "accountNumber",
             "accountHolder",
+            "accountNumber",
+            "bankName",
+            "configured",
         ].sort();
 
         expect(returnedKeys).toEqual(expectedKeys);
         expect((result as Record<string, unknown>)["payment.expire_minutes"]).toBeUndefined();
         expect((result as Record<string, unknown>)["admin.secret_key"]).toBeUndefined();
-        expect((result as Record<string, unknown>)["kakaopayUrlTemplate"]).toBeUndefined();
-        expect((result as Record<string, unknown>)["tossUrlTemplate"]).toBeUndefined();
     });
 
     it("N-05: 소스 코드 및 시드 파일에 실제 계좌번호나 실서비스 송금 URL이 하드코딩되어 있지 않다", () => {
