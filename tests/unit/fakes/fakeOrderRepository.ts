@@ -14,8 +14,8 @@ export function createFakeOrderRepository(orders: OrderForTransition[] = []) {
     async transition(command) {
       calls.push(command);
       const order = store.get(command.orderId);
-      if (!order) throw new AppError("NOT_FOUND");
-      if (order.status !== command.from) throw new AppError("STATE_CHANGED");
+      if (!order) throw new AppError("NOT_FOUND", 404);
+      if (order.status !== command.from) throw new AppError("STATE_CHANGED", 409);
       order.status = command.to;
       return { ...order };
     },
