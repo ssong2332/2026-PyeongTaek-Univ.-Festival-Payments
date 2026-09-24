@@ -13,12 +13,11 @@ DO $$ BEGIN
             <> ARRAY[2000, 2500, 3500, 4000] THEN
         RAISE EXCEPTION 'menu count or prices mismatch';
     END IF;
-    IF (SELECT count(*) FROM public.app_settings) <> 8 OR EXISTS (
+    IF (SELECT count(*) FROM public.app_settings) <> 6 OR EXISTS (
         SELECT 1 FROM (VALUES
             ('payment.expire_minutes', '10'), ('auto_complete.enabled', 'false'),
             ('auto_complete.minutes', '15'), ('transfer.bank_name', ''),
-            ('transfer.account_number', ''), ('transfer.account_holder', ''),
-            ('transfer.kakaopay_url_template', ''), ('transfer.toss_url_template', '')
+            ('transfer.account_number', ''), ('transfer.account_holder', '')
         ) AS expected(key, value)
         LEFT JOIN public.app_settings actual USING (key)
         WHERE actual.value IS DISTINCT FROM expected.value
@@ -40,7 +39,7 @@ UPDATE public.counters SET value = 150 WHERE key = 'pickup_number';
 DO $$ BEGIN
     IF (SELECT count(*) FROM public.menu_items) <> 4
         OR (SELECT count(*) FROM public.menu_item_translations) <> 8
-        OR (SELECT count(*) FROM public.app_settings) <> 8
+        OR (SELECT count(*) FROM public.app_settings) <> 6
         OR (SELECT count(*) FROM public.counters) <> 1 THEN
         RAISE EXCEPTION 'repeated seed created duplicate or missing records';
     END IF;

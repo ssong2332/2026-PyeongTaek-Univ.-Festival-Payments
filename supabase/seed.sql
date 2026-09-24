@@ -15,9 +15,7 @@ VALUES
     ('auto_complete.minutes', '15'),
     ('transfer.bank_name', ''),
     ('transfer.account_number', ''),
-    ('transfer.account_holder', ''),
-    ('transfer.kakaopay_url_template', ''),
-    ('transfer.toss_url_template', '')
+    ('transfer.account_holder', '')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO public.counters (key, value)
