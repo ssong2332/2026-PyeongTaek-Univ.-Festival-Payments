@@ -34,3 +34,11 @@
 - `tests/unit/fakes/fakeOrderRepository.ts`(CAS 흉내) + `tests/unit/services/adminOrderService.test.ts` 14개.
 - 모듈 없음으로 실패 확인 후 구현. `npm run test` 109개 통과, `npm run typecheck`·`npm run lint` 통과.
 - 남은 일: Supabase 구현체와 `transition_order` SQL·통합 테스트(T-03·T-53 적용 후), 이력.
+
+## 팀장 확인 필요 (2026-09-24)
+
+1. **`AppError` 생성자 모양** — 문서끼리 다르다. CodingRules: `AppError(code, message, status, details)` / Architecture "예외를 잡는 위치": `AppError(code, httpStatus, details?)`.
+   구현은 `AppError(code, details?, message?)`로, HTTP 상태를 ErrorCode 표에서 자동으로 정한다(코드마다 상태가 고정이라 호출할 때마다 적으면 틀릴 수 있음). 이대로 괜찮으면 CodingRules·Architecture 문구를 맞춰야 한다.
+2. **services → `lib/api/errors` import** — 모듈 경계 표에서 services의 의존 대상은 `domain, ports`뿐인데, 같은 문서가 "서비스는 AppError를 던진다"고 한다. `AppError`는 순수 TS라 lint 규칙에는 걸리지 않는다. 의존 대상에 `lib/api/errors`를 추가할지, `AppError` 위치를 옮길지 결정 필요.
+3. **의존성 기본값 미적용** — Architecture는 `transition(dto, deps = defaultDeps())`처럼 기본값 주입이지만, Supabase 구현체가 아직 없어 지금은 `deps`를 필수 인자로 두었다. 구현체(T-03·T-53 적용 후)를 만들 때 기본값을 넣는다.
+4. **이슈 #23 남은 결정** — ① `stateMachine.test.ts` 맨 아래 "kakaopay/toss 입력 거부" 테스트를 안전장치로 유지할지(현재 유지) 이슈 문구대로 삭제할지. ② 이슈를 "210dbf2로 반영, T-14 PR에서 닫음" 댓글 후 T-14 PR로 닫을지, 상태 머신만 먼저 PR할지.
