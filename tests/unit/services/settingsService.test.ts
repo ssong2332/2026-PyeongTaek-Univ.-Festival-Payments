@@ -41,14 +41,12 @@ function createMockLogger(): Logger {
     };
 }
 
-describe("T-33: getTransferSettings", () => {
-    it("은행 송금 정보 3종이 모두 채워져 있으면 configured가 true다", async () => {
+describe("T-33: getTransferSettings (계좌이체 전용)", () => {
+    it("은행 송금 정보 3종(은행명, 계좌번호, 예금주)이 모두 채워져 있으면 configured가 true다", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "국민은행",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "123-456-789012",
             [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "홍길동",
-            [TRANSFER_SETTING_KEYS.KAKAO_PAY_URL_TEMPLATE]: "",
-            [TRANSFER_SETTING_KEYS.TOSS_URL_TEMPLATE]: "",
         });
         const mockLogger = createMockLogger();
 
@@ -58,35 +56,14 @@ describe("T-33: getTransferSettings", () => {
         expect(result.bankName).toBe("국민은행");
         expect(result.accountNumber).toBe("123-456-789012");
         expect(result.accountHolder).toBe("홍길동");
-        expect(result.kakaopayUrlTemplate).toBe("");
-        expect(result.tossUrlTemplate).toBe("");
         expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
-    it("은행 정보가 없더라도 카카오페이 URL 템플릿이 채워져 있으면 configured가 true다", async () => {
+    it("은행 송금 정보가 모두 비어있으면 configured가 false이고 settings.transfer.missing 경고 로그가 남는다 (F-44)", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "",
             [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "",
-            [TRANSFER_SETTING_KEYS.KAKAO_PAY_URL_TEMPLATE]: "https://qr.kakaopay.com/sample",
-            [TRANSFER_SETTING_KEYS.TOSS_URL_TEMPLATE]: "",
-        });
-        const mockLogger = createMockLogger();
-
-        const result = await getTransferSettings(fakeRepo, mockLogger);
-
-        expect(result.configured).toBe(true);
-        expect(result.kakaopayUrlTemplate).toBe("https://qr.kakaopay.com/sample");
-        expect(mockLogger.warn).not.toHaveBeenCalled();
-    });
-
-    it("모든 송금 정보가 비어있으면 configured가 false이고 settings.transfer.missing 경고 로그가 남는다 (F-44)", async () => {
-        const fakeRepo = new FakeSettingsRepository({
-            [TRANSFER_SETTING_KEYS.BANK_NAME]: "",
-            [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "",
-            [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "",
-            [TRANSFER_SETTING_KEYS.KAKAO_PAY_URL_TEMPLATE]: "",
-            [TRANSFER_SETTING_KEYS.TOSS_URL_TEMPLATE]: "",
         });
         const mockLogger = createMockLogger();
 
@@ -96,7 +73,7 @@ describe("T-33: getTransferSettings", () => {
         expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
     });
 
-    it("은행 정보 중 일부(예: 계좌번호)만 누락되어도 URL이 없으면 configured가 false다", async () => {
+    it("은행 정보 중 일부(예: 계좌번호)만 누락되어도 configured가 false다", async () => {
         const fakeRepo = new FakeSettingsRepository({
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "국민은행",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "", // 누락
@@ -115,7 +92,6 @@ describe("T-33: getTransferSettings", () => {
             [TRANSFER_SETTING_KEYS.BANK_NAME]: "   ",
             [TRANSFER_SETTING_KEYS.ACCOUNT_NUMBER]: "   ",
             [TRANSFER_SETTING_KEYS.ACCOUNT_HOLDER]: "   ",
-            [TRANSFER_SETTING_KEYS.KAKAO_PAY_URL_TEMPLATE]: "  ",
         });
         const mockLogger = createMockLogger();
 
@@ -125,7 +101,6 @@ describe("T-33: getTransferSettings", () => {
         expect(result.bankName).toBe("");
         expect(result.accountNumber).toBe("");
         expect(result.accountHolder).toBe("");
-        expect(result.kakaopayUrlTemplate).toBe("");
         expect(mockLogger.warn).toHaveBeenCalledWith("settings.transfer.missing");
     });
 
@@ -142,20 +117,20 @@ describe("T-33: getTransferSettings", () => {
 
         const result = await getTransferSettings(fakeRepo);
 
-        // 결과 객체의 키 목록이 정확히 DTO 키만 포함하는지 검증
+        // 결과 객체의 키 목록이 정확히 계좌 정보 DTO 키만 포함하는지 검증
         const returnedKeys = Object.keys(result).sort();
         const expectedKeys = [
             "configured",
             "bankName",
             "accountNumber",
             "accountHolder",
-            "kakaopayUrlTemplate",
-            "tossUrlTemplate",
         ].sort();
 
         expect(returnedKeys).toEqual(expectedKeys);
         expect((result as Record<string, unknown>)["payment.expire_minutes"]).toBeUndefined();
         expect((result as Record<string, unknown>)["admin.secret_key"]).toBeUndefined();
+        expect((result as Record<string, unknown>)["kakaopayUrlTemplate"]).toBeUndefined();
+        expect((result as Record<string, unknown>)["tossUrlTemplate"]).toBeUndefined();
     });
 
     it("N-05: 소스 코드 및 시드 파일에 실제 계좌번호나 실서비스 송금 URL이 하드코딩되어 있지 않다", () => {
@@ -169,7 +144,6 @@ describe("T-33: getTransferSettings", () => {
                     checkDir(fullPath);
                 } else if (/\.(ts|tsx|js|mjs|json|sql)$/.test(file)) {
                     const content = fs.readFileSync(fullPath, "utf-8");
-                    // 실제 계좌번호 패턴이나 카카오페이/토스 실 URL 패턴 검사
                     expect(content).not.toMatch(/qr\.kakaopay\.com\/[a-zA-Z0-9_-]{8,}/);
                     expect(content).not.toMatch(/toss\.me\/[a-zA-Z0-9_-]+/);
                 }

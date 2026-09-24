@@ -12,8 +12,6 @@ vi.mock("@/infra/supabase/server", () => ({
                         { key: "transfer.bank_name", value: "토스뱅크" },
                         { key: "transfer.account_number", value: "1000-0000-0000" },
                         { key: "transfer.account_holder", value: "평택대" },
-                        { key: "transfer.kakaopay_url_template", value: "" },
-                        { key: "transfer.toss_url_template", value: "" },
                     ],
                     error: null,
                 }),
@@ -23,7 +21,7 @@ vi.mock("@/infra/supabase/server", () => ({
 }));
 
 describe("GET /api/settings/transfer", () => {
-    it("Route Handler가 정상적으로 TransferSettingsDto JSON(200)을 반환한다", async () => {
+    it("Route Handler가 정상적으로 계좌이체 TransferSettingsDto JSON(200)을 반환한다", async () => {
         const { GET } = await import("@/app/api/settings/transfer/route");
         const response = await GET();
 
@@ -34,8 +32,6 @@ describe("GET /api/settings/transfer", () => {
             bankName: "토스뱅크",
             accountNumber: "1000-0000-0000",
             accountHolder: "평택대",
-            kakaopayUrlTemplate: "",
-            tossUrlTemplate: "",
         });
     });
 });
