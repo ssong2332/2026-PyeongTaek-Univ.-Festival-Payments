@@ -42,3 +42,14 @@
 2. **services → `lib/api/errors` import** — 모듈 경계 표에서 services의 의존 대상은 `domain, ports`뿐인데, 같은 문서가 "서비스는 AppError를 던진다"고 한다. `AppError`는 순수 TS라 lint 규칙에는 걸리지 않는다. 의존 대상에 `lib/api/errors`를 추가할지, `AppError` 위치를 옮길지 결정 필요.
 3. **의존성 기본값 미적용** — Architecture는 `transition(dto, deps = defaultDeps())`처럼 기본값 주입이지만, Supabase 구현체가 아직 없어 지금은 `deps`를 필수 인자로 두었다. 구현체(T-03·T-53 적용 후)를 만들 때 기본값을 넣는다.
 4. **이슈 #23 남은 결정** — ① `stateMachine.test.ts` 맨 아래 "kakaopay/toss 입력 거부" 테스트를 안전장치로 유지할지(현재 유지) 이슈 문구대로 삭제할지. ② 이슈를 "210dbf2로 반영, T-14 PR에서 닫음" 댓글 후 T-14 PR로 닫을지, 상태 머신만 먼저 PR할지.
+
+## DB 함수 `transition_order` (2026-09-24, 브랜치 `feat/T-14-transition-order`)
+
+- `supabase/migrations/0099_transition_order.sql` — **파일 번호 0099는 임시.** DB 담당(서동혁)과 번호 확정 후 이름만 바꾼다. T-53(`refund_channel` 타입 교체)보다 뒤 번호여야 한다 — 이 함수가 그 타입을 쓰므로 먼저 있으면 T-53의 타입 교체가 막힌다. 번호 확정 전에는 dev에 Merge하지 않는다.
+- 시그니처는 Architecture "DB 함수" 표 그대로. `SECURITY INVOKER`, anon·authenticated 실행 권한 제거, service_role만 실행.
+- 동작: 행 잠금(`FOR UPDATE`) → 없음 `ORDER_NOT_FOUND` → `p_from`이 종료 상태면 `TERMINAL_STATE` → 현재 상태 ≠ `p_from`이면 `STATE_CHANGED` → 상태·시각 갱신(현금 수령 확인은 `paid_at`·`cooking_started_at` 동시) → 취소·환불·만료면 재고 복구 → 이력 1행.
+- 허용 전환 쌍은 검사하지 않는다(TS 상태 머신이 단일 원본, DECISIONS #8).
+- `tests/integration/transitionOrder.test.ts` 16개: 시각 기록, 재고 복구(같은 메뉴 여러 줄 합산), 환불 경로, 시스템 만료 이력, CAS 실패 시 무변경, 동시 요청 2개 중 1개만 성공(재고 이중 복구 없음), 종료 상태 4종, 없는 주문, anon 호출 거부(42501).
+- 현금 주문만 테스트 데이터로 쓴다. 계좌이체 주문은 T-53 전후로 `transfer_method` 컬럼 조건이 달라서다.
+- 함수 없음으로 14개 실패 확인 후 구현. 로컬 Supabase(Docker Desktop)에서 `npm run test:integration` 17개 통과, `npm run test` 109개·`typecheck`·`lint` 통과.
+- 남은 일: 파일 번호 확정, Supabase 저장소 구현체(`OrderRepository.transition` → rpc + 에러 변환), 이력 조회.
