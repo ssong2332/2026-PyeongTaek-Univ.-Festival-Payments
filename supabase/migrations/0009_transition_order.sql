@@ -1,4 +1,5 @@
--- T-14 transition_order. 파일 번호 0099는 임시 — DB 담당과 번호 확정 후 이름을 바꾼다(T-53보다 뒤여야 함).
+-- T-14 transition_order. 0009 — T-53(0008, refund_channel 타입 교체)보다 반드시 뒤에 적용한다(서동혁 합의 2026-09-24).
+-- 이 함수가 refund_channel을 인자로 쓰므로 먼저 있으면 T-53의 옛 타입 DROP이 실패한다. 운영 DB에는 0008 db push 뒤에 올린다.
 -- 허용 전환 표는 TS(src/domain/order/stateMachine.ts)가 단일 원본이다. 이 함수는 pair를 검사하지 않고
 -- CAS·터미널 불변·타임스탬프·재고 복구·이력만 강제한다(Architecture "주문 상태 머신", DECISIONS #8).
 BEGIN;

@@ -45,7 +45,9 @@
 
 ## DB 함수 `transition_order` (2026-09-24, 브랜치 `feat/T-14-transition-order`)
 
-- `supabase/migrations/0099_transition_order.sql` — **파일 번호 0099는 임시.** DB 담당(서동혁)과 번호 확정 후 이름만 바꾼다. T-53(`refund_channel` 타입 교체)보다 뒤 번호여야 한다 — 이 함수가 그 타입을 쓰므로 먼저 있으면 T-53의 타입 교체가 막힌다. 번호 확정 전에는 dev에 Merge하지 않는다.
+- `supabase/migrations/0009_transition_order.sql` — 처음엔 임시 번호 0099였고, 서동혁과 합의해 **0009로 확정(2026-09-24)**. T-53은 0008, T-03 보완은 0007.
+  - **적용 순서 필수: 0008(T-53) dev 병합·운영 `db push` → 그 뒤 0009.** 이 함수가 `refund_channel`을 인자로 쓰므로 먼저 있으면 T-53의 옛 타입 `DROP TYPE`이 `cannot drop type ... function transition_order depends on it`로 실패한다(로컬에서 재현·롤백 확인).
+  - 따라서 이 PR은 T-53 PR 병합·db push 뒤에 Merge한다.
 - 시그니처는 Architecture "DB 함수" 표 그대로. `SECURITY INVOKER`, anon·authenticated 실행 권한 제거, service_role만 실행.
 - 동작: 행 잠금(`FOR UPDATE`) → 없음 `ORDER_NOT_FOUND` → `p_from`이 종료 상태면 `TERMINAL_STATE` → 현재 상태 ≠ `p_from`이면 `STATE_CHANGED` → 상태·시각 갱신(현금 수령 확인은 `paid_at`·`cooking_started_at` 동시) → 취소·환불·만료면 재고 복구 → 이력 1행.
 - 허용 전환 쌍은 검사하지 않는다(TS 상태 머신이 단일 원본, DECISIONS #8).
