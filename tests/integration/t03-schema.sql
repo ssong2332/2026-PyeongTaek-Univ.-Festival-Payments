@@ -163,16 +163,7 @@ BEGIN
     IF (SELECT updated_at FROM public.app_settings WHERE key = 't03_test') <> now() THEN
         RAISE EXCEPTION 'app_settings updated_at trigger failed';
     END IF;
-    BEGIN
-        UPDATE public.orders SET payment_method = 'transfer' WHERE id = '40000000-0000-4000-8000-000000000001';
-        RAISE EXCEPTION 'Transfer without method accepted';
-    EXCEPTION WHEN check_violation THEN NULL;
-    END;
-    BEGIN
-        UPDATE public.orders SET transfer_method = 'bank' WHERE id = '40000000-0000-4000-8000-000000000001';
-        RAISE EXCEPTION 'Cash with transfer method accepted';
-    EXCEPTION WHEN check_violation THEN NULL;
-    END;
+    -- transfer_method 컬럼·CHECK는 T-53(0008)에서 삭제됐다. 결제수단 검증은 t53-schema.sql.
     BEGIN
         UPDATE public.orders SET status = 'unknown' WHERE id = '40000000-0000-4000-8000-000000000001';
         RAISE EXCEPTION 'Unknown enum value accepted';
@@ -230,7 +221,7 @@ BEGIN
     IF (SELECT menu_name_ko FROM public.order_items WHERE id = '60000000-0000-4000-8000-000000000001') <> '테스트 메뉴' THEN
         RAISE EXCEPTION 'Menu edit changed historical snapshot';
     END IF;
-    UPDATE public.orders SET payment_method = 'transfer', transfer_method = 'bank'
+    UPDATE public.orders SET payment_method = 'transfer'
     WHERE id = '40000000-0000-4000-8000-000000000001';
     IF (SELECT updated_at FROM public.menu_items WHERE id = '10000000-0000-4000-8000-000000000001') <> now()
         OR (SELECT updated_at FROM public.orders WHERE id = '40000000-0000-4000-8000-000000000001') <> now() THEN
