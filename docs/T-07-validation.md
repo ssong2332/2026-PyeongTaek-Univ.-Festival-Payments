@@ -11,3 +11,13 @@
 - 모듈 없음으로 실패 확인 후 구현. `npm run test` 132개, `typecheck`·`lint`·`build` 통과.
 
 남은 일(선행 완료 후): Supabase 저장소 구현체(rpc 호출 + `OUT_OF_STOCK`·`MENU_UNAVAILABLE`·`INVALID_OPTION` → 409 변환), Route Handler `POST /api/orders`(201/200), `create_order` 통합 테스트(조작 가격 무시·옵션 추가 가격 합산·동시 주문 재고 음수 방지·롤백). `AppError(code, httpStatus, details?)` 규격 확정(PR #31) — Route Handler·저장소는 이 규격으로 작성한다. 응답 변환(`toErrorResponse`·`withHandler`)은 유은조 T-33 브랜치에 있으니 병합 후 재사용.
+
+## 저장소 구현체 (2026-09-24)
+
+- `src/infra/repositories/supabaseOrderRepository.ts`의 `createSupabaseOrderRepository(client).createOrder`: `rpc('create_order', { p_idempotency_key, p_payment_method, p_locale, p_items })` (ADR-0002 인자 이름).
+  - DB 예외 → `AppError`: `OUT_OF_STOCK`·`MENU_UNAVAILABLE`·`INVALID_OPTION` 409, `EMPTY_ITEMS` 400 `VALIDATION_ERROR`.
+  - 예외의 `DETAIL`이 JSON 문자열이면 `details`로 넘긴다. **`create_order` 작성자(서동혁)와 형식 합의 필요** — API 규격은 `OUT_OF_STOCK` = `[{menuItemId, requested, available}]`, `MENU_UNAVAILABLE` = `{menuItemId}`.
+  - 그 밖의 DB 에러·계약과 다른 결과 모양은 일반 `Error`로 던진다(`withHandler`가 기록하고 500으로 숨김 — Architecture "예외를 잡는 위치").
+- `src/infra/repositories/mappers.ts`의 `toCreateOrderResponse`: 필드 명시 매핑, `createdAt`을 UTC ISO(`...Z`)로 맞춤.
+- `tests/unit/infra/repositories/supabaseOrderRepository.test.ts` 11개(가짜 rpc 클라이언트). 모듈 없음으로 실패 확인 후 구현. `npm run test` 143개, `typecheck`·`lint` 통과.
+- 실제 DB 확인은 `create_order`가 나온 뒤 통합 테스트로 한다.
