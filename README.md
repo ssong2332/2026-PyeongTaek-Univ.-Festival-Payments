@@ -71,7 +71,7 @@ src/
 ├── services/       # 유즈케이스 (포트 호출)
 ├── infra/          # supabase/ repositories/ (SQL·RPC는 여기만)
 └── lib/            # api/ dto/(zod) i18n/
-supabase/migrations/  # 0001_schema ~ 0006_rate_limit
+supabase/migrations/  # 번호 배정은 Architecture 2-1절
 tests/                # unit/ integration/ e2e/
 messages/             # ko.json / en.json
 ```

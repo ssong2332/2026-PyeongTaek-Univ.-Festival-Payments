@@ -104,7 +104,7 @@
 ├─ messages/ko.json, en.json        # UI 문자열 사전
 ├─ supabase/
 │  ├─ config.toml
-│  ├─ migrations/                   # 0001_schema.sql, 0002_functions.sql, 0003_rls.sql, 0004_realtime.sql, 0005_pg_cron.sql(선택), 0006_rate_limit.sql(T-51), 2차: 01xx_*
+│  ├─ migrations/                   # 0001_schema.sql, 0003_rls.sql, 0007~ — 번호는 Architecture "마이그레이션 번호 배정" 표만 따른다(0002·0004~0006 결번), 2차: 01xx_*
 │  ├─ seed.sql                      # 설정 기본값 + counters + 메뉴·옵션 초기값(T-36)
 │  └─ scripts/purge_2026-11-08.sql
 ├─ tests/
@@ -256,11 +256,11 @@ function availableActions(order): TransitionAction[];   // 대시보드 버튼 �
 | `order_item_options` | `id` uuid PK · `order_item_id` uuid FK CASCADE · `option_id` uuid FK→options ON DELETE RESTRICT · `option_group_name_ko` text NOT NULL · `option_name_ko` text NOT NULL · `option_name_en` text NULL · `extra_price` int NOT NULL | 스냅샷 |
 | `order_status_history` | `id` bigserial PK · `order_id` uuid FK CASCADE · `from_status` order_status NULL · `to_status` order_status NOT NULL · `action` text NOT NULL · `actor_type` actor_type NOT NULL · `actor_id` uuid NULL · `reason` text NULL · `created_at` timestamptz NOT NULL DEFAULT now() | F-14 이력. 인덱스 `(order_id, created_at)` |
 | `app_settings` | `key` text PK · `value` text NOT NULL · `updated_at` timestamptz NOT NULL DEFAULT now() · `updated_by` uuid NULL | 키 목록·기본값은 ADR-0004 |
-| `rate_limits` (`0006_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
+| `rate_limits` (`0014_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
 
 Enum: `order_status` (위 7개) · `payment_method ('cash','transfer')` — `transfer`는 계좌이체 · `refund_channel ('cash','bank')` (2026-09-24: 간편결제 제외로 `transfer_method` enum·컬럼 삭제, `refund_channel`에서 kakaopay·toss 삭제 — 후속 마이그레이션 T-53) · `actor_type ('admin','system','customer')`.
 
-Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE … FROM anon, authenticated` — service_role만 호출):
+Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE … FROM anon, authenticated` — service_role만 호출):
 
 | 함수 | 시그니처 | 예외 코드(메시지 문자열) |
 |---|---|---|
@@ -268,9 +268,35 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
-| `consume_rate_limit` (`0006_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
+| `consume_rate_limit` (`0014_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
 
 트리거: `orders`·`menu_items`에 `updated_at = now()` BEFORE UPDATE.
+
+### 2-1. 마이그레이션 번호 배정 (2026-09-25 — 신우석(BE1) 제안 채택)
+
+운영 DB는 이미 적용된 번호보다 작은 새 파일을 거부하고, CI는 빈 DB에 번호 순서대로 적용하므로 번호 충돌·역순을 잡지 못한다. 그래서 번호를 미리 배정한다.
+
+| 규칙 | 내용 |
+|---|---|
+| 1. 번호 미리 배정 | 새 마이그레이션은 아래 표의 번호만 쓴다. 0002·0004~0006은 결번(원래 예약분 — 0007 이후가 먼저 만들어져 쓰지 않음) |
+| 2. 표에 없는 파일 | 이 표에 행을 먼저 추가(PR)한 뒤 파일을 만든다. "지금 가장 큰 번호 + 1"을 각자 쓰지 않는다 |
+| 3. 의존 순서 | 다른 파일의 함수·구조를 쓰는 파일은 그 파일보다 뒤 번호 |
+| 4. 병합 순서 = 번호 순서 | 운영 DB에는 번호 순서대로 적용. 순서가 어긋나면 병합 직전에 파일 이름을 "현재 최대 번호 + 1"로 바꾸고 이 표를 고친다 — 운영 적용 전에만 허용 |
+
+| 번호 | 파일 | 내용 | 작업 · 담당 | 뒤에 와야 할 번호 | 현황(2026-09-25) |
+|---|---|---|---|---|---|
+| 0001 | `0001_schema.sql` | 1차 스키마 | T-03 · DB1 | — | dev 병합 |
+| 0003 | `0003_rls.sql` | RLS 정책 | T-03 · DB1 | 0001 | dev 병합 |
+| 0007 | `0007_t03_schema_hardening.sql` | T-03 보완 | T-03 · DB1 | 0001 | `feature/db-schema` 브랜치 |
+| 0008 | `0008_t53_remove_easy_pay.sql` | 간편결제 제외 | T-53 · DB1 | 0007 | `feature/db-schema` 브랜치 |
+| 0009 | `0009_transition_order.sql` | `transition_order` | T-14 · BE1 | 0008 | `feat/T-14-transition-order` 브랜치 |
+| 0010 | `0010_create_order.sql` | `create_order`(멱등키·픽업 번호·토큰 포함) | T-07·T-08 · DB1 | 0008 | 원격 브랜치 없음 |
+| 0011 | `0011_sweep_expire.sql` | `sweep_order_timeouts` — 만료 부분 | T-18 · DB2 | 0009 | 원격 브랜치 없음 |
+| 0012 | `0012_sweep_auto_complete.sql` | `sweep_order_timeouts` 자동 완료 부분(`CREATE OR REPLACE`) | T-19 · DB2 | 0011 | 원격 브랜치 없음 |
+| 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
+| 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
+| 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
+| 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
 ### 3. RLS 정책 표 (`0003_rls.sql`, N-04)
 
