@@ -69,7 +69,7 @@ VALUES ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-0000000
 INSERT INTO public.option_translations (option_id, locale, name)
 VALUES ('30000000-0000-4000-8000-000000000001', 'ko', '테스트 옵션');
 INSERT INTO public.counters (key, value) VALUES ('t03_test', 0);
-INSERT INTO public.app_settings (key, value) VALUES ('t03_test', 'false');
+INSERT INTO public.app_settings (key, value, updated_at) VALUES ('t03_test', 'false', '2000-01-01');
 INSERT INTO public.orders (id, pickup_number, payment_method, total_amount, idempotency_key, status_token, updated_at)
 VALUES ('40000000-0000-4000-8000-000000000001', 2147483600, 'cash', 0,
     '50000000-0000-4000-8000-000000000001', repeat('a', 64), '2000-01-01');
@@ -122,6 +122,47 @@ BEGIN
         RAISE EXCEPTION 'Incorrect line total accepted';
     EXCEPTION WHEN check_violation THEN NULL;
     END;
+    -- Keep the line-total equation valid, so these failures prove the
+    -- individual snapshot price checks rather than the existing sum check.
+    BEGIN
+        UPDATE public.order_items SET unit_price = -1, options_price = 1, line_total = 0
+        WHERE id = '60000000-0000-4000-8000-000000000001';
+        RAISE EXCEPTION 'Negative snapshot unit price accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    BEGIN
+        UPDATE public.order_items SET unit_price = 1, options_price = -1, line_total = 0
+        WHERE id = '60000000-0000-4000-8000-000000000001';
+        RAISE EXCEPTION 'Negative snapshot options price accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    BEGIN
+        UPDATE public.order_items SET unit_price = -1, options_price = 0, line_total = -1
+        WHERE id = '60000000-0000-4000-8000-000000000001';
+        RAISE EXCEPTION 'Negative snapshot line total accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    BEGIN
+        UPDATE public.order_item_options SET extra_price = -1
+        WHERE id = '70000000-0000-4000-8000-000000000001';
+        RAISE EXCEPTION 'Negative snapshot extra price accepted';
+    EXCEPTION WHEN check_violation THEN NULL;
+    END;
+    -- line_total >= 0 is also implied by other checks; verify its explicit
+    -- validated constraint so losing it cannot be masked by those checks.
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'public.order_items'::regclass
+          AND conname = 'order_items_line_total_nonnegative'
+          AND contype = 'c' AND convalidated
+          AND pg_get_constraintdef(oid) = 'CHECK ((line_total >= 0))'
+    ) THEN
+        RAISE EXCEPTION 'Missing explicit line-total nonnegative check';
+    END IF;
+    UPDATE public.app_settings SET value = 'true' WHERE key = 't03_test';
+    IF (SELECT updated_at FROM public.app_settings WHERE key = 't03_test') <> now() THEN
+        RAISE EXCEPTION 'app_settings updated_at trigger failed';
+    END IF;
     BEGIN
         UPDATE public.orders SET payment_method = 'transfer' WHERE id = '40000000-0000-4000-8000-000000000001';
         RAISE EXCEPTION 'Transfer without method accepted';
