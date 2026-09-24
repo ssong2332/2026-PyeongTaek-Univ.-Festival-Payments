@@ -21,6 +21,6 @@ export type TransitionCommand = {
 
 export interface OrderRepository {
   findById(id: string): Promise<OrderForTransition | null>;
-  // CAS 실패 시 AppError("STATE_CHANGED")를 던진다.
+  // CAS 실패 시 AppError("STATE_CHANGED", 409)를 던진다.
   transition(command: TransitionCommand): Promise<OrderForTransition>;
 }

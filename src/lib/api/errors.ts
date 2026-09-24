@@ -1,32 +1,27 @@
-// Architecture "5. API 규격 — 공통" ErrorCode 표. HTTP 상태는 코드마다 고정이라 여기서만 정한다.
-const ERROR_STATUS = {
-  VALIDATION_ERROR: 400,
-  REASON_REQUIRED: 400,
-  REFUND_CHANNEL_REQUIRED: 400,
-  UNAUTHORIZED: 401,
-  NOT_FOUND: 404,
-  MENU_UNAVAILABLE: 409,
-  OUT_OF_STOCK: 409,
-  INVALID_OPTION: 409,
-  INVALID_TRANSITION: 409,
-  STATE_CHANGED: 409,
-  CANCEL_REQUEST_NOT_ALLOWED: 409,
-  RATE_LIMITED: 429,
-  INTERNAL_ERROR: 500,
-} as const;
+// Architecture "5. API 규격 — 공통" ErrorCode 표. HTTP 상태는 던지는 쪽이 이 표대로 넘긴다.
+export type ErrorCode =
+  | "VALIDATION_ERROR"
+  | "REASON_REQUIRED"
+  | "REFUND_CHANNEL_REQUIRED"
+  | "UNAUTHORIZED"
+  | "NOT_FOUND"
+  | "MENU_UNAVAILABLE"
+  | "OUT_OF_STOCK"
+  | "INVALID_OPTION"
+  | "INVALID_TRANSITION"
+  | "STATE_CHANGED"
+  | "CANCEL_REQUEST_NOT_ALLOWED"
+  | "RATE_LIMITED"
+  | "INTERNAL_ERROR";
 
-export type ErrorCode = keyof typeof ERROR_STATUS;
-
+// message는 생성자 인자가 아니다 — API 응답 변환 시 code에 대응하는 고정 영문 문구로 정한다(CodingRules "에러 처리").
 export class AppError extends Error {
-  readonly status: number;
-
   constructor(
     readonly code: ErrorCode,
+    readonly status: number,
     readonly details?: unknown,
-    message: string = code,
   ) {
-    super(message);
+    super(code);
     this.name = "AppError";
-    this.status = ERROR_STATUS[code];
   }
 }
