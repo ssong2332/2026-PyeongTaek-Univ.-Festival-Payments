@@ -305,7 +305,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 ### 5. API 규격 — 공통
 
 - Base: 같은 오리진 `/api`. JSON, UTF-8. 시각은 ISO 8601 UTC 문자열.
-- 에러 봉투: `{ "error": { "code": ErrorCode, "message": string, "details"?: unknown } }`. `message`는 개발자용 영문 고정 문구 — 화면 문구는 클라이언트가 `code`로 `messages/*.json`에서 찾는다.
+- 에러 봉투: `{ "error": { "code": ErrorCode, "message": string, "details"?: unknown } }`. `message`는 `AppError` 생성자에서 받지 않고 API 응답 변환 시 `code`에 대응하는 개발자용 영문 고정 문구로 정한다. 화면 문구는 클라이언트가 `code`로 `messages/*.json`에서 찾는다.
 - 요청 스키마는 `src/lib/dto/*.ts`의 zod가 원본이며 아래 표는 그 요약이다. 표와 zod가 다르면 zod를 고치지 말고 architect에게 보고.
 
 | ErrorCode | HTTP | 발생 |
