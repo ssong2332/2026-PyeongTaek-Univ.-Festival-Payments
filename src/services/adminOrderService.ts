@@ -14,7 +14,7 @@ export type AdminTransitionInput = {
 // Architecture "관리자 상태 전환" 흐름. 관리자 인증(requireAdmin)은 Route Handler가 먼저 한다.
 export async function transition(
   input: AdminTransitionInput,
-  deps: { orderRepository: OrderRepository },
+  deps: { orderRepository: Pick<OrderRepository, "findById" | "transition"> },
 ): Promise<OrderForTransition> {
   const order = await deps.orderRepository.findById(input.orderId);
   if (!order) throw new AppError("NOT_FOUND");

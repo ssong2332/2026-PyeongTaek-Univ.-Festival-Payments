@@ -1,4 +1,5 @@
 import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "@/domain/order/status";
+import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
 
 // 지금은 상태 전환(T-14)에 필요한 필드만 둔다. 다른 서비스 Task가 필요한 필드·메서드를 추가한다.
 export type OrderForTransition = {
@@ -20,6 +21,8 @@ export type TransitionCommand = {
 };
 
 export interface OrderRepository {
+  // rpc('create_order'). OUT_OF_STOCK·MENU_UNAVAILABLE·INVALID_OPTION은 AppError(409)로 바꿔 던진다.
+  createOrder(input: CreateOrderRequest): Promise<CreateOrderResponse>;
   findById(id: string): Promise<OrderForTransition | null>;
   // CAS 실패 시 AppError("STATE_CHANGED")를 던진다.
   transition(command: TransitionCommand): Promise<OrderForTransition>;

@@ -94,7 +94,7 @@ describe("adminOrderService.transition", () => {
 
   it("읽은 뒤 다른 관리자가 먼저 바꾸면 repo의 409 STATE_CHANGED를 그대로 전달한다", async () => {
     const { repo, store } = setup();
-    const racingRepo: OrderRepository = {
+    const racingRepo: Pick<OrderRepository, "findById" | "transition"> = {
       findById: repo.findById,
       async transition(command) {
         store.get(ORDER_ID)!.status = "cancelled";

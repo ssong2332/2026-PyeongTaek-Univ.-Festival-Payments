@@ -6,7 +6,7 @@ export function createFakeOrderRepository(orders: OrderForTransition[] = []) {
   const store = new Map(orders.map((order) => [order.id, { ...order }]));
   const calls: TransitionCommand[] = [];
 
-  const repo: OrderRepository = {
+  const repo: Pick<OrderRepository, "findById" | "transition"> = {
     async findById(id) {
       const order = store.get(id);
       return order ? { ...order } : null;
