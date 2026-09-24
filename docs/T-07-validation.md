@@ -10,4 +10,4 @@
 - 테스트: `tests/unit/lib/dto/order.test.ts`(허용 외 결제수단·가격 필드·수량·항목 수·uuid·언어), `tests/unit/services/orderService.test.ts`(repo 전달, 멱등 재요청 결과, 409 에러 전달).
 - 모듈 없음으로 실패 확인 후 구현. `npm run test` 132개, `typecheck`·`lint`·`build` 통과.
 
-남은 일(선행 완료 후): Supabase 저장소 구현체(rpc 호출 + `OUT_OF_STOCK`·`MENU_UNAVAILABLE`·`INVALID_OPTION` → 409 변환), Route Handler `POST /api/orders`(201/200), `create_order` 통합 테스트(조작 가격 무시·옵션 추가 가격 합산·동시 주문 재고 음수 방지·롤백). Route Handler와 저장소는 팀장이 수정 중인 `AppError` 규격 확정 후 작성.
+남은 일(선행 완료 후): Supabase 저장소 구현체(rpc 호출 + `OUT_OF_STOCK`·`MENU_UNAVAILABLE`·`INVALID_OPTION` → 409 변환), Route Handler `POST /api/orders`(201/200), `create_order` 통합 테스트(조작 가격 무시·옵션 추가 가격 합산·동시 주문 재고 음수 방지·롤백). `AppError(code, httpStatus, details?)` 규격 확정(PR #31) — Route Handler·저장소는 이 규격으로 작성한다. 응답 변환(`toErrorResponse`·`withHandler`)은 유은조 T-33 브랜치에 있으니 병합 후 재사용.
