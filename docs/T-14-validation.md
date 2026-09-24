@@ -53,3 +53,13 @@
 - 현금 주문만 테스트 데이터로 쓴다. 계좌이체 주문은 T-53 전후로 `transfer_method` 컬럼 조건이 달라서다.
 - 함수 없음으로 14개 실패 확인 후 구현. 로컬 Supabase(Docker Desktop)에서 `npm run test:integration` 17개 통과, `npm run test` 109개·`typecheck`·`lint` 통과.
 - 남은 일: 파일 번호 확정, Supabase 저장소 구현체(`OrderRepository.transition` → rpc + 에러 변환), 이력 조회.
+
+## 저장소 구현체 (2026-09-24, 브랜치 `feat/T-14-transition-order`)
+
+- `src/infra/repositories/supabaseOrderRepository.ts`의 `createSupabaseOrderRepository(client)`:
+  - `findById`: `orders`에서 `id, status, payment_method` 조회, 없으면 `null`.
+  - `transition`: `rpc('transition_order', …)` (Architecture 시그니처 그대로). DB 예외 → `AppError`: `STATE_CHANGED` 409, `ORDER_NOT_FOUND` → 404 `NOT_FOUND`, `TERMINAL_STATE` → 409 `INVALID_TRANSITION`(API ErrorCode 표에 없는 DB 전용 코드라 불허 전환으로 취급). 그 밖의 DB 에러는 일반 `Error`(withHandler가 500으로 숨기고 기록).
+- `src/infra/repositories/mappers.ts`의 `toOrderForTransition`: DB 행 → 서비스 타입(필드 명시).
+- 테스트: `tests/integration/supabaseOrderRepository.transition.test.ts` 7개(실제 로컬 DB), `tests/unit/infra/repositories/supabaseOrderRepository.transition.test.ts` 1개(알 수 없는 DB 장애).
+- 모듈 없음으로 실패 확인 후 구현. `npm run test:integration` 24개, `npm run test` 110개, `typecheck`·`lint` 통과.
+- 참고: T-07 브랜치에도 같은 파일(`supabaseOrderRepository.ts`·`mappers.ts`, `createOrder`)이 있다 — 두 브랜치를 합칠 때 두 내용을 한 파일로 합친다(에러 표 `DB_ERRORS`에 create_order 코드 추가).
