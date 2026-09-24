@@ -26,7 +26,7 @@ export class SupabaseSettingsRepository implements SettingsRepository {
 
         if (error) {
             // Architecture 5: 500 INTERNAL_ERROR는 내부 DB 에러 원문을 고객 응답에 노출하지 않음
-            throw new AppError("INTERNAL_ERROR", "Failed to fetch setting", 500);
+            throw new AppError("INTERNAL_ERROR", 500);
         }
 
         return data?.value ?? null;
@@ -38,7 +38,7 @@ export class SupabaseSettingsRepository implements SettingsRepository {
             .select("key, value");
 
         if (error) {
-            throw new AppError("INTERNAL_ERROR", "Failed to fetch settings", 500);
+            throw new AppError("INTERNAL_ERROR", 500);
         }
 
         const result: Record<string, string> = {};
@@ -55,7 +55,7 @@ export class SupabaseSettingsRepository implements SettingsRepository {
             .like("key", `${prefix}%`);
 
         if (error) {
-            throw new AppError("INTERNAL_ERROR", "Failed to fetch settings by prefix", 500);
+            throw new AppError("INTERNAL_ERROR", 500);
         }
 
         const result: Record<string, string> = {};
