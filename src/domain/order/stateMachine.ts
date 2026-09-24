@@ -1,9 +1,8 @@
-import type { OrderStatus, PaymentMethod, RefundChannel, TransferMethod, TransitionAction } from "./status";
+import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "./status";
 
 export type TransitionOrder = {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
-  transferMethod: TransferMethod | null;
 };
 
 export type TransitionResult =
@@ -47,7 +46,7 @@ export function resolveTransition(
   if (rule.needsReason && !input.reason?.trim()) return { ok: false, code: "REASON_REQUIRED" };
   if (rule.needsRefundChannel) {
     if (!input.refundChannel) return { ok: false, code: "REFUND_CHANNEL_REQUIRED" };
-    const expectedChannel = order.paymentMethod === "cash" ? "cash" : order.transferMethod;
+    const expectedChannel = order.paymentMethod === "cash" ? "cash" : "bank";
     if (input.refundChannel !== expectedChannel) return { ok: false, code: "INVALID_TRANSITION" };
   }
   return {
