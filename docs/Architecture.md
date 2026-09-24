@@ -305,7 +305,7 @@ Postgres 함수(`0002_functions.sql`, 전부 `SECURITY INVOKER`, `REVOKE EXECUTE
 ### 5. API 규격 — 공통
 
 - Base: 같은 오리진 `/api`. JSON, UTF-8. 시각은 ISO 8601 UTC 문자열.
-- 에러 봉투: `{ "error": { "code": ErrorCode, "message": string, "details"?: unknown } }`. `message`는 개발자용 영문 고정 문구 — 화면 문구는 클라이언트가 `code`로 `messages/*.json`에서 찾는다.
+- 에러 봉투: `{ "error": { "code": ErrorCode, "message": string, "details"?: unknown } }`. `message`는 `AppError` 생성자에서 받지 않고 API 응답 변환 시 `code`에 대응하는 개발자용 영문 고정 문구로 정한다. 화면 문구는 클라이언트가 `code`로 `messages/*.json`에서 찾는다.
 - 요청 스키마는 `src/lib/dto/*.ts`의 zod가 원본이며 아래 표는 그 요약이다. 표와 zod가 다르면 zod를 고치지 말고 architect에게 보고.
 
 | ErrorCode | HTTP | 발생 |
@@ -426,7 +426,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 | 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`dev`를 프로덕션 배포 브랜치로 사용**한다. `dev`에 병합된 코드가 프로토타입 및 실제 운영 배포 대상으로 반영되도록 한다. feature 브랜치는 프리뷰 환경으로 확인한다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
 | 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`dev`). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 `dev` 외 배포·DB 마이그레이션을 금지한다(T-30 동결 규칙). |
 | 환경별 설정 | Cloudflare Workers 환경변수/Secrets에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`를 설정한다. `SUPABASE_SERVICE_ROLE_KEY`와 `PHONE_ENCRYPTION_KEY`는 서버 전용 Secret으로 관리한다. 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
-| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후(1차엔 삭제 없음). 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36). |
+| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후. 예외(2026-09-24): T-53의 `orders.transfer_method` 삭제는 이 컬럼을 쓰는 앱 코드가 아직 배포 전(P0)이라 배포 전에 적용 — 이후 삭제는 원칙대로 앱 배포 후. 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36). |
 | 롤백 절차 | 앱: Cloudflare Workers Deployments에서 이전 배포 버전으로 Rollback한다. DB는 되돌리기 마이그레이션 없이 전진 수정(새 마이그레이션)을 원칙으로 한다. 데이터 손상 대비 축제 전 `supabase db dump`로 수동 백업 1회(T-25). |
 | 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 테스트 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 한다. |
 | 배포 전 필수 설정(Supabase 대시보드) | Auth → 이메일 회원가입 비활성화, 관리자 계정 2~3개 생성(F-20), pg_cron 가용 확인(ADR-0006). 절차는 T-30에 기록한다. |
