@@ -47,7 +47,7 @@ describe("orderService.createOrder", () => {
   });
 
   it.each(["OUT_OF_STOCK", "MENU_UNAVAILABLE", "INVALID_OPTION"] as const)("repo의 %s(409)를 그대로 전달한다", async (code) => {
-    const { orderRepository } = repoReturning(new AppError(code));
+    const { orderRepository } = repoReturning(new AppError(code, 409));
     const error = await createOrder(dto, { orderRepository }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ code, status: 409 });
