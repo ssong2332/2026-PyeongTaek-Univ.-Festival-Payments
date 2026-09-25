@@ -37,6 +37,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     INTERNAL_ERROR: "An internal server error occurred.",
 };
 
+// Architecture.md / PR #31 확정 시그니처: AppError(code, httpStatus, details?)
+// message는 생성자 인자가 아니며 API 응답 변환 시 code에 대응하는 고정 영문 문구 사용
 export class AppError extends Error {
     readonly code: ErrorCode;
     readonly status: number;
@@ -68,6 +70,7 @@ export function toErrorResponse(error: unknown): { status: number; envelope: Err
         };
     }
 
+    // Default internal server error (never leak internal stack/DB traces)
     return {
         status: 500,
         envelope: {

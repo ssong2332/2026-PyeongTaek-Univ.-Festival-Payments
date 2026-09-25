@@ -50,9 +50,11 @@ function formatLogLine(level: LogLevel, event: string, context?: LogContext): st
         }
 
         if (isPhoneField) {
+            // N-17: 키 이름에 phone이 포함되면 [redacted]
             sanitized[key] = "[redacted]";
         } else if (typeof value === "string") {
             if (key === "orderId" && value.length > 8) {
+                // Architecture 450: orderId 앞 8자만
                 sanitized[key] = value.slice(0, 8);
             } else {
                 sanitized[key] = value;

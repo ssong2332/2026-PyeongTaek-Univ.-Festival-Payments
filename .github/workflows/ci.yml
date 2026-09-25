@@ -65,6 +65,17 @@ jobs:
           NODE
       - name: DB 연결 및 통합 테스트
         run: npm run test:integration
+      - name: 독립 DB에서 시드 재실행 및 운영값 보존 검증
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE festival_seed_test'
+          psql -d festival_seed_test -v ON_ERROR_STOP=1 -f supabase/migrations/0001_schema.sql
+          psql -d festival_seed_test -v ON_ERROR_STOP=1 -f supabase/migrations/0003_rls.sql
+          psql -d festival_seed_test -v ON_ERROR_STOP=1 -f tests/integration/seed.sql
       - name: 테스트용 Supabase 종료
         if: always()
         run: supabase stop --no-backup
