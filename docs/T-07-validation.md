@@ -41,6 +41,11 @@
   - `create_order`가 없으면(PGRST202 — 로컬에서 확인) 파일 전체 skip, 0010이 들어오면 자동 실행.
   - **실제 함수로는 아직 한 번도 돌려보지 않았다** — 0010 병합 후 결과를 보고 테스트·함수 중 어느 쪽을 고칠지 서동혁과 확인.
 
+## create_order(0010, PR #42) 대조 (2026-09-25 저녁)
+
+- 서동혁 PR #42(`feat/T-07-create-order-db`)를 임시 공간에서 T-07 브랜치에 합쳐 실행: 0001→0003→0007→0008→0009→0010 적용, **`createOrder.test.ts` 11개 전부 통과(skip 0)**, 통합 전체 46 통과.
+- 에러·DETAIL 형식 계약과 일치(OUT_OF_STOCK `[{menuItemId, requested, available}]` 등). 0010에 새로 있는 `INVALID_ITEMS`(항목 형식 오류)를 400 `VALIDATION_ERROR`로 변환 추가 — 단위 테스트 실패 확인 후 구현.
+
 ## 남은 일 (T-07)
 
 - [ ] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과

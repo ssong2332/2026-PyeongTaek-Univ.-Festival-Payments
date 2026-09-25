@@ -105,8 +105,8 @@ describe("supabaseOrderRepository.createOrder", () => {
     expect(error).toMatchObject({ code: "OUT_OF_STOCK", details: undefined });
   });
 
-  it("EMPTY_ITEMS는 400 VALIDATION_ERROR로 바꾼다", async () => {
-    expect(await createOrderError({ message: "EMPTY_ITEMS", code: "P0001" })).toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  it.each(["EMPTY_ITEMS", "INVALID_ITEMS"])("%s는 400 VALIDATION_ERROR로 바꾼다", async (message) => {
+    expect(await createOrderError({ message, code: "P0001" })).toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
   });
 
   it("그 밖의 DB 에러는 AppError가 아닌 일반 에러로 던진다(핸들러가 500으로 숨기고 기록)", async () => {

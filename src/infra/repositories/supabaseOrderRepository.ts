@@ -10,6 +10,8 @@ const DB_ERRORS: Record<string, { code: ErrorCode; status: number }> = {
   MENU_UNAVAILABLE: { code: "MENU_UNAVAILABLE", status: 409 },
   INVALID_OPTION: { code: "INVALID_OPTION", status: 409 },
   EMPTY_ITEMS: { code: "VALIDATION_ERROR", status: 400 },
+  // 항목 형식 오류. zod가 먼저 막지만 DB에서 올라와도 500이 되지 않게 한다(0010).
+  INVALID_ITEMS: { code: "VALIDATION_ERROR", status: 400 },
   // transition_order
   STATE_CHANGED: { code: "STATE_CHANGED", status: 409 },
   ORDER_NOT_FOUND: { code: "NOT_FOUND", status: 404 },
