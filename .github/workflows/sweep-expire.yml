@@ -1,4 +1,4 @@
-name: T-18 sweep SQL
+name: T-18 and T-19 sweep SQL
 
 on:
   push:
@@ -42,3 +42,9 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire.sql
       - name: 실제 T-14 재고 복구·이력 검증
         run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire_transition.sql
+      - name: T-19 확장 적용 및 만료 회귀·자동 완료 검증
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/0012_sweep_auto_complete.sql
+          psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire.sql
+          psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire_transition.sql
+          psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_auto_complete.sql
