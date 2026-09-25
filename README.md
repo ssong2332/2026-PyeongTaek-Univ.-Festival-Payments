@@ -71,7 +71,7 @@ src/
 ├── services/       # 유즈케이스 (포트 호출)
 ├── infra/          # supabase/ repositories/ (SQL·RPC는 여기만)
 └── lib/            # api/ dto/(zod) i18n/
-supabase/migrations/  # 0001_schema ~ 0006_rate_limit
+supabase/migrations/  # 번호 배정은 Architecture 2-1절
 tests/                # unit/ integration/ e2e/
 messages/             # ko.json / en.json
 ```
@@ -240,7 +240,7 @@ QR을 직접 스캔하여 실제 `*.workers.dev` 서비스 주소로 연결되�
 
 주문 데이터 파기 예정일은 **2026-11-08**이다.
 
-구체적인 삭제 스크립트와 실행·검증 절차는 DB 담당자가 작성한다.
+구체적인 삭제 스크립트와 실행·검증 절차는 DB2 김 혁이 작성하고, 2026-11-08 실행·확인도 김 혁이 맡는다(2026-09-24 결정).
 
 DB2 담당 범위의 [주문 데이터 파기 절차 초안](docs/T-30-data-purge.md)에 파기·보존 대상,
 선행 작업과 실행·검증 계획을 정리했다. 최종 스키마와 배포 환경 확인 전인 초안이며,
