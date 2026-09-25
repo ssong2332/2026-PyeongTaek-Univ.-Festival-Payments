@@ -9,11 +9,11 @@ export const dynamic = "force-dynamic";
 
 export const GET = withHandler(
     async (
-        _request: NextRequest | undefined,
-        context?: { params: Promise<{ id: string }> },
+        _request: NextRequest,
+        context: { params: Promise<{ id: string }> },
     ) => {
         await requireAdmin();
-        const params = await context?.params;
+        const params = await context.params;
         const id = params?.id;
         if (!id) {
             throw new AppError("NOT_FOUND", 404);
