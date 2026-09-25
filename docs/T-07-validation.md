@@ -21,3 +21,12 @@
 - `src/infra/repositories/mappers.ts`의 `toCreateOrderResponse`: 필드 명시 매핑, `createdAt`을 UTC ISO(`...Z`)로 맞춤.
 - `tests/unit/infra/repositories/supabaseOrderRepository.test.ts` 11개(가짜 rpc 클라이언트). 모듈 없음으로 실패 확인 후 구현. `npm run test` 143개, `typecheck`·`lint` 통과.
 - 실제 DB 확인은 `create_order`가 나온 뒤 통합 테스트로 한다.
+
+## Route Handler `POST /api/orders` (2026-09-25)
+
+- `src/app/api/orders/route.ts`: 본문 JSON → `CreateOrderRequestSchema.safeParse` → 실패 시 `AppError("VALIDATION_ERROR", 400, issues)` → `orderService.createOrder` → `created`면 201, 멱등 재요청이면 200.
+  - JSON이 아닌 본문도 400 `VALIDATION_ERROR`(500이 되지 않게 `request.json()` 실패를 검증 실패로 처리).
+  - 에러 봉투·로그는 T-33의 `withHandler`·`toErrorResponse` 재사용. `withHandler`가 요청을 넘기지 않아 공용 파일(`handler.ts`)은 고치지 않고 요청마다 감싸서 `request`를 쓴다.
+  - 속도 제한(T-51, ADR-0009 ②)과 멱등키 선조회(T-08, ①)는 아직 없다.
+- `tests/unit/api/ordersRoute.test.ts` 7개(201·200·가격 필드 400·허용 외 결제수단 400·JSON 아님 400·재고 부족 409 봉투·알 수 없는 DB 에러 500 비노출). rpc만 가짜.
+- 모듈 없음으로 7개 실패 확인 후 구현. `npm run test` 166개, `typecheck`·`lint`·`build` 통과.
