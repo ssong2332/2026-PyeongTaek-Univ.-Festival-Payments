@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withHandler } from "@/lib/api/handler";
 import { getAdminOrderById } from "@/services/adminOrderService";
 import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRepository";
+import { requireAdmin } from "@/infra/supabase/session";
 import { AppError } from "@/lib/api/errors";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export const GET = withHandler(
         _request: NextRequest | undefined,
         context?: { params: Promise<{ id: string }> },
     ) => {
+        await requireAdmin();
         const params = await context?.params;
         const id = params?.id;
         if (!id) {

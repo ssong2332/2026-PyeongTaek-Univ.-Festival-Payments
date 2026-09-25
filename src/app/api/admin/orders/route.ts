@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withHandler } from "@/lib/api/handler";
 import { listAdminOrders } from "@/services/adminOrderService";
 import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRepository";
+import { requireAdmin } from "@/infra/supabase/session";
 import type { OrderStatus } from "@/domain/order/status";
 import { ORDER_STATUSES } from "@/domain/order/status";
 
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const GET = withHandler(
     async (request?: NextRequest) => {
+        await requireAdmin();
         const repository = new SupabaseAdminOrderRepository();
 
         let date: string | undefined;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     deriveUnacknowledgedCount,
     mergeOrderUpdate,
+    mapPayloadToOrderPatch,
 } from "@/features/admin/useOrdersFeed";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 
@@ -11,7 +12,6 @@ function createSampleOrder(overrides: Partial<AdminOrderDto> = {}): AdminOrderDt
         pickupNumber: 101,
         status: "pending",
         paymentMethod: "transfer",
-        transferMethod: "bank",
         totalAmount: 15000,
         items: [],
         createdAt: "2026-09-25T10:00:00.000Z",
@@ -49,7 +49,68 @@ describe("T-15 / ADR-0003: useOrdersFeed 로직 검증", () => {
         });
     });
 
+    describe("mapPayloadToOrderPatch", () => {
+        it("Supabase Realtime의 snake_case DB 페이로드를 camelCase DTO 필드로 정확히 변환한다", () => {
+            const rawPayload = {
+                id: "550e8400-e29b-41d4-a716-446655440000",
+                pickup_number: 105,
+                status: "paid",
+                payment_method: "transfer",
+                total_amount: 20000,
+                acknowledged_at: "2026-09-25T10:10:00.000Z",
+                transfer_reported_at: "2026-09-25T10:08:00.000Z",
+                cancel_requested_at: "2026-09-25T10:09:00.000Z",
+                cancel_rejected_at: null,
+                paid_at: "2026-09-25T10:10:00.000Z",
+                cooking_started_at: null,
+                completed_at: null,
+                closed_at: null,
+                refund_channel: "bank",
+                updated_at: "2026-09-25T10:10:00.000Z",
+            };
+
+            const patch = mapPayloadToOrderPatch(rawPayload);
+
+            expect(patch.pickupNumber).toBe(105);
+            expect(patch.status).toBe("paid");
+            expect(patch.paymentMethod).toBe("transfer");
+            expect(patch.totalAmount).toBe(20000);
+            expect(patch.acknowledgedAt).toBe("2026-09-25T10:10:00.000Z");
+            expect(patch.transferReportedAt).toBe("2026-09-25T10:08:00.000Z");
+            expect(patch.cancelRequestedAt).toBe("2026-09-25T10:09:00.000Z");
+            expect(patch.paidAt).toBe("2026-09-25T10:10:00.000Z");
+            expect(patch.refundChannel).toBe("bank");
+            expect(patch.updatedAt).toBe("2026-09-25T10:10:00.000Z");
+        });
+    });
+
     describe("mergeOrderUpdate (ADR-0003)", () => {
+        it("다른 관리자 세션이 확인(acknowledged_at)한 Realtime DB 이벤트가 오면 acknowledgedAt이 반영되어 미확인 수가 감소한다", () => {
+            const current = createSampleOrder({
+                id: "1",
+                status: "pending",
+                acknowledgedAt: null,
+                updatedAt: "2026-09-25T10:00:00.000Z",
+            });
+
+            const map = new Map<string, AdminOrderDto>();
+            map.set("1", current);
+            expect(deriveUnacknowledgedCount(map)).toBe(1);
+
+            // 다른 관리자가 acknowledge 호출하여 DB에서 날아온 Realtime UPDATE 페이로드
+            const dbPayload = {
+                id: "1",
+                acknowledged_at: "2026-09-25T10:05:00.000Z",
+                updated_at: "2026-09-25T10:05:00.000Z",
+            };
+
+            const updated = mergeOrderUpdate(current, dbPayload);
+            map.set("1", updated);
+
+            expect(updated.acknowledgedAt).toBe("2026-09-25T10:05:00.000Z");
+            expect(deriveUnacknowledgedCount(map)).toBe(0);
+        });
+
         it("새로운 updatedAt을 가진 UPDATE 이벤트가 오면 주문을 최신으로 갱신한다", () => {
             const current = createSampleOrder({
                 status: "pending",
@@ -58,8 +119,8 @@ describe("T-15 / ADR-0003: useOrdersFeed 로직 검증", () => {
 
             const updated = mergeOrderUpdate(current, {
                 status: "paid",
-                paidAt: "2026-09-25T10:05:00.000Z",
-                updatedAt: "2026-09-25T10:05:00.000Z",
+                paid_at: "2026-09-25T10:05:00.000Z",
+                updated_at: "2026-09-25T10:05:00.000Z",
             });
 
             expect(updated.status).toBe("paid");
@@ -78,7 +139,7 @@ describe("T-15 / ADR-0003: useOrdersFeed 로직 검증", () => {
             // 오래된 과거 이벤트 도착 (10:02)
             const staleUpdate = mergeOrderUpdate(current, {
                 status: "pending",
-                updatedAt: "2026-09-25T10:02:00.000Z",
+                updated_at: "2026-09-25T10:02:00.000Z",
             });
 
             // 기존 값(paid) 유지

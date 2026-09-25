@@ -2,12 +2,10 @@ import { z } from "zod";
 import {
     ORDER_STATUSES,
     PAYMENT_METHODS,
-    TRANSFER_METHODS,
     REFUND_CHANNELS,
     TRANSITION_ACTIONS,
     type OrderStatus,
     type PaymentMethod,
-    type TransferMethod,
     type RefundChannel,
     type TransitionAction,
 } from "@/domain/order/status";
@@ -31,7 +29,6 @@ export const AdminOrderDtoSchema = z.object({
     pickupNumber: z.number().int().positive(),
     status: z.enum(ORDER_STATUSES),
     paymentMethod: z.enum(PAYMENT_METHODS),
-    transferMethod: z.enum(TRANSFER_METHODS).nullable(),
     totalAmount: z.number().int().nonnegative(),
     items: z.array(AdminOrderItemDtoSchema),
     createdAt: z.string(),
@@ -59,7 +56,6 @@ export type AdminOrdersResponse = z.infer<typeof AdminOrdersResponseSchema>;
 export {
     type OrderStatus,
     type PaymentMethod,
-    type TransferMethod,
     type RefundChannel,
     type TransitionAction,
 };

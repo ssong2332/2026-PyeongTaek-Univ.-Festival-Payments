@@ -13,10 +13,8 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const PAYMENT_METHODS = ["cash", "transfer"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export const TRANSFER_METHODS = ["bank", "kakaopay", "toss"] as const;
-export type TransferMethod = (typeof TRANSFER_METHODS)[number];
-
-export const REFUND_CHANNELS = ["cash", "bank", "kakaopay", "toss"] as const;
+// T-53 / PR #38: transfer_method 컬럼 및 타입 삭제 (현금/계좌이체 2종만 지원)
+export const REFUND_CHANNELS = ["cash", "bank"] as const;
 export type RefundChannel = (typeof REFUND_CHANNELS)[number];
 
 export const TRANSITION_ACTIONS = [

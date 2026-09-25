@@ -4,7 +4,7 @@ import { AppError } from "@/lib/api/errors";
 import type { AdminOrderRepository, OrderListFilter } from "@/services/ports";
 import type { AdminOrderDto, AdminOrderItemDto } from "@/lib/dto/adminOrder";
 import { availableActions } from "@/domain/order/stateMachine";
-import type { OrderStatus, PaymentMethod, TransferMethod, RefundChannel } from "@/domain/order/status";
+import type { OrderStatus, PaymentMethod, RefundChannel } from "@/domain/order/status";
 
 interface DbOrderItemOption {
     option_name_ko: string;
@@ -28,7 +28,6 @@ interface DbOrderRow {
     pickup_number: number;
     status: OrderStatus;
     payment_method: PaymentMethod;
-    transfer_method: TransferMethod | null;
     total_amount: number;
     created_at: string;
     updated_at: string;
@@ -66,7 +65,6 @@ export function toAdminOrderDto(row: DbOrderRow): AdminOrderDto {
         pickupNumber: row.pickup_number,
         status: row.status,
         paymentMethod: row.payment_method,
-        transferMethod: row.transfer_method,
         totalAmount: row.total_amount,
         items,
         createdAt: row.created_at,
@@ -89,7 +87,7 @@ export function toAdminOrderDto(row: DbOrderRow): AdminOrderDto {
 }
 
 const ORDER_QUERY_SELECT = `
-    id, pickup_number, status, payment_method, transfer_method, total_amount,
+    id, pickup_number, status, payment_method, total_amount,
     created_at, updated_at, acknowledged_at, transfer_reported_at,
     cancel_requested_at, cancel_rejected_at, paid_at, cooking_started_at,
     completed_at, closed_at, refund_channel,

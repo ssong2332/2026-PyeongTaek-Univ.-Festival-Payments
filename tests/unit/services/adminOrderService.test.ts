@@ -14,7 +14,6 @@ function createMockOrder(id: string, acknowledgedAt: string | null = null): Admi
         pickupNumber: 101,
         status: "pending",
         paymentMethod: "cash",
-        transferMethod: null,
         totalAmount: 10000,
         items: [],
         createdAt: "2026-09-25T10:00:00Z",

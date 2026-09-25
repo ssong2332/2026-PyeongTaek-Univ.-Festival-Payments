@@ -6,6 +6,8 @@ import { availableActions } from "@/domain/order/stateMachine";
 import { createAdminBrowserClient } from "@/infra/supabase/browser";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
+import type { OrderStatus, PaymentMethod, RefundChannel } from "@/domain/order/status";
+
 export function deriveUnacknowledgedCount(ordersMap: Map<string, AdminOrderDto>): number {
     let count = 0;
     for (const order of ordersMap.values()) {
@@ -20,14 +22,94 @@ export function deriveUnacknowledgedCount(ordersMap: Map<string, AdminOrderDto>)
 }
 
 /**
+ * Supabase Postgres changes 페이로드(snake_case)를 AdminOrderDto(camelCase) 패치로 변환
+ */
+export function mapPayloadToOrderPatch(raw: Record<string, unknown>): Partial<AdminOrderDto> {
+    const patch: Partial<AdminOrderDto> = {};
+
+    if ("status" in raw && typeof raw.status === "string") {
+        patch.status = raw.status as OrderStatus;
+    }
+    if ("payment_method" in raw && typeof raw.payment_method === "string") {
+        patch.paymentMethod = raw.payment_method as PaymentMethod;
+    } else if ("paymentMethod" in raw && typeof raw.paymentMethod === "string") {
+        patch.paymentMethod = raw.paymentMethod as PaymentMethod;
+    }
+    if ("pickup_number" in raw && typeof raw.pickup_number === "number") {
+        patch.pickupNumber = raw.pickup_number;
+    } else if ("pickupNumber" in raw && typeof raw.pickupNumber === "number") {
+        patch.pickupNumber = raw.pickupNumber;
+    }
+    if ("total_amount" in raw && typeof raw.total_amount === "number") {
+        patch.totalAmount = raw.total_amount;
+    } else if ("totalAmount" in raw && typeof raw.totalAmount === "number") {
+        patch.totalAmount = raw.totalAmount;
+    }
+    if ("acknowledged_at" in raw) {
+        patch.acknowledgedAt = (raw.acknowledged_at as string | null) ?? null;
+    } else if ("acknowledgedAt" in raw) {
+        patch.acknowledgedAt = (raw.acknowledgedAt as string | null) ?? null;
+    }
+    if ("transfer_reported_at" in raw) {
+        patch.transferReportedAt = (raw.transfer_reported_at as string | null) ?? null;
+    } else if ("transferReportedAt" in raw) {
+        patch.transferReportedAt = (raw.transferReportedAt as string | null) ?? null;
+    }
+    if ("cancel_requested_at" in raw) {
+        patch.cancelRequestedAt = (raw.cancel_requested_at as string | null) ?? null;
+    } else if ("cancelRequestedAt" in raw) {
+        patch.cancelRequestedAt = (raw.cancelRequestedAt as string | null) ?? null;
+    }
+    if ("cancel_rejected_at" in raw) {
+        patch.cancelRejectedAt = (raw.cancel_rejected_at as string | null) ?? null;
+    } else if ("cancelRejectedAt" in raw) {
+        patch.cancelRejectedAt = (raw.cancelRejectedAt as string | null) ?? null;
+    }
+    if ("paid_at" in raw) {
+        patch.paidAt = (raw.paid_at as string | null) ?? null;
+    } else if ("paidAt" in raw) {
+        patch.paidAt = (raw.paidAt as string | null) ?? null;
+    }
+    if ("cooking_started_at" in raw) {
+        patch.cookingStartedAt = (raw.cooking_started_at as string | null) ?? null;
+    } else if ("cookingStartedAt" in raw) {
+        patch.cookingStartedAt = (raw.cookingStartedAt as string | null) ?? null;
+    }
+    if ("completed_at" in raw) {
+        patch.completedAt = (raw.completed_at as string | null) ?? null;
+    } else if ("completedAt" in raw) {
+        patch.completedAt = (raw.completedAt as string | null) ?? null;
+    }
+    if ("closed_at" in raw) {
+        patch.closedAt = (raw.closed_at as string | null) ?? null;
+    } else if ("closedAt" in raw) {
+        patch.closedAt = (raw.closedAt as string | null) ?? null;
+    }
+    if ("refund_channel" in raw) {
+        patch.refundChannel = (raw.refund_channel as RefundChannel | null) ?? null;
+    } else if ("refundChannel" in raw) {
+        patch.refundChannel = (raw.refundChannel as RefundChannel | null) ?? null;
+    }
+    if ("updated_at" in raw && typeof raw.updated_at === "string") {
+        patch.updatedAt = raw.updated_at;
+    } else if ("updatedAt" in raw && typeof raw.updatedAt === "string") {
+        patch.updatedAt = raw.updatedAt;
+    }
+
+    return patch;
+}
+
+/**
  * ADR-0003: UPDATE 이벤트 병합 규칙
  * 기존 항목이 있고, 수신된 updated_at이 기존보다 더 새로울 때만 갱신 (오래된 역순 이벤트 무시)
  */
 export function mergeOrderUpdate(
     currentOrder: AdminOrderDto,
-    updatedRow: Partial<AdminOrderDto> & { updatedAt?: string; updated_at?: string },
+    incoming: Record<string, unknown> | Partial<AdminOrderDto>,
 ): AdminOrderDto {
-    const newUpdatedAtStr = updatedRow.updatedAt ?? updatedRow.updated_at;
+    const patch = mapPayloadToOrderPatch(incoming as Record<string, unknown>);
+    const newUpdatedAtStr = patch.updatedAt;
+
     if (newUpdatedAtStr) {
         const currentMs = new Date(currentOrder.updatedAt).getTime();
         const incomingMs = new Date(newUpdatedAtStr).getTime();
@@ -39,7 +121,7 @@ export function mergeOrderUpdate(
 
     const merged: AdminOrderDto = {
         ...currentOrder,
-        ...(updatedRow as Partial<AdminOrderDto>),
+        ...patch,
         updatedAt: newUpdatedAtStr ?? currentOrder.updatedAt,
     };
 
@@ -169,7 +251,7 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
                                 hydrateOrder(updatedId);
                                 return prev;
                             }
-                            const updated = mergeOrderUpdate(existing, payload.new as unknown as Partial<AdminOrderDto>);
+                            const updated = mergeOrderUpdate(existing, payload.new);
                             const next = new Map(prev);
                             next.set(updatedId, updated);
                             return next;
