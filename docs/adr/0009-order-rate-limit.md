@@ -28,7 +28,7 @@ F-47(클라이언트 IP당 분당 100건(초기값), 초과 시 429, 주문·재
 - 호출 순서(`orderService.createOrder`): ① `repo.findByIdempotencyKey(key)` → 있으면 즉시 200 반환(**한도 미소비** — F-47 멱등 예외) ② `rateLimitRepo.consume('order_create', clientKey, LIMIT, WINDOW)` → `false`면 `AppError('RATE_LIMITED', 429)` ③ `create_order` RPC. ①과 ③의 이중 멱등 검사는 의도적 — ③이 UNIQUE로 경쟁 상태를 최종 판정한다. `create_order`는 수정하지 않는다(ADR-0002 유지).
 - 카운트되는 것: ②를 통과한 요청. ③이 OUT_OF_STOCK 등으로 실패해도 카운트는 남는다(별도 RPC라 롤백되지 않음) — "시도" 기준 한도. F-47 AC(성공 100건 후 101번째 429)와 일치한다.
 - 클라이언트 키: `src/lib/api/clientIp.ts` `getClientIp(request)` — Cloudflare Workers에서는 `cf-connecting-ip` 우선 → 없으면 `x-forwarded-for` 첫 항목 → `x-real-ip` → `'unknown'`(로컬·테스트). 실제 배포에서 헤더를 확인한다. 저장 키는 원본 IP가 아니라 `sha256(ip)` hex 앞 32자 — IP를 평문으로 남기지 않는다(1차 "개인정보 수집 없음" 고지 F-12와의 충돌 회피, 행은 1시간 내 삭제됨). 해시는 `crypto.subtle`/`node:crypto` 어느 쪽이든 서버에서만.
-- 한도 상수는 한 곳: `src/domain/order/rateLimit.ts` — `ORDER_CREATE_RATE_LIMIT = { limit: 100, windowSeconds: 60 } as const`. 변경은 코드 수정 + 배포(Open Question #39 결정 시 `app_settings` 키로 승격할 수 있다 — 그때 ADR-0004 키 표에 추가).
+- 한도 상수는 한 곳: `src/domain/order/rateLimit.ts` — `ORDER_CREATE_RATE_LIMIT = { limit: 100, windowSeconds: 60 } as const`. 변경은 코드 수정 + 배포로 진행한다(2026-09-25 Open Question #39 결정).
 - 응답: 429 `{ error: { code: 'RATE_LIMITED', message, details: { retryAfterSeconds } } }` + 헤더 `Retry-After: {초}`(윈도 끝까지 남은 초). 클라이언트는 4xx라 자동 재시도 없음(DECISIONS #24) → 수동 재시도 버튼 + 장바구니 유지(F-13 UI 재사용).
 - 로그 이벤트 `order.rate_limited`(필드: `keyPrefix`(해시 앞 8자), `count`). IP 원문은 로그 금지.
 - 적용 범위: `POST /api/orders`만. `transfer-report`·`cancel-request`는 토큰 소유자 한정 + 멱등이라 남용 표면이 작다 — 요구 없음, 미적용. 관리자 API 미적용(F-47).
@@ -37,4 +37,4 @@ F-47(클라이언트 IP당 분당 100건(초기값), 초과 시 429, 주문·재
 ## 결과 (트레이드오프 포함)
 
 - 얻는 것: 서버리스에서 정확한 IP당 한도, 무료, 멱등 재요청 무영향, 통합 테스트로 AC 검증(101번째 `false`, `p_now` +60초 후 `true`, 멱등 재요청은 카운트 불변).
-- 감수하는 것: 신규 주문당 RPC 1회 추가(약 수십 ms — 추정). 고정 윈도라 경계에서 최대 200건/2분 순간 허용(슬라이딩 윈도 요구 없음). NAT 공유 IP 오차단 가능성은 Open Question #39로 남는다 — 한도가 상수 한 곳이라 변경 비용은 낮다.
+- 감수하는 것: 신규 주문당 RPC 1회 추가(약 수십 ms — 추정). 고정 윈도라 경계에서 최대 200건/2분 순간 허용(슬라이딩 윈도 요구 없음). NAT 공유 IP 오차단 위험은 초기값 100건/분과 단일 상수 조정으로 대응한다(2026-09-25 Open Question #39 결정).
