@@ -38,9 +38,10 @@ const adminEmail = `t13-${randomUUID()}@example.test`;
 const adminPassword = `T13-${randomUUID()}`;
 let adminUserId: string | undefined;
 
-async function must<T>(label: string, promise: PromiseLike<{ data: T; error: unknown }>): Promise<T> {
+async function must<T>(label: string, promise: PromiseLike<{ data: T | null; error: unknown }>): Promise<T> {
   const { data, error } = await promise;
   if (error) throw new Error(`${label} 실패: ${JSON.stringify(error)}`);
+  if (data === null) throw new Error(`${label} 실패: data가 null입니다.`);
   return data;
 }
 
