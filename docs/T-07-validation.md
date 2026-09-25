@@ -30,3 +30,13 @@
   - 속도 제한(T-51, ADR-0009 ②)과 멱등키 선조회(T-08, ①)는 아직 없다.
 - `tests/unit/api/ordersRoute.test.ts` 7개(201·200·가격 필드 400·허용 외 결제수단 400·JSON 아님 400·재고 부족 409 봉투·알 수 없는 DB 에러 500 비노출). rpc만 가짜.
 - 모듈 없음으로 7개 실패 확인 후 구현. `npm run test` 166개, `typecheck`·`lint`·`build` 통과.
+
+## T-08 API 부분 + create_order 통합 테스트 선작성 (2026-09-25)
+
+- **멱등키 선조회(ADR-0009 ①)**: `orderService.createOrder`가 `repo.findByIdempotencyKey`로 먼저 찾고, 있으면 `create_order`를 부르지 않고 기존 주문(`created=false`, 200)을 돌려준다. 선조회와 생성 사이의 동시 재요청은 `create_order`(unique_violation 재조회)가 `created=false`로 처리한다. 속도 제한(T-51 ②)은 ①과 ③ 사이에 들어갈 자리다.
+  - `supabaseOrderRepository.findByIdempotencyKey`: `orders`에서 `idempotency_key`로 조회 → `toExistingOrderResponse`.
+- **버그 수정**: `CreateOrderResponse.status`가 `"pending"`으로만 고정돼 있어, 이미 결제확인된 주문을 같은 멱등키로 다시 요청하면 500이 났다 → `OrderStatus` 전체 허용(알 수 없는 값은 여전히 거부).
+- 테스트: 서비스 단위(선조회 적중 시 create_order 미호출), 저장소 단위(paid 상태 허용·알 수 없는 상태 거부), Route 단위(선조회 적중 200), 통합 `supabaseOrderRepository.idempotency.test.ts` 2개(실제 DB). 실패 확인 후 구현.
+- **`tests/integration/createOrder.test.ts` 11개 선작성** — T-07(서버 가격 계산·동시 주문 재고 음수 방지·롤백(주문·재고·픽업 번호)·품절 409·다른 메뉴 옵션 409·생성 이력), T-08(같은 키 2회·동시 2회 → 1건·재고 1회·같은 번호/토큰, 150→151→152, 동시 5건 번호 중복 없음, 토큰 64자 16진수·중복 없음).
+  - `create_order`가 없으면(PGRST202) 파일 전체 skip → 0010이 들어오면 자동 실행. **실제 함수로는 아직 한 번도 돌려보지 않았다** — 0010 병합 후 결과로 테스트·함수 중 어느 쪽을 고칠지 서동혁과 확인.
+- `npm run test` 170개, `npm run test:integration` 3 통과·11 skip, `typecheck`·`lint`·`build` 통과.
