@@ -1,6 +1,6 @@
 # CodingRules — 2026-PyeongTaek-Univ.-Festival-Payments
 
-> 소유자: 사용자 | 최종 수정: 2026-09-22
+> 소유자: 사용자 | 최종 수정: 2026-09-24
 
 ## 금지
 
@@ -18,11 +18,13 @@
 |---|---|
 | 네이밍 | TypeScript: 변수·함수·메서드는 `camelCase`, 타입·인터페이스·컴포넌트는 `PascalCase`, 상수(불변)는 `UPPER_SNAKE_CASE`. DB 테이블·컬럼은 `snake_case`. DB ↔ TS DTO 변환 시 명시적 매핑 함수(`toDomain`, `toAdminOrderDto`)를 사용하며 스프레드 연산자 무분별한 사용 금지. |
 | 포맷터/린터 | ESLint + TypeScript ESLint. `src/domain` 및 `src/services`는 `next/*`나 `supabase/*` import 절대 금지 (순수 도메인 분리). 클라이언트 컴포넌트(`src/components`, `src/features`, `src/app/(customer)`)에서 `SUPABASE_SERVICE_ROLE_KEY` import 절대 금지. 순환 참조 금지(`import/no-cycle`). |
-| 에러 처리 | 도메인 표준 에러는 `AppError(code, message, status, details)` 사용. API 응답 형식은 `{ error: { code: string, message: string, details?: unknown } }` 규격 준수. 적절한 HTTP 상태 코드(400, 401, 403, 404, 409, 429, 500) 사용. |
+| 에러 처리 | `domain/`은 실패를 반환값 유니온으로 표현한다. `services/`·`infra/`는 `AppError(code, httpStatus, details?)`를 던진다. `message`는 생성자 인자가 아니며 API 응답 변환 시 `code`에 대응하는 고정 영문 문구를 사용한다. 응답은 `{ error: { code: ErrorCode, message: string, details?: unknown } }` 형식을 따르고, HTTP 상태 코드는 Architecture.md의 ErrorCode 표를 따른다. |
 | 로깅 | `src/lib/logger.ts` 사용. 고객 개인정보(전화번호 등)나 계좌 정보는 로그 출력 전 `[redacted]`로 마스킹 처리하여 평문 노출 방지. |
 | 테스트 작성 기준 | 단위 테스트는 `tests/unit/`, 통합 테스트는 `tests/integration/`, E2E는 `tests/e2e/`. 단위 테스트는 Fake/Mock 객체 활용(순수 TS). Red-First(실패 먼저 확인) 원칙 준수, 정상 1 + 경계 2 + 예외 2 이상 케이스 작성. |
 | 디렉토리 배치 | `domain/`(순수 도메인), `services/`(유즈케이스), `infra/`(Supabase 연동·SQL/RPC), `app/api/`(Route Handler), `components/`(표현 컴포넌트), `features/`(화면 훅). 모든 데이터 접근은 `app/api/` 경유 (ADR-0001). |
 | 설정 및 상수 | 수치·타이머·속도 제한 등 마이크로 요구사항은 코드 내 하드코딩하지 않고 상수 객체(예: `src/domain/order/rateLimit.ts`) 또는 `app_settings` 테이블(ADR-0004)로 단일 진실화(Single Source of Truth)한다. |
+
+진행 중인 작업에서 `AppError(code, message, status, details)`를 사용했다면 병합 전에 `AppError(code, httpStatus, details?)`로 변경한다. 화면 표시 문구는 API `message` 대신 `code`로 `messages/*.json`에서 찾는다.
 
 ## 검증된 명령어
 
@@ -33,3 +35,37 @@
 | 빌드 | (T-01 완료 후 등록) | |
 | 실행 | (T-01 완료 후 등록) | |
 | 테스트 | (T-01 완료 후 등록) | |
+
+### T-01 로컬 검증 (2026-09-22)
+
+위의 미등록 행은 유지하며 실제 성공한 명령을 아래에 추가한다.
+Node 20.20.2 환경에서 검증했다. `.nvmrc`를 지원하는 도구로 버전을 맞춘 뒤 `npm ci`로 설치한다.
+
+| 용도 | 명령 (원문) | 검증일 |
+|---|---|---|
+| 빌드 | `npm run build` | 2026-09-22 |
+| 개발 서버 | `npm run dev -- --hostname 127.0.0.1 --port 3100` | 2026-09-22 |
+| 단위 테스트 | `npm run test` | 2026-09-22 |
+| 브라우저 기본 동작 검사(E2E) | `npm run test:e2e` | 2026-09-22 |
+| 코드 규칙 검사 | `npm run lint` | 2026-09-22 |
+
+개발 서버는 Playwright가 위 명령으로 시작하고 종료한다. 일반 개발용 `npm run dev`(기본 포트 3000)는 별도 실행 가능하다.
+E2E 최초 실행 전 `npx playwright install chromium`이 필요하다. 현재 스모크는 DB 없이 실행된다.
+`customer-ios`도 설계의 Chromium 기반 기기 에뮬레이션이며 실제 Safari 검증을 뜻하지 않는다.
+`npx supabase start`는 팀원 전원 Docker 설치 불가 결정 때문에 검증하지 않았으며 성공 명령으로 등록하지 않는다. 통합 테스트와 Supabase 자동 검사 작업은 T-02에서 추가한다.
+
+
+### T-02 연결 검사 명령
+
+- `npm run test:connection`: `.env.local`의 팀 Supabase 프로젝트에 읽기 전용 연결 검사. 2026-09-23 실제 프로젝트에 대한 검사 1개 통과.
+- `npm run test:integration`: `.env.test.local` 또는 CI 환경변수로 독립 로컬 DB 통합 검사. 2026-09-23 GitHub Actions에서 통과했다.
+- 단위 검사는 실제 Supabase에 접속하지 않는다. 통합 검사는 원격 DB를 거부하고 파일 직렬 실행을 유지한다.
+
+
+| 용도 | 명령 (원문) | 검증일 |
+|---|---|---|
+| 실제 프로젝트 연결 검사(읽기 전용) | `npm run test:connection` | 2026-09-23 |
+| CI 테스트 DB 시작 | `supabase start` | 2026-09-23 |
+| CI 통합 테스트 | `npm run test:integration` | 2026-09-23 |
+
+Node 20.20.2에서 연결 검사 1개, 단위 검사 27개, `npm run lint`, `npm run build` 통과. 실제 키와 조회한 사용자 정보는 기록하지 않는다. GitHub 통합 검사도 통과했다. [CI 성공 근거](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/actions/runs/35806617781).

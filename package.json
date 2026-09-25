@@ -1,0 +1,46 @@
+{
+  "name": "pyeongtaek-festival-payments",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "test:integration": "node --env-file-if-exists=.env.test.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts",
+    "test:connection": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.connection.config.mts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.9.0",
+    "@supabase/supabase-js": "2.100.0",
+    "next": "16.3.5",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.5",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-import": "2.32.0",
+    "jsdom": "29.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
