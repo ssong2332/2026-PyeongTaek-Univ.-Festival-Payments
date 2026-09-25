@@ -35,6 +35,8 @@ export type TransitionCommand = {
 export interface OrderRepository {
     // rpc('create_order'). OUT_OF_STOCK·MENU_UNAVAILABLE·INVALID_OPTION은 AppError(409)로 바꿔 던진다.
     createOrder(input: CreateOrderRequest): Promise<CreateOrderResponse>;
+    // 같은 멱등키 주문이 있으면 created=false 응답, 없으면 null (ADR-0009 ①).
+    findByIdempotencyKey(key: string): Promise<CreateOrderResponse | null>;
     findById(id: string): Promise<OrderForTransition | null>;
     // CAS 실패 시 AppError("STATE_CHANGED", 409)를 던진다.
     transition(command: TransitionCommand): Promise<OrderForTransition>;

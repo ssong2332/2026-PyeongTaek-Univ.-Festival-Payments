@@ -3,10 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 
-// create_order rpc 결과만 바꿔 끼운다.
+// 멱등키 선조회(orders select) 결과와 create_order rpc 결과만 바꿔 끼운다.
 const rpc = vi.fn();
+const existingOrder = vi.fn();
 vi.mock("@/infra/supabase/server", () => ({
-  createServiceClient: vi.fn(() => ({ rpc })),
+  createServiceClient: vi.fn(() => ({
+    rpc,
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: existingOrder }) }) }),
+  })),
 }));
 
 const MENU_ID = "33333333-3333-4333-8333-333333333333";
@@ -41,6 +45,7 @@ async function post(payload: unknown) {
 
 beforeEach(() => {
   rpc.mockReset();
+  existingOrder.mockReset().mockResolvedValue({ data: null, error: null });
 });
 
 describe("POST /api/orders", () => {
@@ -52,7 +57,21 @@ describe("POST /api/orders", () => {
     expect(rpc).toHaveBeenCalledWith("create_order", expect.objectContaining({ p_idempotency_key: body.idempotencyKey }));
   });
 
-  it("같은 멱등키 재요청(created=false)이면 200", async () => {
+  it("이미 있는 멱등키면 create_order를 부르지 않고 200 + 기존 주문", async () => {
+    existingOrder.mockResolvedValue({
+      data: {
+        id: rpcResult.orderId, pickup_number: 151, status_token: rpcResult.statusToken,
+        status: "paid", total_amount: 6000, created_at: "2026-09-26T01:00:00+00:00",
+      },
+      error: null,
+    });
+    const { status, json } = await post(body);
+    expect(status).toBe(200);
+    expect(json).toEqual({ ...rpcResult, status: "paid", created: false });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("선조회 뒤 create_order가 created=false를 돌려주면 200", async () => {
     rpc.mockResolvedValue({ data: { ...rpcResult, created: false }, error: null });
     const { status, json } = await post(body);
     expect(status).toBe(200);

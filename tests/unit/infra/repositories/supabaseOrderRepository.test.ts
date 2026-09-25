@@ -76,6 +76,18 @@ describe("supabaseOrderRepository.createOrder", () => {
     expect((await createSupabaseOrderRepository(client).createOrder(dto)).created).toBe(false);
   });
 
+  it("멱등 재요청 시점에 이미 결제확인된 주문도 현재 상태 그대로 돌려준다", async () => {
+    const { client } = fakeClient({ data: { ...rpcResult, status: "paid", created: false }, error: null });
+    expect(await createSupabaseOrderRepository(client).createOrder(dto)).toMatchObject({ status: "paid", created: false });
+  });
+
+  it("알 수 없는 상태 값이면 일반 에러로 던진다", async () => {
+    const { client } = fakeClient({ data: { ...rpcResult, status: "shipping" }, error: null });
+    const error = await createSupabaseOrderRepository(client).createOrder(dto).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(AppError);
+  });
+
   it.each(["OUT_OF_STOCK", "MENU_UNAVAILABLE", "INVALID_OPTION"])("DB 예외 %s는 AppError 409로 바꾼다", async (code) => {
     const error = await createOrderError({ message: code, code: "P0001" });
     expect(error).toBeInstanceOf(AppError);

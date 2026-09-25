@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { OrderStatus } from "@/domain/order/status";
 
 // Architecture "6. 고객 API" POST /api/orders. 가격 필드는 받지 않는다 — strict라 들어오면 400(N-03).
 export const CreateOrderRequestSchema = z.strictObject({
@@ -20,7 +21,8 @@ export type CreateOrderResponse = {
   orderId: string;
   pickupNumber: number;
   statusToken: string;
-  status: "pending";
+  // 새 주문은 pending. 멱등 재요청이면 그 시점의 현재 상태(예: paid)다.
+  status: OrderStatus;
   totalAmount: number;
   createdAt: string;
   created: boolean;

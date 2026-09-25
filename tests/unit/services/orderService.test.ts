@@ -21,33 +21,46 @@ const created: CreateOrderResponse = {
   created: true,
 };
 
-function repoReturning(result: CreateOrderResponse | Error) {
-  const calls: CreateOrderRequest[] = [];
-  const orderRepository: Pick<OrderRepository, "createOrder"> = {
+function fakeRepo(result: CreateOrderResponse | Error, existing: CreateOrderResponse | null = null) {
+  const createCalls: CreateOrderRequest[] = [];
+  const lookupCalls: string[] = [];
+  const orderRepository: Pick<OrderRepository, "createOrder" | "findByIdempotencyKey"> = {
+    async findByIdempotencyKey(key) {
+      lookupCalls.push(key);
+      return existing;
+    },
     async createOrder(input) {
-      calls.push(input);
+      createCalls.push(input);
       if (result instanceof Error) throw result;
       return result;
     },
   };
-  return { orderRepository, calls };
+  return { orderRepository, createCalls, lookupCalls };
 }
 
 describe("orderService.createOrder", () => {
-  it("검증된 요청을 그대로 repo에 넘기고 가격은 repo(DB) 결과를 쓴다", async () => {
-    const { orderRepository, calls } = repoReturning(created);
+  it("새 멱등키면 검증된 요청을 그대로 repo.createOrder에 넘기고 DB 결과를 쓴다", async () => {
+    const { orderRepository, createCalls, lookupCalls } = fakeRepo(created);
     const result = await createOrder(dto, { orderRepository });
-    expect(calls).toEqual([dto]);
+    expect(lookupCalls).toEqual([dto.idempotencyKey]);
+    expect(createCalls).toEqual([dto]);
     expect(result).toEqual(created);
   });
 
-  it("멱등 재요청이면 created=false 결과를 그대로 돌려준다", async () => {
-    const { orderRepository } = repoReturning({ ...created, created: false });
+  it("이미 있는 멱등키면 create_order를 부르지 않고 기존 주문(created=false)을 돌려준다 — ADR-0009 ①", async () => {
+    const existing = { ...created, status: "paid" as const, created: false };
+    const { orderRepository, createCalls } = fakeRepo(created, existing);
+    expect(await createOrder(dto, { orderRepository })).toEqual(existing);
+    expect(createCalls).toHaveLength(0);
+  });
+
+  it("선조회 뒤 동시에 들어온 재요청은 create_order가 created=false로 돌려준 결과를 그대로 쓴다", async () => {
+    const { orderRepository } = fakeRepo({ ...created, created: false });
     expect((await createOrder(dto, { orderRepository })).created).toBe(false);
   });
 
   it.each(["OUT_OF_STOCK", "MENU_UNAVAILABLE", "INVALID_OPTION"] as const)("repo의 %s(409)를 그대로 전달한다", async (code) => {
-    const { orderRepository } = repoReturning(new AppError(code, 409));
+    const { orderRepository } = fakeRepo(new AppError(code, 409));
     const error = await createOrder(dto, { orderRepository }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ code, status: 409 });

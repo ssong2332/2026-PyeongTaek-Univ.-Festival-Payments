@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, type ErrorCode } from "@/lib/api/errors";
 import type { OrderRepository } from "@/services/ports";
-import { toCreateOrderResponse } from "./mappers";
+import { toCreateOrderResponse, toExistingOrderResponse } from "./mappers";
 
 // create_order가 RAISE EXCEPTION으로 던지는 메시지 → AppError (Architecture "DB 함수" 표, ADR-0002).
 const CREATE_ORDER_ERRORS: Record<string, { code: ErrorCode; status: number }> = {
@@ -30,8 +30,18 @@ function toError(fn: string, error: RpcError): Error {
   return new Error(`${fn} failed: ${error.code ?? "unknown"} ${error.message}`);
 }
 
-export function createSupabaseOrderRepository(client: SupabaseClient): Pick<OrderRepository, "createOrder"> {
+export function createSupabaseOrderRepository(client: SupabaseClient): Pick<OrderRepository, "createOrder" | "findByIdempotencyKey"> {
   return {
+    async findByIdempotencyKey(key) {
+      const { data, error } = await client
+        .from("orders")
+        .select("id, pickup_number, status_token, status, total_amount, created_at")
+        .eq("idempotency_key", key)
+        .maybeSingle();
+      if (error) throw new Error(`orders.findByIdempotencyKey failed: ${error.code ?? "unknown"} ${error.message}`);
+      return data ? toExistingOrderResponse(data) : null;
+    },
+
     async createOrder(input) {
       const { data, error } = await client.rpc("create_order", {
         p_idempotency_key: input.idempotencyKey,
