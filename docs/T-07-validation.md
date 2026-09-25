@@ -1,5 +1,8 @@
 # T-07 주문 생성 API — 선작업 검증
 
+> **현황(2026-09-25): 미완료 — 선작업 단계.** 선행 T-53(0008)·`create_order`(0010, 서동혁)가 dev에 없어 실제 DB 함수와 연결·검증하지 못했다. Tasks 상태는 바꾸지 않는다.
+> T-08(멱등키·픽업 번호·토큰)은 같은 파일·같은 DB 함수를 쓰므로 **같은 브랜치(`feat/T-07-create-order`)·같은 PR**로 올린다 — 기록은 `docs/T-08-validation.md`.
+
 2026-09-24 작성. 선행(T-03·T-53, `create_order` 함수 — 서동혁)이 끝나지 않아 **계약(Architecture "고객 주문 생성"·"6. 고객 API", ADR-0002) 기준 선작업**만 했다. Tasks 상태는 바꾸지 않는다.
 
 - `src/lib/dto/order.ts`: `CreateOrderRequestSchema`(zod strict — 가격·`transferMethod` 등 모르는 필드는 400), `CreateOrderResponse` 타입.
@@ -31,12 +34,16 @@
 - `tests/unit/api/ordersRoute.test.ts` 7개(201·200·가격 필드 400·허용 외 결제수단 400·JSON 아님 400·재고 부족 409 봉투·알 수 없는 DB 에러 500 비노출). rpc만 가짜.
 - 모듈 없음으로 7개 실패 확인 후 구현. `npm run test` 166개, `typecheck`·`lint`·`build` 통과.
 
-## T-08 API 부분 + create_order 통합 테스트 선작성 (2026-09-25)
+## 상태 값 버그 수정 · create_order 통합 테스트 선작성 (2026-09-25)
 
-- **멱등키 선조회(ADR-0009 ①)**: `orderService.createOrder`가 `repo.findByIdempotencyKey`로 먼저 찾고, 있으면 `create_order`를 부르지 않고 기존 주문(`created=false`, 200)을 돌려준다. 선조회와 생성 사이의 동시 재요청은 `create_order`(unique_violation 재조회)가 `created=false`로 처리한다. 속도 제한(T-51 ②)은 ①과 ③ 사이에 들어갈 자리다.
-  - `supabaseOrderRepository.findByIdempotencyKey`: `orders`에서 `idempotency_key`로 조회 → `toExistingOrderResponse`.
-- **버그 수정**: `CreateOrderResponse.status`가 `"pending"`으로만 고정돼 있어, 이미 결제확인된 주문을 같은 멱등키로 다시 요청하면 500이 났다 → `OrderStatus` 전체 허용(알 수 없는 값은 여전히 거부).
-- 테스트: 서비스 단위(선조회 적중 시 create_order 미호출), 저장소 단위(paid 상태 허용·알 수 없는 상태 거부), Route 단위(선조회 적중 200), 통합 `supabaseOrderRepository.idempotency.test.ts` 2개(실제 DB). 실패 확인 후 구현.
-- **`tests/integration/createOrder.test.ts` 11개 선작성** — T-07(서버 가격 계산·동시 주문 재고 음수 방지·롤백(주문·재고·픽업 번호)·품절 409·다른 메뉴 옵션 409·생성 이력), T-08(같은 키 2회·동시 2회 → 1건·재고 1회·같은 번호/토큰, 150→151→152, 동시 5건 번호 중복 없음, 토큰 64자 16진수·중복 없음).
-  - `create_order`가 없으면(PGRST202) 파일 전체 skip → 0010이 들어오면 자동 실행. **실제 함수로는 아직 한 번도 돌려보지 않았다** — 0010 병합 후 결과로 테스트·함수 중 어느 쪽을 고칠지 서동혁과 확인.
-- `npm run test` 170개, `npm run test:integration` 3 통과·11 skip, `typecheck`·`lint`·`build` 통과.
+- **버그 수정**: `CreateOrderResponse.status`가 `"pending"`으로만 고정돼 있어, 이미 결제확인된 주문을 같은 멱등키로 다시 요청하면 500이 났다 → `OrderStatus` 전체 허용(알 수 없는 값은 여전히 거부). 저장소 단위 테스트 2개(paid 허용·알 수 없는 상태 거부) 실패 확인 후 수정.
+- **`tests/integration/createOrder.test.ts`** 중 T-07 블록 6개: 서버 가격 계산((기본가+옵션)×수량)·동시 주문 재고 음수 방지·롤백(주문·재고·픽업 번호 그대로)·품절 409·다른 메뉴 옵션 409·생성 이력 1행. (같은 파일의 T-08 블록 5개는 `T-08-validation.md`)
+  - `create_order`가 없으면(PGRST202 — 로컬에서 확인) 파일 전체 skip, 0010이 들어오면 자동 실행.
+  - **실제 함수로는 아직 한 번도 돌려보지 않았다** — 0010 병합 후 결과를 보고 테스트·함수 중 어느 쪽을 고칠지 서동혁과 확인.
+
+## 남은 일 (T-07)
+
+- [ ] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과
+- [ ] PR #36(T-14) 병합 후 `supabaseOrderRepository.ts`·`mappers.ts` 두 벌 합치기
+- [ ] T-07·T-08 함께 PR (base dev)
+- 범위 밖: 속도 제한(T-51, BE2) — `orderService`의 ①과 ③ 사이 자리만 비워 둠
