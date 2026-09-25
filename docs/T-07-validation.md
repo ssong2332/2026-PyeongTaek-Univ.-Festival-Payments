@@ -44,6 +44,6 @@
 ## 남은 일 (T-07)
 
 - [ ] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과
-- [ ] PR #36(T-14) 병합 후 `supabaseOrderRepository.ts`·`mappers.ts` 두 벌 합치기
+- [x] `supabaseOrderRepository.ts`·`mappers.ts` 두 벌(T-14·T-07) 합치기 — 2026-09-25 T-14 브랜치(d432d38)를 병합하며 한 파일로(에러 표 `DB_ERRORS`에 create_order·transition_order 코드 함께). 단위 171·통합 26 통과(create_order 11 skip)·typecheck·lint·build 통과. #36이 리뷰로 바뀌면 다시 병합
 - [ ] T-07·T-08 함께 PR (base dev)
 - 범위 밖: 속도 제한(T-51, BE2) — `orderService`의 ①과 ③ 사이 자리만 비워 둠
