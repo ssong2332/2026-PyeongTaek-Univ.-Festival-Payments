@@ -244,5 +244,32 @@ BEGIN
     END IF;
 END $$;
 
+-- locale 방어: 지원 언어 보존, NULL·빈 문자열·미지원 값은 ko로 폴백.
+-- 기존 재고/카운터 단언 이후에 독립 메뉴로 검사하고 마지막 ROLLBACK으로 함께 정리한다.
+INSERT INTO public.menu_items (id, base_price, stock)
+VALUES ('07000000-0000-4000-8000-000000000010', 1000, 7);
+INSERT INTO public.menu_item_translations (menu_item_id, locale, name)
+VALUES ('07000000-0000-4000-8000-000000000010', 'ko', '언어 검증 메뉴');
+DO $
+DECLARE
+    c record;
+    r jsonb;
+    stored_locale text;
+BEGIN
+    FOR c IN SELECT * FROM (VALUES
+        ('ko'::text, 'ko'::text), ('en', 'en'),
+        (NULL::text, 'ko'), ('', 'ko'), ('fr', 'ko'), ('abc', 'ko'), (' ', 'ko')
+    ) AS cases(input_locale, expected_locale) LOOP
+        r := public.create_order(gen_random_uuid(), 'cash', c.input_locale,
+            '[{"menuItemId":"07000000-0000-4000-8000-000000000010","quantity":1,"optionIds":[]}]');
+        SELECT locale INTO STRICT stored_locale
+        FROM public.orders WHERE id = (r->>'orderId')::uuid;
+        IF stored_locale IS DISTINCT FROM c.expected_locale THEN
+            RAISE EXCEPTION 'locale %: expected %, got %',
+                c.input_locale, c.expected_locale, stored_locale;
+        END IF;
+    END LOOP;
+END $;
+
 RESET ROLE;
 ROLLBACK;
