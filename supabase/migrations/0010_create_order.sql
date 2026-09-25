@@ -162,7 +162,9 @@ BEGIN
                 (pickup_number, payment_method, total_amount, idempotency_key, status_token, locale)
             VALUES
                 (v_pickup::integer, p_payment_method, v_total, p_idempotency_key,
-                 encode(extensions.gen_random_bytes(32), 'hex'), coalesce(nullif(p_locale, ''), 'ko'))
+                 -- 지원 언어만 저장한다. NULL·빈 문자열·미지원 값은 한국어로 폴백한다.
+                 encode(extensions.gen_random_bytes(32), 'hex'),
+                 CASE WHEN p_locale IN ('ko', 'en') THEN p_locale ELSE 'ko' END)
             RETURNING * INTO v_order;
 
             FOR v_line IN SELECT value FROM jsonb_array_elements(v_lines) LOOP
