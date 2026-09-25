@@ -38,11 +38,10 @@ const adminEmail = `t13-${randomUUID()}@example.test`;
 const adminPassword = `T13-${randomUUID()}`;
 let adminUserId: string | undefined;
 
-async function must<T>(label: string, promise: PromiseLike<{ data: T | null; error: unknown }>): Promise<T> {
+async function must<T>(label: string, promise: PromiseLike<{ data: T; error: unknown }>): Promise<NonNullable<T>> {
   const { data, error } = await promise;
   if (error) throw new Error(`${label} 실패: ${JSON.stringify(error)}`);
-  if (data === null) throw new Error(`${label} 실패: data가 null입니다.`);
-  return data;
+  return data as NonNullable<T>;
 }
 
 // 함수가 이 DB에 있는지는 service_role로 부작용 없는 호출을 해 보고 판단한다(없으면 PostgREST PGRST202).
