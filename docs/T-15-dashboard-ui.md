@@ -2,7 +2,8 @@
 
 사용자가 제공한 Figma `AdminView.tsx`를 바탕으로 T-15의 주문 조회·검색·확인 UI를 분리했다.
 기준 브랜치는 `origin/feat/T-15-realtime-dashboard`의 `08ab500`이다.
-기존 API·DTO·Realtime 훅 파일은 변경하지 않았다. 이 UI 브랜치를 dev 대상으로 PR할 때는
+기존 API의 request/context 타입 선언을 Next.js 라우트 규격에 맞게 수정했다.
+API 처리 로직·DTO·Realtime 훅은 유지했다. 이 UI 브랜치를 dev 대상으로 PR할 때는
 기준 브랜치의 선행 변경도 포함되므로 먼저 해당 브랜치 병합 여부를 확인한다.
 
 ## 확인 방법
@@ -35,9 +36,7 @@ T-16 결제·상태 변경 버튼, T-21 매출 집계, 메뉴·설정 화면은 
   로딩·빈 화면, 잘못된 번호, 실제 어댑터의 확인 응답 및 401 처리.
 - 브라우저: 1440px 목록·상세, 390px 상세·확인 동작 및 가로 넘침 없음 확인.
 - 실제 Supabase 로그인·Realtime 3초 반영·RLS·운영 API 검증은 T-13과 기반 T-15 통합 후 수행한다.
-- 전체 빌드는 아직 통과하지 않았다. Webpack 컴파일 후 Next.js 라우트 타입 검사에서
-  기존 `src/app/api/admin/orders/route.ts`, `[id]/route.ts`,
-  `[id]/acknowledge/route.ts`의 선택적 request/context 인자가 오류를 발생시킨다.
-  기반 브랜치의 API 파일과 차이가 없음을 확인했으며 이번 UI 변경에서는 수정하지 않았다.
-  생성된 `.next/types`를 포함한 `npm run typecheck`도 같은 5개 오류로 실패한다.
+- `npm run build -- --webpack`, `npm run typecheck`, `npm run lint` 통과.
+- 주문 목록·상세·확인 API의 선택적 request/context 선언으로 발생하던 빌드 오류를 해결했다.
+  기존 API 테스트로 인증 실패·조회 성공·404·확인 성공 동작을 재검증했다.
 - 개발 환경은 Node 22.19.0이며 저장소 지정 버전은 Node 20이다. CI 검증이 추가로 필요하다.
