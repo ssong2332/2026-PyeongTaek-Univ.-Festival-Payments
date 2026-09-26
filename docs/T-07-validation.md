@@ -1,6 +1,6 @@
 # T-07 주문 생성 API — 선작업 검증
 
-> **현황(2026-09-25): 미완료 — 선작업 단계.** 선행 T-53(0008)·`create_order`(0010, 서동혁)가 dev에 없어 실제 DB 함수와 연결·검증하지 못했다. Tasks 상태는 바꾸지 않는다.
+> **현황(2026-09-26): 구현·검증 완료, PR 제출.** 선행 T-53(0008)·`create_order`(0010, PR #42) dev 병합 확인 후 최신 dev를 합쳐 실제 함수로 검증했다. 상태 전환(검증중·완료)은 팀장 판단.
 > T-08(멱등키·픽업 번호·토큰)은 같은 파일·같은 DB 함수를 쓰므로 **같은 브랜치(`feat/T-07-create-order`)·같은 PR**로 올린다 — 기록은 `docs/T-08-validation.md`.
 
 2026-09-24 작성. 선행(T-03·T-53, `create_order` 함수 — 서동혁)이 끝나지 않아 **계약(Architecture "고객 주문 생성"·"6. 고객 API", ADR-0002) 기준 선작업**만 했다. Tasks 상태는 바꾸지 않는다.
@@ -46,9 +46,15 @@
 - 서동혁 PR #42(`feat/T-07-create-order-db`)를 임시 공간에서 T-07 브랜치에 합쳐 실행: 0001→0003→0007→0008→0009→0010 적용, **`createOrder.test.ts` 11개 전부 통과(skip 0)**, 통합 전체 46 통과.
 - 에러·DETAIL 형식 계약과 일치(OUT_OF_STOCK `[{menuItemId, requested, available}]` 등). 0010에 새로 있는 `INVALID_ITEMS`(항목 형식 오류)를 400 `VALIDATION_ERROR`로 변환 추가 — 단위 테스트 실패 확인 후 구현.
 
+## 최종 검증 (2026-09-26, 최신 dev beb21db 병합 — 마이그레이션 0001·0003·0007·0008·0009·0010)
+
+- `npm run test` 172 통과 · `npm run test:integration` 46 통과(**`createOrder.test.ts` 11개 skip 없이 전부 통과**) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders`)
+- T-07 완료 기준(Tasks): 조작 가격 무시(API 400 + DB 재계산) ✅ · 옵션 추가 가격 합산 ✅ · 동시 주문 재고 음수 방지 ✅ · 롤백(주문·재고·픽업 번호) ✅ · 허용 외 결제수단 거부 ✅
+- 실제 호출(로컬 Supabase에 연결한 `next dev` — 운영 DB 미사용): 새 주문 201(서버 계산 6,000원·픽업 번호·64자 토큰) · 같은 키 재요청 200(같은 ID·번호·토큰, created=false) · 재고 부족 409 + details `[{menuItemId, requested:1, available:0}]` · 가격 필드 400 · kakaopay 400
+
 ## 남은 일 (T-07)
 
-- [ ] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과
+- [x] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과 (2026-09-26)
 - [x] `supabaseOrderRepository.ts`·`mappers.ts` 두 벌(T-14·T-07) 합치기 — 2026-09-25 T-14 브랜치(d432d38)를 병합하며 한 파일로(에러 표 `DB_ERRORS`에 create_order·transition_order 코드 함께). 단위 171·통합 26 통과(create_order 11 skip)·typecheck·lint·build 통과. #36이 리뷰로 바뀌면 다시 병합
-- [ ] T-07·T-08 함께 PR (base dev)
+- [ ] T-07·T-08 함께 PR (base dev) — QA 1차·팀장 판단 대기
 - 범위 밖: 속도 제한(T-51, BE2) — `orderService`의 ①과 ③ 사이 자리만 비워 둠

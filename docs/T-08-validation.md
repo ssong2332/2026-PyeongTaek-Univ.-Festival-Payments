@@ -1,6 +1,6 @@
 # T-08 멱등키·픽업 번호·상태 토큰 — 선작업 검증
 
-> **현황(2026-09-25): 미완료 — 선작업 단계.** 선행 **T-07이 아직 미완료**(create_order 0010 미병합)라 T-08도 연결·검증 전이다. Tasks 상태는 바꾸지 않는다.
+> **현황(2026-09-26): 구현·검증 완료, PR 제출(T-07과 같은 PR).** 선행 T-07 완료, `create_order`(0010, PR #42)로 실제 검증. 상태 전환은 팀장 판단.
 > 픽업 번호(counters)·토큰(`gen_random_bytes`)·멱등 처리(UNIQUE·unique_violation 재조회)의 본체는 `create_order`(DB1 서동혁, ADR-0002). BE1 몫은 API 쪽 멱등키 선조회와 응답, 그리고 완료 기준 통합 테스트다.
 > T-07과 같은 파일·같은 DB 함수를 쓰므로 **`feat/T-07-create-order` 브랜치에서 함께 작업하고 같은 PR로 올린다.**
 
@@ -26,8 +26,14 @@
 
 `npm run test` 170개, `npm run test:integration` 3 통과·11 skip, `typecheck`·`lint`·`build` 통과.
 
+## 최종 검증 (2026-09-26, 최신 dev beb21db — 0010 포함)
+
+- `createOrder.test.ts` T-08 블록 5개 skip 없이 통과: 같은 키 2회(주문 1건·같은 ID·번호·토큰·재고 1회) · 같은 키 동시 2회 · 픽업 번호 150→151→152 · 동시 5건 번호 중복 없음 · 토큰 64자 16진수·중복 없음
+- 실제 호출(로컬 DB): 같은 키 재요청 → 200, 첫 응답과 같은 orderId·pickupNumber·statusToken, `created:false`
+- 전체: 단위 172 · 통합 46 · typecheck·lint·build 통과
+
 ## 남은 일 (T-08)
 
-- [ ] T-07 완료(0010 병합) 후 T-08 블록 5개 실제 실행·통과
+- [x] T-07 완료(0010 병합) 후 T-08 블록 5개 실제 실행·통과 (2026-09-26)
 - [ ] 상태 페이지 토큰 조회 API(`GET /api/orders/{token}`)는 T-11(BE2) 몫 — 여기서 만들지 않음
-- [ ] T-07·T-08 함께 PR
+- [ ] T-07·T-08 함께 PR — QA 1차·팀장 판단 대기
