@@ -46,9 +46,20 @@
 - 서동혁 PR #42(`feat/T-07-create-order-db`)를 임시 공간에서 T-07 브랜치에 합쳐 실행: 0001→0003→0007→0008→0009→0010 적용, **`createOrder.test.ts` 11개 전부 통과(skip 0)**, 통합 전체 46 통과.
 - 에러·DETAIL 형식 계약과 일치(OUT_OF_STOCK `[{menuItemId, requested, available}]` 등). 0010에 새로 있는 `INVALID_ITEMS`(항목 형식 오류)를 400 `VALIDATION_ERROR`로 변환 추가 — 단위 테스트 실패 확인 후 구현.
 
+## 요구사항 대응 (DoD — PRD ID ↔ 구현·검증)
+
+| ID | 요구·승인 기준(PRD) | 구현 위치 | 검증 |
+|---|---|---|---|
+| F-06 | 결제수단 현금/계좌이체 중 선택, 미선택 시 주문 안 됨, 선택값 저장 | `lib/dto/order.ts`(`paymentMethod` 필수·cash/transfer만) · 저장은 create_order(0010) | `order.test.ts`(누락·kakaopay·toss·card 400) · Route 400 · 저장은 `t07-create-order.sql`(DB1, transfer 저장 확인) |
+| F-07 | 서버가 ID·수량만 받아 가격 재계산, 주문·항목·재고 차감 단일 트랜잭션, 동시 주문 재고 음수 없음, 실패 시 전부 롤백 | `lib/dto/order.ts`(가격 필드 없음) · `orderService`·`supabaseOrderRepository.createOrder` → create_order | `createOrder.test.ts` T-07 블록(가격 재계산·동시 2건·롤백·품절·잘못된 옵션·이력) · 실제 호출 201(서버 계산 6,000원) |
+| F-07 ⚠ | "합계 0원으로 조작한 요청 → **서버 계산 합계로 저장**" | Architecture 규격("가격 필드는 zod strict로 **400**")을 따름 → 조작 요청은 **거부**됨(저장·사용 안 함은 동일) | `order.test.ts`·Route(가격 필드 400). **PRD(저장)와 Architecture(400)가 달라 팀장 확인 필요** — 바꾸면 strict 해제 + 테스트 수정 |
+| N-02 | 동시 주문에서도 재고 음수 불가 | create_order(행 잠금) | `createOrder.test.ts` "재고 1개에 동시 주문 2건 → 1건만" |
+| N-03 | 가격은 서버만 계산, 클라이언트 가격 저장·사용 안 함 | 요청 DTO에 가격 필드 자체가 없음 · 응답 `totalAmount`는 DB 결과 | `order.test.ts` 가격 필드 거부 · `createOrder.test.ts` 서버 계산 |
+| (API 계약) | `CreateOrderResponse` 모양 | `CreateOrderResponseSchema`(zod, 프론트·백 공용) · `mappers.toCreateOrderResponse`가 같은 스키마로 검사 | `order.test.ts` 응답 스키마 7개 · 저장소 단위(모양 어긋나면 500) |
+
 ## 최종 검증 (2026-09-26, 최신 dev beb21db 병합 — 마이그레이션 0001·0003·0007·0008·0009·0010)
 
-- `npm run test` 172 통과 · `npm run test:integration` 46 통과(**`createOrder.test.ts` 11개 skip 없이 전부 통과**) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders`)
+- `npm run test` 179 통과(응답 스키마 추가 후) · `npm run test:integration` 46 통과(**`createOrder.test.ts` 11개 skip 없이 전부 통과**) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders`)
 - T-07 완료 기준(Tasks): 조작 가격 무시(API 400 + DB 재계산) ✅ · 옵션 추가 가격 합산 ✅ · 동시 주문 재고 음수 방지 ✅ · 롤백(주문·재고·픽업 번호) ✅ · 허용 외 결제수단 거부 ✅
 - 실제 호출(로컬 Supabase에 연결한 `next dev` — 운영 DB 미사용): 새 주문 201(서버 계산 6,000원·픽업 번호·64자 토큰) · 같은 키 재요청 200(같은 ID·번호·토큰, created=false) · 재고 부족 409 + details `[{menuItemId, requested:1, available:0}]` · 가격 필드 400 · kakaopay 400
 
