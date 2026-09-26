@@ -9,7 +9,7 @@ import { ORDER_STATUSES } from "@/domain/order/status";
 export const dynamic = "force-dynamic";
 
 export const GET = withHandler(
-    async (request?: NextRequest) => {
+    async (request: NextRequest) => {
         await requireAdmin();
         const repository = new SupabaseAdminOrderRepository();
 
