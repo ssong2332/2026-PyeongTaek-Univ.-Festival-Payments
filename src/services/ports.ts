@@ -1,5 +1,18 @@
+import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "@/domain/order/status";
 import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
+
+export interface OrderListFilter {
+    date?: string;
+    status?: OrderStatus[];
+    pickupNumber?: number;
+}
+
+export interface AdminOrderRepository {
+    findById(id: string): Promise<AdminOrderDto | null>;
+    list(filter?: OrderListFilter): Promise<AdminOrderDto[]>;
+    acknowledge(id: string, actorId?: string): Promise<AdminOrderDto>;
+}
 
 export interface SettingsRepository {
     get(key: string): Promise<string | null>;
