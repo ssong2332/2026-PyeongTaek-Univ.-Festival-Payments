@@ -1,0 +1,44 @@
+name: T-18 sweep SQL
+
+on:
+  push:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+jobs:
+  sweep-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: festival_sweep_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: festival_sweep_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: 독립 테스트 DB 구성
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;'
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/0001_schema.sql
+          for migration in 0007_t03_schema_hardening.sql 0008_t53_remove_easy_pay.sql 0009_transition_order.sql; do
+            psql -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/0011_sweep_expire.sql
+      - name: T-18 대상 선정·위임·오류·권한 검증
+        run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire.sql
+      - name: 실제 T-14 재고 복구·이력 검증
+        run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire_transition.sql
