@@ -4,10 +4,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { makePreviewOrders } from "@/features/admin/DashboardPreview";
 import { LiveOrderDashboard } from "@/features/admin/LiveOrderDashboard";
 
+const reloadOrders = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/features/admin/useOrdersFeed", () => ({
-    useOrdersFeed: () => ({ orders: makePreviewOrders(), isLoading: false, error: null, reload: vi.fn() }),
+    useOrdersFeed: () => ({ orders: makePreviewOrders(), isLoading: false, error: null, reload: reloadOrders }),
 }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {
     const updated = { ...makePreviewOrders()[0], acknowledgedAt: "2026-09-25T11:00:00.000Z", updatedAt: "2026-09-25T11:00:00.000Z" };
@@ -44,4 +45,13 @@ it("sends only the allowed transition action and applies the validated server re
         body: JSON.stringify({ action: "confirm_cash" }),
     });
     expect((screen.getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it("reloads the order after a conflicting transition response", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 409 })));
+    render(<LiveOrderDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+    fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
+    expect(reloadOrders).toHaveBeenCalledTimes(1);
 });
