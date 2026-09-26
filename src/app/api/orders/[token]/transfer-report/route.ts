@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrderRepository";
 import { createServiceClient } from "@/infra/supabase/server";
 import { withHandler } from "@/lib/api/handler";
-import { reportTransfer } from "@/services/transferReportService";
+import { reportTransfer } from "@/services/orderService";
 
 // Architecture "POST /api/orders/{token}/transfer-report" (T-32, F-43). 본문 없음.
 // 200 { transferReportedAt } — 이미 신고됨이면 기존 시각 그대로(멱등). 현금·결제대기 아님 409, 토큰 불일치 404.

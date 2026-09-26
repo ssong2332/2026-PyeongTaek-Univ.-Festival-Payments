@@ -6,12 +6,12 @@
 ## 구현 (Architecture "POST /api/orders/{token}/transfer-report", PRD F-43)
 
 - `src/app/api/orders/[token]/transfer-report/route.ts` — 본문 없음. 200 `{ transferReportedAt }`.
-- `src/services/transferReportService.ts`의 `reportTransfer(token, { orderRepository, clock })`
+- `src/services/orderService.ts`의 `reportTransfer(token, { orderRepository, clock })` — Architecture 파일 구조표(`orderService.ts: createOrder, getOrderByToken, reportTransfer, requestCancel`)대로 T-07의 `createOrder` 옆에 둔다(09-26 별도 파일에서 옮김)
   - 토큰 형식(64자 소문자 16진수)이 틀리면 DB를 부르지 않고 404(존재 여부 구분 안 함 — F-10)
   - 결과: 신고됨/이미 신고됨 → 200(시각) · 신고 불가(현금 또는 결제대기 아님) → 409 `INVALID_TRANSITION` · 없음 → 404 `NOT_FOUND`
-- `supabaseOrderRepository.reportTransfer(token, at)` — **조건부 갱신 한 번**(`status='pending' AND payment_method='transfer' AND transfer_reported_at IS NULL`)으로 최초 1회만 기록 → 연타·동시 요청에도 시각 하나. 갱신이 안 되면 다시 읽어 없음/불가/이미 신고됨을 가린다. 주문 상태는 건드리지 않는다. `orders` 갱신이라 `updated_at` 트리거·Realtime UPDATE가 대시보드(T-15)로 전달된다.
+- `supabaseOrderRepository.reportTransfer(token, at)` — **(임시 이름: T-11 병합 후 Architecture 포트대로 `findByToken` + `setTransferReported(id)`로 바꿀 예정)** **조건부 갱신 한 번**(`status='pending' AND payment_method='transfer' AND transfer_reported_at IS NULL`)으로 최초 1회만 기록 → 연타·동시 요청에도 시각 하나. 갱신이 안 되면 다시 읽어 없음/불가/이미 신고됨을 가린다. 주문 상태는 건드리지 않는다. `orders` 갱신이라 `updated_at` 트리거·Realtime UPDATE가 대시보드(T-15)로 전달된다.
 - `ports.ts`: `TransferReportResult`, `OrderRepository.reportTransfer`
-- **T-11과 겹치지 않게**: Architecture 포트 목록의 `findByToken`(T-11 상태 페이지에서도 필요)을 만들지 않고 T-32 전용 `reportTransfer`로 처리 — 같은 이름 함수를 두 브랜치가 따로 만드는 충돌을 피함. 새 마이그레이션 없음(`transfer_reported_at` 컬럼은 0001에 있음).
+- **문서 정렬 계획(09-26 결정)**: Architecture 포트는 `findByToken(token)` + `setTransferReported(id)`. `findByToken`은 T-11(유은조)이 만들 함수라, T-11이 dev에 들어오면 그것을 재사용하고 저장소를 문서 이름으로 바꾼다. 브랜치도 그때 최신 dev에서 새로 만들어 옮긴다(GitWorkflow "최신 dev에서 브랜치"). 새 마이그레이션 없음(`transfer_reported_at` 컬럼은 0001에 있음).
 
 ## 요구사항 대응 (DoD)
 
@@ -28,7 +28,7 @@
 
 ## 테스트 (Red-First: 서비스·저장소·Route 모두 모듈/함수 없음으로 실패 확인 후 구현)
 
-- `tests/unit/services/transferReportService.test.ts` 9개(가짜 저장소 + 고정 시계)
+- `tests/unit/services/orderService.test.ts`의 `orderService.reportTransfer` 블록 9개(가짜 저장소 + 고정 시계)
 - `tests/integration/supabaseOrderRepository.transferReport.test.ts` 10개(실제 로컬 DB)
 - `tests/unit/api/transferReportRoute.test.ts` 4개(경로 토큰 전달·200·409·404·500 비노출)
 
@@ -39,6 +39,6 @@
 
 ## 남은 일
 
-- [ ] PR #46(T-07·T-08) 병합 후 최신 dev 병합 → PR(base dev)
+- [ ] PR #46 병합 + T-11 병합 → 최신 dev에서 브랜치 새로 만들고 작업 옮기기 → 저장소를 `findByToken`+`setTransferReported(id)`로 → 테스트 재통과 → PR(base dev)
 - [ ] 선행 T-11·T-15 병합 후: 김희진 버튼 → 이 API → 대시보드 표시 연결 확인(09-30 낮)
 - [ ] 노션 T-32 카드 진행 공유

@@ -7,7 +7,7 @@ vi.mock("@/infra/supabase/server", () => ({ createServiceClient: vi.fn(() => ({}
 
 // 규칙은 서비스·저장소 테스트가 확인한다. 여기서는 경로 값 전달과 HTTP 응답 모양만 본다.
 const reportTransfer = vi.fn();
-vi.mock("@/services/transferReportService", () => ({ reportTransfer }));
+vi.mock("@/services/orderService", () => ({ reportTransfer }));
 
 const TOKEN = "a".repeat(64);
 
