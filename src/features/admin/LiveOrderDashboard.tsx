@@ -28,5 +28,15 @@ export function LiveOrderDashboard() {
             if (!response.ok) throw new Error("Acknowledge failed");
             const updated = AdminOrderDtoSchema.parse(await response.json());
             setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
+        }}
+        onTransition={async (id, action) => {
+            const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/transition`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action }),
+            });
+            if (!response.ok) throw new Error("Order transition failed");
+            const updated = AdminOrderDtoSchema.parse(await response.json());
+            setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
         }} />;
 }
