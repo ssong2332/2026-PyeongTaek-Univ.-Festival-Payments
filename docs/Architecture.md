@@ -152,7 +152,7 @@ POST /api/orders (Route Handler)
   ├─ clientKey = getClientIp(request) → sha256               (ADR-0009)
   ├─ orderService.createOrder(dto, clientKey)
   │    ├─ ① repo.findByIdempotencyKey(key) → 있으면 200 반환 (속도 제한 미소비 — F-47 멱등 예외)
-  │    ├─ ② rateLimitRepo.consume('order_create', clientKey, 5, 60) → rpc('consume_rate_limit')
+  │    ├─ ② rateLimitRepo.consume('order_create', clientKey, ORDER_CREATE_RATE_LIMIT.limit, ORDER_CREATE_RATE_LIMIT.windowSeconds) → rpc('consume_rate_limit')
   │    │      false → 429 RATE_LIMITED + Retry-After (주문·재고·픽업 번호 미소비)
   │    └─ ③ orderRepository.createOrder() → supabase.rpc('create_order', …)
   │         └─ [Postgres 트랜잭션] 멱등키 조회 → 판매 가능·옵션 검증 → 가격 재계산 → 재고 차감(stock>=qty)
@@ -347,7 +347,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `INVALID_TRANSITION` | 409 | 상태 머신 불허 |
 | `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내 |
 | `CANCEL_REQUEST_NOT_ALLOWED` | 409 | 조리중 이후 또는 거절됨/이미 요청됨 이외의 불가 상태 |
-| `RATE_LIMITED` | 429 | `POST /api/orders`만. IP당 분당 5건 초과 (`details: { retryAfterSeconds }`, 헤더 `Retry-After`). 멱등 재요청은 대상 아님. 4xx라 자동 재시도 없음 → 수동 재시도 버튼 + 장바구니 유지 (F-47, ADR-0009) |
+| `RATE_LIMITED` | 429 | `POST /api/orders`만. IP당 분당 100건 초과 (`details: { retryAfterSeconds }`, 헤더 `Retry-After`). 멱등 재요청은 대상 아님. 4xx라 자동 재시도 없음 → 수동 재시도 버튼 + 장바구니 유지 (F-47, ADR-0009) |
 | `INTERNAL_ERROR` | 500 | 그 외 — 스택·DB 메시지 노출 금지 |
 
 ### 6. 고객 API (비로그인, 서버는 service_role)
@@ -436,7 +436,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|
 | 테스트 프레임워크 | 단위·통합: **Vitest** (+ `@testing-library/react`, `jsdom` 환경은 컴포넌트 테스트 파일에만 `// @vitest-environment jsdom`). E2E: **Playwright** (chromium, 고객 화면은 `devices['Pixel 7']`·`devices['iPhone 14']` 프로젝트 2개, 관리자는 데스크톱 chromium). 부하: k6 (2차 T-29, `tests/load/order-create.js`) |
 | 테스트 디렉토리 배치 | `tests/unit/**/*.test.ts(x)` (DB 불필요, ports mock) · `tests/integration/**/*.test.ts` (로컬 Supabase 필수, 파일 직렬) · `tests/e2e/**/*.spec.ts`. 소스 옆 co-location 금지(6명 병렬 시 위치 규칙 하나로) |
-| 커버 범위 기준 | N-13 목록을 최소 필수로: 가격 재계산·옵션 추가 가격·멱등키·재고 차감·연속 픽업 번호(통합), 재고 복구·환불(통합), 자동 만료 경계 + 송금 신고 제외(통합, `p_now` 주입), 송금 신고·취소 요청 멱등(통합), 대기 수(통합), 토큰 검증(통합), 상태 머신 표 전수(단위 — 7상태 × 8action 매트릭스, 불허가 409인지), 장바구니 합계·수량 경계(단위), 번역 폴백(단위), 피드 병합·연결 감시 타이머(단위, fake timers), CSV 헤더·합계 일치(단위). 속도 제한(F-47, T-51): `consume_rate_limit` 5회 `true`·6회째 `false`·`p_now`+60초 `true`(통합), 같은 멱등키 재요청 시 카운트 불변(통합), `getClientIp` 헤더 우선순위·없음→`'unknown'`(단위). 설정 패널(F-48, T-52): 키별 zod 범위(단위), `PUT` 부분 갱신·알 수 없는 키 400(통합). E2E 1개(T-24 시나리오). 수치 커버리지 임계값은 두지 않는다(요구 없음) |
+| 커버 범위 기준 | N-13 목록을 최소 필수로: 가격 재계산·옵션 추가 가격·멱등키·재고 차감·연속 픽업 번호(통합), 재고 복구·환불(통합), 자동 만료 경계 + 송금 신고 제외(통합, `p_now` 주입), 송금 신고·취소 요청 멱등(통합), 대기 수(통합), 토큰 검증(통합), 상태 머신 표 전수(단위 — 7상태 × 8action 매트릭스, 불허가 409인지), 장바구니 합계·수량 경계(단위), 번역 폴백(단위), 피드 병합·연결 감시 타이머(단위, fake timers), CSV 헤더·합계 일치(단위). 속도 제한(F-47, T-51): `consume_rate_limit` 100회 `true`·101회째 `false`·`p_now`+60초 `true`(통합), 같은 멱등키 재요청 시 카운트 불변(통합), `getClientIp` 헤더 우선순위·없음→`'unknown'`(단위). 설정 패널(F-48, T-52): 키별 zod 범위(단위), `PUT` 부분 갱신·알 수 없는 키 400(통합). E2E 1개(T-24 시나리오). 수치 커버리지 임계값은 두지 않는다(요구 없음) |
 | Mock/Stub 대상 (외부 의존성) | 단위: `ports.ts` 인터페이스를 in-memory 구현(`tests/unit/fakes/*.ts`)으로 대체, `Clock`은 고정 시각. 시간은 `vi.useFakeTimers()`. 통합: mock 없음 — 로컬 Supabase 실물(ADR-0007). E2E: 로컬 Supabase + `next dev`, 관리자 계정은 셋업에서 로컬 Auth Admin API로 생성. 외부 은행 앱은 테스트하지 않음(간편결제는 2026-09-24 제외) |
 | T-01 스모크 범위 | (1) `tests/unit/smoke.test.ts` — `domain/i18n/locales.ts`의 `DEFAULT_LOCALE === 'ko'` 단언(도메인 모듈 import 경로 검증) (2) `tests/e2e/smoke.spec.ts` — `/` 접속 시 `<html lang>` 존재 + 200. (3) `npm run build` 성공. (4) CodingRules "검증된 명령어"에 `npm run dev` / `npm run build` / `npm run test` / `npm run test:e2e` / `npx supabase start` 원문 등록. (5) `.github/workflows/ci.yml` 생성 + 첫 push에서 녹색 확인(아래 CI 행). 통합 테스트 명령(`npm run test:integration`)은 T-02(로컬 Supabase 연결)에서 등록 |
 | CI | **GitHub Actions 도입**(PRD Open Question #34 — 승인, DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(BE2). 트리거: 모든 브랜치 `push` + `dev`·`main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능) |
@@ -485,7 +485,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 | 주입 | SQL은 Postgres 함수 파라미터·supabase-js 빌더만(문자열 조립 금지). XSS: React 기본 이스케이프, `dangerouslySetInnerHTML` 금지. CSV: 셀이 `= + - @`로 시작하면 `'` 접두(스프레드시트 수식 주입 방지) |
 | 인증·인가 | 관리자 API 전부 `requireAdmin()`. 고객 API는 토큰(256비트) = 인가. 토큰은 URL에 있으므로 `Referrer-Policy: no-referrer`(외부 송금 링크 클릭 시 토큰 유출 방지)를 `next.config` 헤더로 설정, 송금 링크 `<a rel="noopener noreferrer" target="_blank">`. IDOR: 고객은 `id`가 아니라 토큰으로만 조회 |
 | 입력 검증 | 모든 핸들러 zod `strict()` — 모르는 필드(예: `price`) 거부(N-03). 수량 1..99, 항목 1..20, 사유 1..200자 |
-| 남용 | `POST /api/orders` IP당 분당 5건, 초과 429 `RATE_LIMITED`(F-47). 카운터는 Postgres `rate_limits` + `consume_rate_limit`(서버리스 인스턴스 무관), 키는 IP sha256(원문 미저장), 멱등 재요청 제외, 관리자 API 제외 — ADR-0009. NAT 공유 IP 오차단은 PRD Open Question #39(한도는 `domain/order/rateLimit.ts` 상수 한 곳) |
+| 남용 | `POST /api/orders` IP당 분당 100건(초기값), 초과 429 `RATE_LIMITED`(F-47). 카운터는 Postgres `rate_limits` + `consume_rate_limit`(서버리스 인스턴스 무관), 키는 IP sha256(원문 미저장), 멱등 재요청 제외, 관리자 API 제외 — ADR-0009. NAT 공유 IP 오차단은 PRD Open Question #39(한도는 `domain/order/rateLimit.ts` 상수 한 곳) |
 
 ## 주요 결정
 
