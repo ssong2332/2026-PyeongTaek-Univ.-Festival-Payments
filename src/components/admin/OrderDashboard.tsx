@@ -2,7 +2,8 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
-import type { AdminOrderDto, OrderStatus } from "@/lib/dto/adminOrder";
+import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import { OrderActionButtons } from "./OrderActionButtons";
 import styles from "./OrderDashboard.module.css";
 
 const LABELS: Record<OrderStatus, string> = {
@@ -27,10 +28,11 @@ export interface OrderDashboardProps {
     onReload: () => Promise<void>;
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
+    onTransition: (id: string, action: TransitionAction) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch }: OrderDashboardProps) {
+    onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -39,10 +41,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     const [searching, setSearching] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [pendingId, setPendingId] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<TransitionAction | null>(null);
     const [notice, setNotice] = useState("");
     const [actionError, setActionError] = useState("");
     const searchVersion = useRef(0);
     const acknowledging = useRef(false);
+    const transitioning = useRef(false);
     const unacknowledged = orders.filter(isUnacknowledged).length;
     const source = searchNumber === null ? orders : searchResults.map(order => {
         const live = orders.find(item => item.id === order.id);
@@ -84,7 +88,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         finally { if (version === searchVersion.current) setSearching(false); }
     }
     async function acknowledge(order: AdminOrderDto) {
-        if (acknowledging.current) return;
+        if (acknowledging.current || transitioning.current) return;
         acknowledging.current = true; setPendingId(order.id); setActionError(""); setNotice("");
         try {
             await onAcknowledge(order.id);
@@ -95,6 +99,19 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문을 확인했습니다.`);
         } catch { setActionError("확인 처리에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요."); }
         finally { acknowledging.current = false; setPendingId(null); }
+    }
+    async function transitionOrder(order: AdminOrderDto, action: TransitionAction) {
+        if (transitioning.current || acknowledging.current || !order.availableActions.includes(action)) return;
+        transitioning.current = true; setPendingId(order.id); setPendingAction(action); setActionError(""); setNotice("");
+        try {
+            await onTransition(order.id, action);
+            if (searchNumber !== null) setSearchResults(await onSearch(searchNumber));
+            setNotice(`픽업 #${pickup(order.pickupNumber)} 주문 상태를 변경했습니다.`);
+        } catch {
+            setActionError("상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.");
+        } finally {
+            transitioning.current = false; setPendingId(null); setPendingAction(null);
+        }
     }
     async function reload() {
         setActionError("");
@@ -163,6 +180,10 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                             {selected.lastReason && <p>처리 사유: {selected.lastReason}</p>}
                             {isUnacknowledged(selected) ? <div className={styles.confirm}><strong>새 주문 · 미확인</strong><p>주문 확인은 입금 확인과 별개의 처리입니다.</p>
                                 <button onClick={() => acknowledge(selected)} disabled={pendingId !== null}>{pendingId === selected.id ? "확인 처리 중…" : "확인 처리"}</button></div> : <p className={styles.notice}>{selected.acknowledgedAt ? "확인한 주문입니다." : "처리가 종료된 주문입니다."}</p>}
+                            <OrderActionButtons availableActions={selected.availableActions}
+                                pendingAction={pendingId === selected.id ? pendingAction : null}
+                                disabled={pendingId !== null}
+                                onAction={action => transitionOrder(selected, action)} />
                         </> : <div className={styles.empty}><ClipboardList size={36} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
                     </section>
                 </section>

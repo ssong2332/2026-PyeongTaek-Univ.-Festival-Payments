@@ -6,7 +6,8 @@ import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardP
 
 afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
-    onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []) });
+    onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []),
+    onTransition: vi.fn(async () => {}) });
 
 describe("T-15 order dashboard", () => {
     it("acknowledges without changing payment status, removing the unread count", async () => {
@@ -60,5 +61,70 @@ describe("T-15 order dashboard", () => {
         fireEvent.click(screen.getByRole("button", { name: "검색" }));
         expect(screen.getByRole("alert").textContent).toContain("1 이상의 숫자");
         expect(props.onSearch).not.toHaveBeenCalled();
+    });
+});
+
+describe("T-16 order actions", () => {
+    it("shows only server-provided actions as enabled and does not treat acknowledgement as payment", () => {
+        render(<OrderDashboard {...base()} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        expect((screen.getByRole("button", { name: "현금 수령 확인" }) as HTMLButtonElement).disabled).toBe(false);
+        expect((screen.getByRole("button", { name: "입금 확인" }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole("button", { name: "조리 시작" }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("routes transfer payment confirmation and cooking completion to their matching actions", async () => {
+        const props = base();
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 002 주문 상세" }));
+        expect((screen.getByRole("button", { name: "입금 확인" }) as HTMLButtonElement).disabled).toBe(false);
+        expect((screen.getByRole("button", { name: "현금 수령 확인" }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.click(screen.getByRole("button", { name: "입금 확인" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledWith(props.orders[1].id, "confirm_payment"));
+
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        expect((screen.getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(false);
+        fireEvent.click(screen.getByRole("button", { name: "조리 완료" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledWith(props.orders[2].id, "complete"));
+
+        fireEvent.click(screen.getByRole("button", { name: "픽업 004 주문 상세" }));
+        expect(screen.getAllByRole("button", { name: /입금 확인|현금 수령 확인|조리 시작|조리 완료/ })
+            .every(button => (button as HTMLButtonElement).disabled)).toBe(true);
+    });
+
+    it("enables cooking start only when the order advertises that action", async () => {
+        const props = base();
+        const paid = { ...props.orders[1], status: "paid" as const, availableActions: ["start_cooking" as const] };
+        props.orders = [paid];
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 002 주문 상세" }));
+        expect((screen.getByRole("button", { name: "조리 시작" }) as HTMLButtonElement).disabled).toBe(false);
+        fireEvent.click(screen.getByRole("button", { name: "조리 시작" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledWith(paid.id, "start_cooking"));
+    });
+
+    it("keeps the old status until the transition succeeds and blocks duplicate clicks", async () => {
+        let finish!: () => void;
+        const props = base();
+        props.onTransition.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        expect(props.onTransition).toHaveBeenCalledExactlyOnceWith(props.orders[0].id, "confirm_cash");
+        expect((screen.getByRole("button", { name: "처리 중…" }) as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.getAllByText("결제대기").length).toBeGreaterThan(0);
+        finish();
+        await waitFor(() => expect(screen.getByText("픽업 #001 주문 상태를 변경했습니다.")).toBeTruthy());
+    });
+
+    it("reports failure without changing the order", async () => {
+        const props = base(); props.onTransition.mockRejectedValue(new Error("409"));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
+        expect(screen.getAllByText("결제대기").length).toBeGreaterThan(0);
+        expect(screen.queryByText("픽업 #001 주문 상태를 변경했습니다.")).toBeNull();
     });
 });
