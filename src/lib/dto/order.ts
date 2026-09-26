@@ -16,14 +16,23 @@ export const CreateOrderRequestSchema = z.strictObject({
 
 export type CreateOrderRequest = z.infer<typeof CreateOrderRequestSchema>;
 
+const ORDER_STATUSES = [
+  "pending", "paid", "cooking", "completed", "cancelled", "refunded", "expired",
+] as const satisfies readonly OrderStatus[];
+
 // 201 신규 / 200 멱등 재요청(created=false). 값은 전부 DB 함수 create_order 결과(ADR-0002).
-export type CreateOrderResponse = {
-  orderId: string;
-  pickupNumber: number;
-  statusToken: string;
+// 서버는 응답 전에 이 스키마로 검사하고, 프론트(T-09)는 같은 스키마로 응답을 검사할 수 있다.
+export const CreateOrderResponseSchema = z.object({
+  orderId: z.uuid(),
+  pickupNumber: z.int().positive(),
+  // 상태 페이지 토큰(F-10) — 64자 16진수
+  statusToken: z.string().regex(/^[0-9a-f]{64}$/),
   // 새 주문은 pending. 멱등 재요청이면 그 시점의 현재 상태(예: paid)다.
-  status: OrderStatus;
-  totalAmount: number;
-  createdAt: string;
-  created: boolean;
-};
+  status: z.enum(ORDER_STATUSES),
+  totalAmount: z.int().nonnegative(),
+  // ISO 8601 UTC (Architecture "API 규격 — 공통")
+  createdAt: z.iso.datetime(),
+  created: z.boolean(),
+});
+
+export type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>;
