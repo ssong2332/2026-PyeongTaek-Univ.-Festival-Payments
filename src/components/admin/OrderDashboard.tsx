@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
-import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, UtensilsCrossed, XCircle } from "lucide-react";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
 import { OrderActionButtons } from "./OrderActionButtons";
 import styles from "./OrderDashboard.module.css";
@@ -29,11 +29,12 @@ export interface OrderDashboardProps {
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onTransition: (id: string, action: TransitionAction) => Promise<void>;
+    settingsPanel?: ReactNode;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
-    const [page, setPage] = useState<"dashboard" | "orders">("dashboard");
+    onReload, onAcknowledge, onSearch, onTransition, settingsPanel }: OrderDashboardProps) {
+    const [page, setPage] = useState<"dashboard" | "orders" | "settings">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
     const [searchNumber, setSearchNumber] = useState<number | null>(null);
@@ -125,14 +126,18 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             <nav aria-label="관리자 메뉴">{([
                 ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
             ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
-                onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}</nav>
+                onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}
+                {settingsPanel && <button aria-current={page === "settings" ? "page" : undefined}
+                    onClick={() => setPage("settings")}><Settings2 size={18} />운영 설정</button>}
+            </nav>
             <p className={styles.sideNote}><Bell size={16} /> 미확인 주문 {unacknowledged}건</p>
         </aside>
         <main className={styles.main}>
-            <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : "주문 관리"}</strong>
-                <button onClick={reload} disabled={isLoading}>새로고침</button></header>
+            <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : page === "orders" ? "주문 관리" : "운영 설정"}</strong>
+                {page !== "settings" && <button onClick={reload} disabled={isLoading}>새로고침</button>}</header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
             <div className={styles.content}>
+                {page === "settings" ? settingsPanel : <>
                 <div className={styles.heading}><span className={styles.logo}><UtensilsCrossed size={26} /></span><div>
                     <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
@@ -187,6 +192,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                         </> : <div className={styles.empty}><ClipboardList size={36} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
                     </section>
                 </section>
+                </>}
             </div>
         </main>
     </div>;
