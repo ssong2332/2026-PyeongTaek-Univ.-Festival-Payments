@@ -1,0 +1,20 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "ptu-festival-payments",
+    "main": ".open-next/worker.js",
+    "compatibility_date": "2024-09-23",
+    "compatibility_flags": [
+        "nodejs_compat"
+    ],
+    "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+    },
+    // Cloudflare Workers Free (100,000 req/day, 10ms CPU/req)
+    // Production Branch: dev
+    // Production URL: https://ptu-festival-payments.workers.dev
+    "vars": {
+        // 비시크릿 환경변수는 여기에 등록하거나 Cloudflare 대시보드에서 설정합니다.
+        // 시크릿(SUPABASE_SERVICE_ROLE_KEY 등)은 wrangler secret put 또는 대시보드 Secret으로 등록합니다.
+    }
+}
