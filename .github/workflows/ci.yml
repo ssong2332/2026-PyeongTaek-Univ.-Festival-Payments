@@ -43,6 +43,13 @@ jobs:
           version: 2.117.0
       - name: 테스트용 Supabase 시작
         run: supabase start
+      - name: T-18/T-19 pg_cron 등록 또는 폴백 확인
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: psql -d postgres -v ON_ERROR_STOP=1 -f tests/integration/pg_cron.sql
       - name: 테스트용 접속 설정 등록
         shell: bash
         run: |

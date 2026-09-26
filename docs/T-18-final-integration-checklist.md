@@ -11,7 +11,7 @@ T-18 서비스·API [Draft PR #52](https://github.com/ssong2332/2026-PyeongTaek-
 | 만료 직전 입금 확인 | `tests/integration/sweep_expire_transition.sql`: 실제 `transition_order`로 먼저 입금 확인한 주문은 스윕에서 제외 | 관리자 API와 스윕의 동시 요청 검증 |
 | 재고 복구·system 이력 | 위 SQL: 실제 T-14 함수로 재고 1회 복구, `actor_type='system'`·`actor_id IS NULL`·`closed_at` 확인 | 운영용 테스트 주문으로 재확인 |
 | 실제 관리자 세션·반복 호출 | `tests/unit/api/adminSweepRoute.test.ts`는 인증·RPC·오류를 모의 검증 | T-13 병합 뒤 실제 세션으로 401/200/반복 0건 확인 |
-| pg_cron·대시보드 폴백 | `0015_pg_cron.sql`과 T-16 `useSweepHeartbeat` Draft | 배포 DB에서 잡 실행 이력, 관리자 대시보드 30초 폴백 확인 |
+| pg_cron·대시보드 폴백 | `0015_pg_cron.sql`과 CI의 `tests/integration/pg_cron.sql`, T-16 `useSweepHeartbeat` Draft | 배포 DB에서 잡 실행 이력, 관리자 대시보드 30초 폴백 확인 |
 
 ## pg_cron 확인 및 적용 순서
 
