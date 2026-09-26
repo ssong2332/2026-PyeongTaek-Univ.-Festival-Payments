@@ -40,7 +40,7 @@ function toError(operation: string, error: DbError): Error {
 
 export function createSupabaseOrderRepository(
   client: SupabaseClient,
-): Pick<OrderRepository, "createOrder" | "findByIdempotencyKey" | "findById" | "transition"> {
+): Pick<OrderRepository, "createOrder" | "findByIdempotencyKey" | "findById" | "transition" | "reportTransfer"> {
   return {
     async findByIdempotencyKey(key) {
       const { data, error } = await client
@@ -86,6 +86,35 @@ export function createSupabaseOrderRepository(
       });
       if (error) throw toError("transition_order", error);
       return toOrderForTransition(data);
+    },
+
+    async reportTransfer(token, at) {
+      // 조건이 맞는 행만 갱신한다(결제대기·계좌이체·미신고). 동시 요청이어도 한 건만 갱신된다.
+      const { data: updated, error: updateError } = await client
+        .from("orders")
+        .update({ transfer_reported_at: at.toISOString() })
+        .eq("status_token", token)
+        .eq("status", "pending")
+        .eq("payment_method", "transfer")
+        .is("transfer_reported_at", null)
+        .select("transfer_reported_at");
+      if (updateError) throw toError("orders.reportTransfer", updateError);
+      if (updated.length > 0) {
+        return { outcome: "reported", transferReportedAt: new Date(updated[0].transfer_reported_at).toISOString() };
+      }
+
+      // 갱신되지 않은 이유를 가린다: 없음 / 신고 불가 / 이미 신고됨
+      const { data: order, error: selectError } = await client
+        .from("orders")
+        .select("status, payment_method, transfer_reported_at")
+        .eq("status_token", token)
+        .maybeSingle();
+      if (selectError) throw toError("orders.reportTransfer", selectError);
+      if (!order) return { outcome: "not_found" };
+      if (order.status !== "pending" || order.payment_method !== "transfer" || !order.transfer_reported_at) {
+        return { outcome: "not_allowed" };
+      }
+      return { outcome: "already_reported", transferReportedAt: new Date(order.transfer_reported_at).toISOString() };
     },
   };
 }

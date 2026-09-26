@@ -32,6 +32,13 @@ export type TransitionCommand = {
     refundChannel: RefundChannel | null;
 };
 
+// 송금 신고(F-43) 결과. 판단은 한 번의 조건부 갱신으로 해서 연타·동시 요청에도 최초 시각만 남는다.
+export type TransferReportResult =
+    | { outcome: "reported"; transferReportedAt: string }
+    | { outcome: "already_reported"; transferReportedAt: string }
+    | { outcome: "not_allowed" }
+    | { outcome: "not_found" };
+
 export interface OrderRepository {
     // rpc('create_order'). OUT_OF_STOCK·MENU_UNAVAILABLE·INVALID_OPTION은 AppError(409)로 바꿔 던진다.
     createOrder(input: CreateOrderRequest): Promise<CreateOrderResponse>;
@@ -40,4 +47,6 @@ export interface OrderRepository {
     findById(id: string): Promise<OrderForTransition | null>;
     // CAS 실패 시 AppError("STATE_CHANGED", 409)를 던진다.
     transition(command: TransitionCommand): Promise<OrderForTransition>;
+    // 결제대기·계좌이체·미신고 주문만 at으로 기록. 그 외는 이미 신고됨/불가/없음을 돌려준다(T-32).
+    reportTransfer(token: string, at: Date): Promise<TransferReportResult>;
 }
