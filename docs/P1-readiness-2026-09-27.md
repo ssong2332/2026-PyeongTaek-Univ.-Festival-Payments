@@ -30,6 +30,8 @@ T-13 고유의 로그인·보호 레이아웃·로그아웃 파일은 이 분석
 
 별도 [참고 브랜치](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/tree/codex/P1-integration-check)에서 최신 `dev`에 T-13을 위 방식으로 병합하고 T-15·T-16 Draft 브랜치를 합쳤다. T-13의 인증된 `/admin` 자리표시자 페이지에 `LiveOrderDashboard`를 렌더링하도록 연결한 뒤 **단위 테스트 231개, ESLint, Next webpack 빌드가 로컬에서 통과**했다. 이는 코드 조합 가능성을 확인한 결과이며 실제 관리자 계정 로그인이나 배포 환경 검증은 아니다. 세 원본 PR의 브랜치는 변경하지 않았다.
 
+참고 브랜치의 GitHub Actions에서도 [CI 단위·빌드 및 Supabase 통합 작업](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/actions/runs/36266340063)과 [PostgreSQL sweep 검증](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/actions/runs/36266340054)이 모두 통과했다.
+
 빌드에서는 T-13의 `src/middleware.ts`가 Next 16에서 `proxy.ts`로 대체된다는 사용 중단 경고가 나왔다. 최종 연결 PR에서 현재 Next 가이드에 맞춰 정리하고 재검증해야 한다.
 
 ## P1 실기기 QA 시작 조건
