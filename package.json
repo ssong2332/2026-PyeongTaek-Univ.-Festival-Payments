@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "test:integration": "node --env-file-if-exists=.env.test.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts",
-    "test:connection": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.connection.config.mts"
+    "test:connection": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.connection.config.mts",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@supabase/ssr": "0.9.0",
