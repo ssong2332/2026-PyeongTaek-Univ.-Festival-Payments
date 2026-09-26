@@ -1,4 +1,4 @@
--- T-21 / DECISIONS #19. 0012 is reserved for T-19's auto-complete sweep.
+-- T-21 / DECISIONS #19. 0013~0015 are reserved in Architecture 2-1.
 BEGIN;
 
 CREATE FUNCTION public.get_stats(p_date text DEFAULT NULL)
