@@ -1,5 +1,5 @@
 -- psql -v ON_ERROR_STOP=1 -d festival_sweep_test -f tests/integration/sweep_expire.sql
--- T-14 미병합 중에도 스윕의 대상 선정·위임·오류 처리를 독립 검증한다.
+-- 실제 T-14 함수가 적용된 DB에서 스윕의 대상 선정·위임·오류 처리를 독립 검증한다.
 -- transition_order 테스트 대역은 이 트랜잭션 안에서만 존재하며 마지막에 롤백된다.
 DO $$ BEGIN
     IF current_database() <> 'festival_sweep_test' THEN
@@ -43,7 +43,7 @@ CREATE FUNCTION pg_temp.add_order(
 ) RETURNS uuid LANGUAGE plpgsql AS $$
 DECLARE v_id uuid := gen_random_uuid();
 BEGIN
-    -- jsonb_populate_record는 0008 이전·이후 스키마 모두 지원한다.
+    -- jsonb_populate_record로 최신 주문 스키마에 필요한 값을 채운다.
     INSERT INTO public.orders SELECT (jsonb_populate_record(NULL::public.orders,
         jsonb_build_object(
             'id', v_id, 'pickup_number', n, 'status', state, 'payment_method', method,

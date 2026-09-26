@@ -35,17 +35,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;'
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/0001_schema.sql
           for migration in 0007_t03_schema_hardening.sql 0008_t53_remove_easy_pay.sql 0009_transition_order.sql; do
-            if [ -f "supabase/migrations/$migration" ]; then
-              psql -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
-            fi
+            psql -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
           done
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/0011_sweep_expire.sql
       - name: T-18 대상 선정·위임·오류·권한 검증
         run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire.sql
-      - name: 실제 T-14 재고 복구·이력 검증 (선행 병합 후)
-        run: |
-          if [ -f supabase/migrations/0009_transition_order.sql ]; then
-            psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire_transition.sql
-          else
-            echo 'T-14 0009 미병합: 실제 전환 통합 검증은 대기, 대역 기반 스윕 검증만 수행' >> "$GITHUB_STEP_SUMMARY"
-          fi
+      - name: 실제 T-14 재고 복구·이력 검증
+        run: psql -v ON_ERROR_STOP=1 -f tests/integration/sweep_expire_transition.sql
