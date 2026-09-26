@@ -52,7 +52,7 @@
 |---|---|---|---|
 | F-06 | 결제수단 현금/계좌이체 중 선택, 미선택 시 주문 안 됨, 선택값 저장 | `lib/dto/order.ts`(`paymentMethod` 필수·cash/transfer만) · 저장은 create_order(0010) | `order.test.ts`(누락·kakaopay·toss·card 400) · Route 400 · 저장은 `t07-create-order.sql`(DB1, transfer 저장 확인) |
 | F-07 | 서버가 ID·수량만 받아 가격 재계산, 주문·항목·재고 차감 단일 트랜잭션, 동시 주문 재고 음수 없음, 실패 시 전부 롤백 | `lib/dto/order.ts`(가격 필드 없음) · `orderService`·`supabaseOrderRepository.createOrder` → create_order | `createOrder.test.ts` T-07 블록(가격 재계산·동시 2건·롤백·품절·잘못된 옵션·이력) · 실제 호출 201(서버 계산 6,000원) |
-| F-07 ⚠ | "합계 0원으로 조작한 요청 → **서버 계산 합계로 저장**" | Architecture 규격("가격 필드는 zod strict로 **400**")을 따름 → 조작 요청은 **거부**됨(저장·사용 안 함은 동일) | `order.test.ts`·Route(가격 필드 400). **PRD(저장)와 Architecture(400)가 달라 팀장 확인 필요** — 바꾸면 strict 해제 + 테스트 수정 |
+| F-07 (#45 결정) | 요청 규격에 없는 가격 필드(`totalAmount`, `price` 등)가 포함되면 400 `VALIDATION_ERROR`, 주문 생성·재고 차감 없음 — 2026-09-26 팀장 결정(GitHub #45 "현재 400 거부 방식을 유지"), PRD·Architecture·Tasks 문구는 PR #53에서 현행화 | `lib/dto/order.ts`(zod strict — 모르는 필드 400) · Route가 검증 실패 시 서비스·DB를 호출하지 않음 | `order.test.ts`(가격 필드 400) · `ordersRoute.test.ts` "가격 필드가 들어오면 400 VALIDATION_ERROR, DB는 호출하지 않는다" · 실제 호출 400. 코드 변경 없음 |
 | N-02 | 동시 주문에서도 재고 음수 불가 | create_order(행 잠금) | `createOrder.test.ts` "재고 1개에 동시 주문 2건 → 1건만" |
 | N-03 | 가격은 서버만 계산, 클라이언트 가격 저장·사용 안 함 | 요청 DTO에 가격 필드 자체가 없음 · 응답 `totalAmount`는 DB 결과 | `order.test.ts` 가격 필드 거부 · `createOrder.test.ts` 서버 계산 |
 | (API 계약) | `CreateOrderResponse` 모양 | `CreateOrderResponseSchema`(zod, 프론트·백 공용) · `mappers.toCreateOrderResponse`가 같은 스키마로 검사 | `order.test.ts` 응답 스키마 7개 · 저장소 단위(모양 어긋나면 500) |
@@ -60,12 +60,12 @@
 ## 최종 검증 (2026-09-26, 최신 dev beb21db 병합 — 마이그레이션 0001·0003·0007·0008·0009·0010)
 
 - `npm run test` 179 통과(응답 스키마 추가 후) · `npm run test:integration` 46 통과(**`createOrder.test.ts` 11개 skip 없이 전부 통과**) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders`)
-- T-07 완료 기준(Tasks): 조작 가격 무시(API 400 + DB 재계산) ✅ · 옵션 추가 가격 합산 ✅ · 동시 주문 재고 음수 방지 ✅ · 롤백(주문·재고·픽업 번호) ✅ · 허용 외 결제수단 거부 ✅
+- T-07 완료 기준(Tasks, #45 결정 반영): 가격 필드 포함 요청 400 `VALIDATION_ERROR`·주문 생성/재고 차감 없음 ✅ · 정상 요청 서버 가격 계산 ✅ · 옵션 추가 가격 합산 ✅ · 동시 주문 재고 음수 방지 ✅ · 롤백(주문·재고·픽업 번호) ✅ · 허용 외 결제수단 거부 ✅
 - 실제 호출(로컬 Supabase에 연결한 `next dev` — 운영 DB 미사용): 새 주문 201(서버 계산 6,000원·픽업 번호·64자 토큰) · 같은 키 재요청 200(같은 ID·번호·토큰, created=false) · 재고 부족 409 + details `[{menuItemId, requested:1, available:0}]` · 가격 필드 400 · kakaopay 400
 
 ## 남은 일 (T-07)
 
 - [x] 0008·0010 dev 병합 후 최신 dev 병합 → `createOrder.test.ts` 실제 실행·통과 (2026-09-26)
 - [x] `supabaseOrderRepository.ts`·`mappers.ts` 두 벌(T-14·T-07) 합치기 — 2026-09-25 T-14 브랜치(d432d38)를 병합하며 한 파일로(에러 표 `DB_ERRORS`에 create_order·transition_order 코드 함께). 단위 171·통합 26 통과(create_order 11 skip)·typecheck·lint·build 통과. #36이 리뷰로 바뀌면 다시 병합
-- [ ] T-07·T-08 함께 PR (base dev) — QA 1차·팀장 판단 대기
+- [x] T-07·T-08 함께 PR #46 (base dev) 제출 (2026-09-26) — QA 1차 확인 완료, #45 결정(400 유지)으로 최종 승인·팀장 병합 대기
 - 범위 밖: 속도 제한(T-51, BE2) — `orderService`의 ①과 ③ 사이 자리만 비워 둠
