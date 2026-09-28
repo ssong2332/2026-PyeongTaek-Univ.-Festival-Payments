@@ -79,7 +79,7 @@ test("T-22 exports database item/option snapshots, KST boundaries, refunds, and 
         expect(stats.error).toBeNull();
         expect(stats.data.sales).toBe(csv.sales);
 
-        const emptyRange = { from: "2099-03-02", to: "2099-03-02" };
+        const emptyRange = { from: "2099-03-03", to: "2099-03-03" };
         const empty = buildOrdersCsv(await loadCsvOrders(service, emptyRange), emptyRange);
         expect(empty).toMatchObject({ sales: 0, rowCount: 0 });
         expect(empty.content).toBe(`\uFEFF${CSV_HEADERS.join(",")}\r\n`);
