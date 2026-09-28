@@ -6,7 +6,10 @@ import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardP
 
 afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
-    onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []) });
+    onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []),
+    onLoadStats: vi.fn(async () => ({ date: "all", sales: 0, orderCount: 0, refundedAmount: 0,
+        refundedCount: 0, byMenu: [], totals: { pending: 0, paid: 0, cooking: 0, completed: 0,
+            cancelled: 0, refunded: 0, expired: 0 } })) });
 
 describe("T-15 order dashboard", () => {
     it("acknowledges without changing payment status, removing the unread count", async () => {
