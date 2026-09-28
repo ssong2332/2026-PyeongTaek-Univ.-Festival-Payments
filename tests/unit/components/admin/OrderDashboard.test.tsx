@@ -166,7 +166,7 @@ describe("T-17 cancel and refund controls", () => {
     it("keeps the reason for retry and blocks duplicate submissions during a request", async () => {
         let reject!: (error: Error) => void;
         const props = base();
-        props.onTransition.mockImplementation(() => new Promise((_, fail) => { reject = fail; }));
+        props.onTransition.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
         render(<OrderDashboard {...props} />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
         fireEvent.click(screen.getByRole("button", { name: "환불 처리" }));
@@ -177,5 +177,12 @@ describe("T-17 cancel and refund controls", () => {
         reject(new Error("409"));
         await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
         expect((screen.getByLabelText("환불 사유 (필수, 최대 200자)") as HTMLTextAreaElement).value).toBe("현장 반환");
+        fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledTimes(2));
+        expect(props.onTransition).toHaveBeenNthCalledWith(2, props.orders[2].id, "refund", {
+            reason: "현장 반환", refundChannel: "cash",
+        });
+        await waitFor(() => expect(screen.getByText("픽업 #003 주문 상태를 변경했습니다.")).toBeTruthy());
+        expect(screen.queryByRole("alert")).toBeNull();
     });
 });
