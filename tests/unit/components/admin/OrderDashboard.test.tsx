@@ -174,7 +174,7 @@ describe("T-17 cancel and refund controls", () => {
         fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
         expect((screen.getByRole("button", { name: "처리 중…" }) as HTMLButtonElement).disabled).toBe(true);
         expect(props.onTransition).toHaveBeenCalledTimes(1);
-        reject(new Error("409"));
+        reject(new Error("500"));
         await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
         expect((screen.getByLabelText("환불 사유 (필수, 최대 200자)") as HTMLTextAreaElement).value).toBe("현장 반환");
         fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
