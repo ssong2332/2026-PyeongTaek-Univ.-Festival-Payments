@@ -48,6 +48,17 @@ describe("GET /api/admin/stats", () => {
         expect(loadStats).toHaveBeenCalledWith(createServiceClient(), "all");
     });
 
+    it("uses the KST calendar day when no date is specified", async () => {
+        const now = vi.spyOn(Date, "now").mockReturnValue(new Date("2026-09-28T15:05:00Z").getTime());
+        try {
+            const response = await GET(request());
+            expect(response.status).toBe(200);
+            expect(loadStats).toHaveBeenCalledWith(createServiceClient(), "2026-09-29");
+        } finally {
+            now.mockRestore();
+        }
+    });
+
     it("does not expose an invalid database response", async () => {
         vi.mocked(loadStats).mockResolvedValueOnce({ ...emptySummary, sales: -1 });
         const response = await GET(request("?date=all"));
