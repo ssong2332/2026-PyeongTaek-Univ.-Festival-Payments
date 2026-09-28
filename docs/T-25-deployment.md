@@ -1,7 +1,7 @@
 # T-25 Cloudflare Workers 배포 및 운영 가이드
 
-> 소유자: BE2 (유은조) | 상태: 완료 (배포 준비 단계) | 최종 갱신: 2026-09-26  
-> 기준: PRD N-14, N-11, F-20 / Architecture 배포 절 (451~458라인)
+> 소유자: BE2 (유은조) | 상태: 진행 중 (① 배포 준비 완료 / ② 10-04 최종 점검 대기) | 최종 갱신: 2026-09-28  
+> 기준: PRD N-14, N-11, F-20 / Architecture 배포 절 (451~458라인) / DECISIONS #43
 
 ---
 
@@ -18,11 +18,18 @@
   > [!IMPORTANT]
   > Worker 이름(`ptu-festival-payments`)과 서브도메인은 확정되었으며, **축제 포스터 및 QR 인쇄물 출력 이후에는 절대 변경하지 않습니다 (N-11, N-14)**.
 
+- **작업 단계 분할**:
+  1. **① 배포 준비 (09-25, 현재 단계)**: `vinext` 호환성 검증, `wrangler.jsonc` 및 빌드 스크립트 정합성 구성, `GET /api/health` 구현, 운영 가이드 및 스모크 절차 수립.
+  2. **② 최종 점검 (10-04, 선행 T-24 E2E 완료 후)**: 실제 Cloudflare 대시보드 Git 연동 배포 트리거, 실기기 스모크 테스트 5단계 수행, 접속 확인 증거 기록, 축제 전 `counters` 초기화.
+
 ---
 
-## 2. Next.js 16 및 `vinext` 호환성 검증 결과
+## 2. Next.js 16 빌드 도구체계: `vinext` & `OpenNext`
 
-T-50의 Cloudflare Workers 전환 결정에 따라, Next.js 16 환경에서 공식 권장되는 `vinext` 호환성 검사(`npx vinext check`)를 수행하였습니다.
+Next.js 16(App Router)을 Cloudflare Workers 환경에 배포하기 위해 아래와 같이 역할을 분담합니다.
+
+### 2.1. 정적 호환성 검사: `vinext check`
+Cloudflare 공식 권장 정적 호환성 검사 도구인 `vinext check`(`npx vinext check`)를 수행하여 Next.js 16 App Router 및 의존 라이브러리의 호환성을 사전 검증하였습니다.
 
 ```text
 vinext compatibility report
@@ -46,7 +53,24 @@ Project structure:
 
 Overall: 91% compatible (10 supported, 0 partial, 1 issues)
 ```
-- **판정**: Next.js App Router 핵심 API 및 Route Handler, 라이브러리가 100% 정상 호환되므로 Cloudflare Workers 배포 경로를 확정합니다.
+- **판정**: Next.js App Router 핵심 API 및 Route Handler, 라이브러리가 정상 호환됨을 확인.
+
+### 2.2. 실제 Worker 산출물 생성: `@opennextjs/cloudflare`
+Cloudflare Workers에서 Next.js를 서빙하기 위한 Worker 엔트리포인트 및 정적 에셋 번들 산출물은 OpenNext 어댑터를 통해 생성합니다.
+
+- **Worker 번들 빌드 명령**:
+  ```bash
+  npm run build:worker
+  # 내부 실행: opennextjs-cloudflare build
+  ```
+- **생성 산출물**:
+  - Worker 스크립트: `.open-next/worker.js` (wrangler.jsonc의 `main` 필드와 일치)
+  - 정적 에셋 디렉터리: `.open-next/assets` (wrangler.jsonc의 `assets.directory`와 일치)
+- **로컬/수동 배포 명령**:
+  ```bash
+  npm run deploy
+  # 내부 실행: opennextjs-cloudflare build && wrangler deploy
+  ```
 
 ---
 
@@ -57,9 +81,9 @@ Overall: 91% compatible (10 supported, 0 partial, 1 issues)
    - 저장소: `ssong2332/2026-PyeongTaek-Univ.-Festival-Payments`
 2. **배포 브랜치 및 빌드 설정**:
    - **Production branch**: `dev`
-   - **Framework preset**: `Next.js` (또는 Cloudflare Worker 기본)
-   - **Build command**: `npm run build`
-   - **Build output directory**: `.open-next/assets` (또는 `.worker-next`)
+   - **Build command**: `npx @opennextjs/cloudflare build` (또는 `npm run build:worker`)
+   - **Build output directory**: `.open-next/assets`
+   - **Worker Entrypoint**: `.open-next/worker.js`
 3. **환경변수 및 Secrets 등록**:
    - **일반 환경변수 (Environment Variables)**:
      - `NEXT_PUBLIC_SUPABASE_URL`: 프로덕션 Supabase 프로젝트 URL (`https://<project-ref>.supabase.co`)
@@ -92,13 +116,13 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 
 `dev` 브랜치 자동 배포 완료 후 프로덕션 URL(`https://ptu-festival-payments.workers.dev`)에서 아래 5단계를 수행합니다.
 
-| 단계 | 수행 작업 | 기대 결과 |
-|---|---|---|
-| 1 | `GET /api/health` 호출 | HTTP 200 및 `{"ok":true,"db":true}` 반환 (DB 연결 정상) |
-| 2 | 메인 고객 메뉴판 접속 (`/`) | 등록된 메뉴 목록 및 품절 상태, 대기인원 정상 표시 |
-| 3 | 현금 결제 테스트 주문 1건 생성 | 주문 완료 화면 진입 및 픽업 번호 발급 확인 |
-| 4 | 관리자 로그인 및 대시보드 확인 | `/admin/login`에서 관리자 로그인 → 대시보드(`/admin`)에 테스트 주문 실시간 표시 확인 |
-| 5 | 테스트 주문 취소 및 정리 | 주문 상세에서 테스트 주문 취소 처리 → 축제 전 `counters` 초기화 |
+| 단계 | 수행 작업 | 기대 결과 | 구현/검증 위치 |
+|---|---|---|---|
+| 1 | `GET /api/health` 호출 | HTTP 200 및 `{"ok":true,"db":true,"time":"..."}` 반환 (DB 연결 정상) | `src/app/api/health/route.ts` (구현 완료, Vitest 통과) |
+| 2 | 메인 고객 메뉴판 접속 (`/`) | 등록된 메뉴 목록 및 품절 상태, 대기인원 정상 표시 | 고객 메뉴판 페이지 |
+| 3 | 현금 결제 테스트 주문 1건 생성 | 주문 완료 화면 진입 및 픽업 번호 발급 확인 | 주문 생성 API (`POST /api/orders`) |
+| 4 | 관리자 로그인 및 대시보드 확인 | `/admin/login`에서 관리자 로그인 → 대시보드(`/admin`)에 테스트 주문 실시간 표시 확인 | 관리자 로그인 및 대시보드 |
+| 5 | 테스트 주문 취소 및 정리 | 주문 상세에서 테스트 주문 취소 처리 → 축제 전 `counters` 초기화 | 주문 취소 API (`transition`) 및 counters reset |
 
 ---
 
