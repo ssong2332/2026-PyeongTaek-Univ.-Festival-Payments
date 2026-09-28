@@ -55,3 +55,21 @@ it("reloads the order after a conflicting transition response", async () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
     expect(reloadOrders).toHaveBeenCalledTimes(1);
 });
+
+it("sends refund reason and payment-specific channel to the transition endpoint", async () => {
+    const before = makePreviewOrders()[2];
+    const updated = { ...before, status: "refunded", lastReason: "고객 요청", refundChannel: "cash",
+        updatedAt: "2026-09-25T11:00:00.000Z", availableActions: [] };
+    const request = vi.fn(async () => new Response(JSON.stringify(updated), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    render(<LiveOrderDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+    fireEvent.click(screen.getByRole("button", { name: "환불 처리" }));
+    fireEvent.change(screen.getByLabelText("환불 사유 (필수, 최대 200자)"), { target: { value: " 고객 요청 " } });
+    fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+    await waitFor(() => expect(request).toHaveBeenCalledWith(`/api/admin/orders/${before.id}/transition`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refund", reason: "고객 요청", refundChannel: "cash" }),
+    }));
+    await waitFor(() => expect(screen.getByText("처리 사유: 고객 요청")).toBeTruthy());
+});

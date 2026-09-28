@@ -2,7 +2,7 @@
 .shell * { box-sizing:border-box; }
 .shell button { cursor:pointer; font:inherit; }
 .shell button:disabled { cursor:wait; opacity:.6; }
-.shell button:focus-visible,.shell input:focus-visible { outline:3px solid #7c3aed; outline-offset:3px; }
+.shell button:focus-visible,.shell input:focus-visible,.shell textarea:focus-visible { outline:3px solid #7c3aed; outline-offset:3px; }
 .shell h1,.shell h2,.shell p { margin:0; }
 .sidebar { width:250px; flex-shrink:0; padding:24px 16px; background:linear-gradient(180deg,#451a03,#78350f 48%,#5c2e0b); color:white; }
 .brand { display:flex; align-items:center; gap:12px; padding:0 4px 24px; }
@@ -72,6 +72,22 @@
 .actions div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .actions button { min-height:44px; border:1px solid #d97706; border-radius:12px; background:#fff7ed; color:#78350f; font-weight:bold; }
 .actions button:disabled { cursor:not-allowed; background:#f5f5f4; border-color:#e7e5e4; color:#a8a29e; opacity:1; }
+.cancelRefund { margin-top:18px; background:white; border:1px solid #fecaca; border-radius:18px; padding:18px; }
+.cancelRefund h2 { font-size:16px; margin-bottom:12px; }
+.cancelRefundChoices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.cancelRefundChoices button { min-height:44px; border:1px solid #fca5a5; border-radius:12px; background:#fff7f7; color:#991b1b; font-weight:bold; }
+.cancelRefundChoices button[aria-pressed=true] { background:#991b1b; color:white; }
+.cancelRefundChoices button:disabled { cursor:not-allowed; border-color:#e7e5e4; background:#f5f5f4; color:#a8a29e; opacity:1; }
+.cancelRefundForm { display:grid; gap:10px; margin-top:14px; }
+.cancelRefundForm p,.cancelRefundUnavailable { font-size:12px; line-height:1.5; color:#78716c; }
+.cancelRefundUnavailable { margin-top:12px!important; }
+.cancelRefundForm label { font-size:13px; font-weight:bold; color:#44403c; }
+.cancelRefundForm textarea { width:100%; resize:vertical; border:1px solid #d6d3d1; border-radius:10px; padding:10px; font:inherit; }
+.cancelRefundControls { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.cancelRefundControls span { margin-right:auto; color:#78716c; font-size:12px; }
+.cancelRefundControls button { border:1px solid #d6d3d1; border-radius:10px; background:white; padding:10px 12px; }
+.cancelRefundControls button[type=submit] { background:#991b1b; border-color:#991b1b; color:white; font-weight:bold; }
+.cancelRefundControls button:disabled { cursor:not-allowed; opacity:.6; }
 .empty { padding:48px 12px; text-align:center; color:#78716c; line-height:1.8; }
 .empty svg { margin:auto auto 12px; }
 .empty h2 { font-size:17px; }

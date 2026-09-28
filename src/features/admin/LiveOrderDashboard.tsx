@@ -29,11 +29,11 @@ export function LiveOrderDashboard() {
             const updated = AdminOrderDtoSchema.parse(await response.json());
             setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
         }}
-        onTransition={async (id, action) => {
+        onTransition={async (id, action, input) => {
             const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/transition`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action }),
+                body: JSON.stringify({ action, ...input }),
             });
             if (response.status === 409) {
                 setConfirmed(previous => {
