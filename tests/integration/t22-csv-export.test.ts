@@ -41,9 +41,9 @@ test("T-22 exports database item/option snapshots, KST boundaries, refunds, and 
         const items = await service.from("order_items").insert([
             { id: itemId, order_id: paidId, menu_item_id: menuId, menu_name_ko: "기본호떡",
                 unit_price: 3000, options_price: 500, quantity: 2, line_total: 7000 },
-            { order_id: refundedId, menu_item_id: menuId, menu_name_ko: "기본호떡",
+            { id: randomUUID(), order_id: refundedId, menu_item_id: menuId, menu_name_ko: "기본호떡",
                 unit_price: 3000, options_price: 500, quantity: 1, line_total: 3500 },
-            { order_id: outsideId, menu_item_id: menuId, menu_name_ko: "기본호떡",
+            { id: randomUUID(), order_id: outsideId, menu_item_id: menuId, menu_name_ko: "기본호떡",
                 unit_price: 3000, options_price: 500, quantity: 1, line_total: 3500 },
         ]);
         if (items.error) throw items.error;
