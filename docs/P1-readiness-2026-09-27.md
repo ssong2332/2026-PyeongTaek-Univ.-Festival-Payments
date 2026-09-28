@@ -42,3 +42,9 @@ T-13 고유의 로그인·보호 레이아웃·로그아웃 파일은 이 분석
 4. 테스트 메뉴·재고·관리자 계정을 준비한 뒤 [P1 QA 시나리오](P1-QA-Scenario.md) QA-P1-01~16을 실기기에서 순서대로 실행하고 결과를 기록.
 
 위 조건 전에는 P1 완료나 실기기 QA 통과로 표시하지 않는다.
+
+## 2026-09-28 재점검
+
+- P1 QA 시나리오의 장바구니 금액 기대식을 `(메뉴 가격 + 옵션 추가 금액) × 수량`으로 바로잡았다. 기존 식은 메뉴 가격에 수량을 곱하지 않아, 수량이 2 이상일 때 잘못된 합계를 정답으로 판정할 수 있었다. `tests/integration/createOrder.test.ts`의 3,000원 메뉴 + 500원 옵션 × 2개 = 7,000원 검증과 일치한다.
+- T-13 인증 [#48](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/48)과 T-25 배포 [#50](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/50)은 여전히 미병합이다. T-15 [#51](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/51), T-16 [#54](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/54)는 Draft다. T-09 고객 주문 화면과 T-11 고객 상태 화면은 현재 P1 참고 브랜치에 없다.
+- 따라서 QA-P1-01~16의 실제 고객·관리자 연속 조작, 배포 URL 및 실기기 검수는 실행할 수 없다. 09-27 참고 브랜치의 관리자 코드 조합 검증은 유효한 사전 근거이지만 P1 완료 판정 근거는 아니다.
