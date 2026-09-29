@@ -23,3 +23,17 @@ T-18 서비스·API [Draft PR #52](https://github.com/ssong2332/2026-PyeongTaek-
 4. 관리자 대시보드를 열고 T-16의 30초 `POST /api/admin/sweep` 폴백을 실제 세션으로 확인한다. pg_cron 미지원·미설치일 때는 이 폴백이 유일한 실행 경로이므로 대시보드가 닫히면 스윕도 멈춘다.
 
 최종 검증 전에는 PR #52를 Draft로 유지한다. 원작업 T-18의 완료 판정은 팀장 검수 후 진행한다.
+
+## 2026-09-29 재검수 후 남은 실환경 검증
+
+`0015_pg_cron.sql`, CI의 잡 등록 검사, 실제 `transition_order`를 사용한 입금 확인 후 스윕 제외 테스트는 자동 검증 근거로 확인했다. 2026-09-29 현재 [#48](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/48) 인증과 [#51](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/51) 대시보드는 미병합이며, [#54](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/54)는 #51 기반 Draft다. 아래 항목은 **미검증**으로 유지한다.
+
+| 항목 | 최종 검증 방법과 기록할 결과 |
+|---|---|
+| 실제 관리자 인증 | #48 통합 후 테스트 관리자 세션으로 `POST /api/admin/sweep`를 호출해 200 및 `{expired, completed}` 값을 확인한다. 비로그인 요청은 401인지 확인한다. 같은 시각에 반복 호출해 추가 전환이 0건인지도 확인한다. 테스트 환경·시각·응답 상태만 기록하고 세션 정보는 남기지 않는다. |
+| 대시보드 30초 폴백 | #51 대시보드와 #54의 `useSweepHeartbeat`를 실제 인증 화면에 연결한다. 화면을 연 동안 약 30초 간격으로 요청이 발생하고, 스윕 결과에 전환이 있으면 주문 목록이 갱신되는지 확인한다. 탭 종료와 재진입 시 타이머 및 중복 요청 동작도 확인한다. |
+| 배포 DB의 pg_cron | 선행 마이그레이션 적용 후 `0015_pg_cron.sql`을 배포 DB에 적용한다. `cron.job`에서 `sweep-orders`가 1분 주기·활성 상태이고 명령이 `SELECT public.sweep_order_timeouts()`인지 확인한다. 1분 이상 지난 뒤 `cron.job_run_details`의 해당 작업 실행 시각·상태·오류를 확인한다. CI의 잡 등록 검사는 배포 DB 실행 성공의 근거로 대신하지 않는다. |
+| pg_cron 미지원·미설치 | 확장과 잡이 없는 격리된 테스트 환경에서 대시보드를 열어 인증된 30초 폴백으로 만료 주문이 전환되고 목록이 갱신되는지 확인한다. 운영 DB에서 확장을 제거해 이 경우를 만들지 않는다. |
+| 입금 확인과 스윕의 동시 요청 | 격리된 실제 PostgreSQL 테스트 DB에서 만료 경계의 주문에 관리자 입금 확인과 스윕 요청을 겹쳐 실행한다. 최종 상태가 한 번만 전환되고 `order_status_history`가 그 상태와 일치하는지, 재고가 정확히 한 번만 복구되는지 확인한다. 스윕을 반복해도 추가 복구가 없는지 확인하고 요청 순서·최종 상태·이력·재고 전후 수량을 기록한다. |
+
+실환경 결과가 채워지고 선행 PR이 통합되기 전까지 [#52](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/52)는 Draft이며 T-18 완료로 표시하지 않는다.
