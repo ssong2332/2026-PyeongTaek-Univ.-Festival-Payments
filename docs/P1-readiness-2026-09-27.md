@@ -36,10 +36,12 @@ T-13 고유의 로그인·보호 레이아웃·로그아웃 파일은 이 분석
 
 ## P1 실기기 QA 시작 조건
 
-1. T-13 충돌 해결·병합 후 인증된 `/admin` 페이지에서 T-15 대시보드 렌더링.
-2. T-15 #51 병합 후 T-16 #54의 base를 `dev`로 정리하고 API·UI 연결 재검증.
-3. T-09 주문 화면과 T-11 고객 상태 화면 연결, T-25 배포 URL 확보.
-4. 테스트 메뉴·재고·관리자 계정을 준비한 뒤 [P1 QA 시나리오](P1-QA-Scenario.md) QA-P1-01~16을 실기기에서 순서대로 실행하고 결과를 기록.
+1. RLS [#43](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/43)의 12개 테이블 모두에 연결된 fixture를 보완하고, 실제 데이터가 있는 상태에서 접근 정책을 검증한 뒤 최종 검수를 마친다.
+2. T-13 인증 [#48](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/48)을 통합하고, 실제 관리자 로그인 및 비로그인 차단을 확인한다. 인증된 `/admin` 페이지에 T-15 대시보드를 연결한다.
+3. T-15 [#51](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/51) 병합 후 T-16 [#54](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/54)의 base와 중복 변경을 정리한다. [#60](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/60)과 #54의 중복 transition API를 단일 구현으로 확정하고 관리자 UI와 연결해 검증한다.
+4. T-09 고객 주문 화면과 T-11 고객 상태 화면을 `dev`에 통합한다. T-11 [#61](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/61)의 API 병합과 고객 상태 화면 연결은 각각 확인한다.
+5. T-25 [#50](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/50)의 테스트 배포 URL에서 접속과 DB 연결을 확인하고, 관리자 계정·테스트 메뉴·재고를 준비한다.
+6. 준비 완료 후 [P1 QA 시나리오](P1-QA-Scenario.md) QA-P1-01~16을 실제 배포 환경과 기기에서 순서대로 실행하고 결과를 별도로 기록한다.
 
 위 조건 전에는 P1 완료나 실기기 QA 통과로 표시하지 않는다.
 
@@ -48,3 +50,14 @@ T-13 고유의 로그인·보호 레이아웃·로그아웃 파일은 이 분석
 - P1 QA 시나리오의 장바구니 금액 기대식을 `(메뉴 가격 + 옵션 추가 금액) × 수량`으로 바로잡았다. 기존 식은 메뉴 가격에 수량을 곱하지 않아, 수량이 2 이상일 때 잘못된 합계를 정답으로 판정할 수 있었다. `tests/integration/createOrder.test.ts`의 3,000원 메뉴 + 500원 옵션 × 2개 = 7,000원 검증과 일치한다.
 - T-13 인증 [#48](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/48)과 T-25 배포 [#50](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/50)은 여전히 미병합이다. T-15 [#51](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/51), T-16 [#54](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/54)는 Draft다. T-09 고객 주문 화면과 T-11 고객 상태 화면은 현재 P1 참고 브랜치에 없다.
 - 따라서 QA-P1-01~16의 실제 고객·관리자 연속 조작, 배포 URL 및 실기기 검수는 실행할 수 없다. 09-27 참고 브랜치의 관리자 코드 조합 검증은 유효한 사전 근거이지만 P1 완료 판정 근거는 아니다.
+
+## 2026-09-29 재점검
+
+| 선행 작업 | 확인된 상태 | P1에서 추가로 확인할 내용 |
+|---|---|---|
+| T-11 주문 상태·대기인원 API [#61](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/61) | 신규 PR이 올라왔고 CI는 통과했으나 미병합이다. API 구현 근거이며 고객 상태 화면의 통합·검수 근거는 아니다. | API를 `dev`에 통합하고 고객 상태 화면에서 실제 주문 조회·대기인원 표시·잘못된 토큰·새로고침을 검증한다. |
+| RLS 검증 [#43](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/43) | 12개 테이블의 fixture 보완 요청과 최종 검수가 남아 있다. | 모든 테이블에 연결된 fixture로 정책을 재검증하고 최종 검수 결과를 확인한다. |
+| T-16 공통 API [#60](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/60)·[#54](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/54) | 같은 transition API의 중복 구현 정리가 남아 있다. | 단일 API를 확정하고 관리자 상태 변경 UI가 해당 API를 호출하는지 확인한다. |
+| T-25 테스트 배포 [#50](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/50) | PR 문서의 예정 URL은 `https://ptu-festival-payments.workers.dev`이나, 실제 테스트 배포 접속 및 운영 데이터 준비는 확인되지 않았다. | URL 접속·DB 연결, 관리자 계정 로그인, 메뉴·재고 준비 상태를 확인한다. |
+
+현재 `dev`에는 T-09 고객 주문 화면과 T-11 고객 상태 화면이 통합되지 않았다. 따라서 고객 주문 생성부터 관리자 완료 처리까지 연속 조작할 수 없다. **QA-P1-01~16은 모두 미실행/Blocked**로 유지한다. API·DB 자동 테스트와 CI 결과는 사전 검증 근거로만 기록하며, 위 시작 조건을 충족한 뒤 실제 QA 결과를 별도로 남긴다.
