@@ -45,6 +45,26 @@ export type TransitionCommand = {
     refundChannel: RefundChannel | null;
 };
 
+export interface OrderItemDetail {
+    name: string;
+    quantity: number;
+    options: string[];
+    lineTotal: number;
+}
+
+export interface OrderByTokenResult {
+    id: string;
+    pickupNumber: number;
+    status: OrderStatus;
+    paymentMethod: PaymentMethod;
+    totalAmount: number;
+    items: OrderItemDetail[];
+    createdAt: string;
+    transferReportedAt: string | null;
+    cancelRequestedAt: string | null;
+    cancelRejectedAt: string | null;
+}
+
 export interface OrderRepository {
     // rpc('create_order'). OUT_OF_STOCK·MENU_UNAVAILABLE·INVALID_OPTION은 AppError(409)로 바꿔 던진다.
     createOrder(input: CreateOrderRequest): Promise<CreateOrderResponse>;
@@ -53,4 +73,8 @@ export interface OrderRepository {
     findById(id: string): Promise<OrderForTransition | null>;
     // CAS 실패 시 AppError("STATE_CHANGED", 409)를 던진다.
     transition(command: TransitionCommand): Promise<OrderForTransition>;
+    // 상태 토큰으로 주문 및 항목 조회 (T-11 고객 상태 페이지, T-32 송금 신고 재사용). 없으면 null
+    findByToken(token: string): Promise<OrderByTokenResult | null>;
+    // 내 앞의 대기 주문 수(createdAt 제공 시) 또는 전체 대기 주문 수(미제공/null 시). status in ('pending','paid','cooking')
+    countWaitingBefore(createdAt?: string | null): Promise<number>;
 }

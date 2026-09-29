@@ -1,7 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError, type ErrorCode } from "@/lib/api/errors";
 import type { OrderRepository } from "@/services/ports";
-import { toCreateOrderResponse, toExistingOrderResponse, toOrderForTransition } from "./mappers";
+import {
+  toCreateOrderResponse,
+  toExistingOrderResponse,
+  toOrderForTransition,
+  toOrderByTokenResult,
+} from "./mappers";
 
 // DB 함수가 RAISE EXCEPTION으로 던지는 메시지 → AppError (Architecture "DB 함수" 표, ADR-0002).
 const DB_ERRORS: Record<string, { code: ErrorCode; status: number }> = {
@@ -38,9 +43,18 @@ function toError(operation: string, error: DbError): Error {
   return new Error(`${operation} failed: ${error.code ?? "unknown"} ${error.message}`);
 }
 
+const ORDER_BY_TOKEN_SELECT = `
+  id, pickup_number, status, payment_method, total_amount, locale, created_at,
+  transfer_reported_at, cancel_requested_at, cancel_rejected_at,
+  order_items (
+    menu_name_ko, menu_name_en, quantity, line_total, sort_order,
+    order_item_options ( option_name_ko, option_name_en )
+  )
+`;
+
 export function createSupabaseOrderRepository(
   client: SupabaseClient,
-): Pick<OrderRepository, "createOrder" | "findByIdempotencyKey" | "findById" | "transition"> {
+): OrderRepository {
   return {
     async findByIdempotencyKey(key) {
       const { data, error } = await client
@@ -87,5 +101,24 @@ export function createSupabaseOrderRepository(
       if (error) throw toError("transition_order", error);
       return toOrderForTransition(data);
     },
+
+    async findByToken(token) {
+      const { data, error } = await client
+        .from("orders")
+        .select(ORDER_BY_TOKEN_SELECT)
+        .eq("status_token", token)
+        .maybeSingle();
+      if (error) throw toError("orders.findByToken", error);
+      return data ? toOrderByTokenResult(data) : null;
+    },
+
+    async countWaitingBefore(createdAt) {
+      const { data, error } = await client.rpc("count_waiting_before", {
+        p_created_at: createdAt ?? null,
+      });
+      if (error) throw toError("count_waiting_before", error);
+      return typeof data === "number" ? data : 0;
+    },
   };
 }
+

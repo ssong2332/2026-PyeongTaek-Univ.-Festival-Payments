@@ -54,3 +54,66 @@ export function toExistingOrderResponse(row: OrderResponseRow): CreateOrderRespo
     created: false,
   });
 }
+
+import type { OrderByTokenResult, OrderItemDetail } from "@/services/ports";
+
+interface DbOrderItemOptionSnapshot {
+  option_name_ko: string;
+  option_name_en: string | null;
+}
+
+interface DbOrderItemSnapshot {
+  menu_name_ko: string;
+  menu_name_en: string | null;
+  quantity: number;
+  line_total: number;
+  sort_order: number;
+  order_item_options?: DbOrderItemOptionSnapshot[];
+}
+
+interface DbOrderByTokenRow {
+  id: string;
+  pickup_number: number;
+  status: OrderStatus;
+  payment_method: PaymentMethod;
+  total_amount: number;
+  locale: string;
+  created_at: string;
+  transfer_reported_at: string | null;
+  cancel_requested_at: string | null;
+  cancel_rejected_at: string | null;
+  order_items?: DbOrderItemSnapshot[];
+}
+
+export function toOrderByTokenResult(data: unknown): OrderByTokenResult {
+  const row = data as DbOrderByTokenRow;
+  const locale = row.locale ?? "ko";
+  const rawItems = row.order_items ?? [];
+  const sortedItems = [...rawItems].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  const items: OrderItemDetail[] = sortedItems.map((item) => {
+    const name = locale === "en" && item.menu_name_en ? item.menu_name_en : item.menu_name_ko;
+    const options = (item.order_item_options ?? []).map((opt) =>
+      locale === "en" && opt.option_name_en ? opt.option_name_en : opt.option_name_ko,
+    );
+    return {
+      name,
+      quantity: item.quantity,
+      options,
+      lineTotal: item.line_total,
+    };
+  });
+
+  return {
+    id: row.id,
+    pickupNumber: row.pickup_number,
+    status: row.status,
+    paymentMethod: row.payment_method,
+    totalAmount: row.total_amount,
+    items,
+    createdAt: row.created_at,
+    transferReportedAt: row.transfer_reported_at,
+    cancelRequestedAt: row.cancel_requested_at,
+    cancelRejectedAt: row.cancel_rejected_at,
+  };
+}

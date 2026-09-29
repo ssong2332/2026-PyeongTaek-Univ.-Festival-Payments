@@ -36,3 +36,35 @@ export const CreateOrderResponseSchema = z.object({
 });
 
 export type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>;
+
+// Architecture "6. 고객 API" GET /api/orders/{token}
+export const OrderStatusItemDtoSchema = z.object({
+  name: z.string(),
+  quantity: z.number().int().positive(),
+  options: z.array(z.string()),
+  lineTotal: z.number().int().nonnegative(),
+});
+export type OrderStatusItemDto = z.infer<typeof OrderStatusItemDtoSchema>;
+
+export const OrderStatusDtoSchema = z.object({
+  orderId: z.string().uuid(),
+  pickupNumber: z.number().int().positive(),
+  status: z.enum(ORDER_STATUSES),
+  paymentMethod: z.enum(["cash", "transfer"]),
+  totalAmount: z.number().int().nonnegative(),
+  items: z.array(OrderStatusItemDtoSchema),
+  createdAt: z.string(),
+  transferReportedAt: z.string().nullable(),
+  cancelRequestedAt: z.string().nullable(),
+  cancelRejectedAt: z.string().nullable(),
+  aheadCount: z.number().int().nonnegative(),
+  canTransferReport: z.boolean(),
+  canCancelRequest: z.boolean(),
+});
+export type OrderStatusDto = z.infer<typeof OrderStatusDtoSchema>;
+
+// Architecture "6. 고객 API" GET /api/queue
+export const QueueResponseSchema = z.object({
+  waitingCount: z.number().int().nonnegative(),
+});
+export type QueueResponse = z.infer<typeof QueueResponseSchema>;
