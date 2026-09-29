@@ -31,12 +31,32 @@ const anon = browserClient();
 const admin = browserClient();
 
 const menuId = randomUUID();
+const optionGroupId = randomUUID();
+const optionId = randomUUID();
 const orderId = randomUUID();
+const orderItemId = randomUUID();
 const settingKey = `t13.${randomUUID()}`;
 const counterKey = `t13-${randomUUID()}`;
 const adminEmail = `t13-${randomUUID()}@example.test`;
 const adminPassword = `T13-${randomUUID()}`;
 let adminUserId: string | undefined;
+
+// 12개 테이블마다 이 테스트가 넣은 행을 정확히 가리키는 조건.
+// "0행"이 테이블이 비어서가 아니라 권한 때문임을 보장하려고, 모든 읽기 검사를 이 행 기준으로 한다.
+const FIXTURE_ROWS: ReadonlyArray<{ table: (typeof TABLES)[number]; column: string; value: string }> = [
+  { table: "menu_items", column: "id", value: menuId },
+  { table: "menu_item_translations", column: "menu_item_id", value: menuId },
+  { table: "option_groups", column: "id", value: optionGroupId },
+  { table: "option_group_translations", column: "option_group_id", value: optionGroupId },
+  { table: "options", column: "id", value: optionId },
+  { table: "option_translations", column: "option_id", value: optionId },
+  { table: "counters", column: "key", value: counterKey },
+  { table: "orders", column: "id", value: orderId },
+  { table: "order_items", column: "id", value: orderItemId },
+  { table: "order_item_options", column: "order_item_id", value: orderItemId },
+  { table: "order_status_history", column: "order_id", value: orderId },
+  { table: "app_settings", column: "key", value: settingKey },
+];
 
 async function must<T>(label: string, promise: PromiseLike<{ data: T; error: unknown }>): Promise<NonNullable<T>> {
   const { data, error } = await promise;
@@ -63,9 +83,28 @@ beforeAll(async () => {
   await must("메뉴 준비", service.from("menu_items").insert({ id: menuId, base_price: 1000, stock: 1 }));
   await must("번역 준비", service.from("menu_item_translations")
     .insert({ menu_item_id: menuId, locale: "ko", name: "T-13 검증 메뉴" }));
+  await must("옵션 그룹 준비", service.from("option_groups")
+    .insert({ id: optionGroupId, menu_item_id: menuId, min_select: 0, max_select: 1 }));
+  await must("옵션 그룹 번역 준비", service.from("option_group_translations")
+    .insert({ option_group_id: optionGroupId, locale: "ko", name: "T-13 토핑" }));
+  await must("옵션 준비", service.from("options")
+    .insert({ id: optionId, option_group_id: optionGroupId, extra_price: 0 }));
+  await must("옵션 번역 준비", service.from("option_translations")
+    .insert({ option_id: optionId, locale: "ko", name: "T-13 치즈" }));
   await must("주문 준비", service.from("orders").insert({
     id: orderId, pickup_number: randomInt(1_000_000_000, 2_000_000_000), payment_method: "cash",
     total_amount: 1000, idempotency_key: randomUUID(), status_token: randomBytes(32).toString("hex"),
+  }));
+  await must("주문 항목 준비", service.from("order_items").insert({
+    id: orderItemId, order_id: orderId, menu_item_id: menuId, menu_name_ko: "T-13 검증 메뉴",
+    unit_price: 1000, quantity: 1, options_price: 0, line_total: 1000,
+  }));
+  await must("주문 항목 옵션 준비", service.from("order_item_options").insert({
+    order_item_id: orderItemId, option_id: optionId, option_group_name_ko: "T-13 토핑",
+    option_name_ko: "T-13 치즈", extra_price: 0,
+  }));
+  await must("상태 이력 준비", service.from("order_status_history").insert({
+    order_id: orderId, from_status: null, to_status: "pending", action: "create", actor_type: "customer",
   }));
   await must("설정 준비", service.from("app_settings").insert({ key: settingKey, value: "before" }));
   await must("카운터 준비", service.from("counters").insert({ key: counterKey, value: 7 }));
@@ -80,6 +119,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // 주문을 먼저 지워야 항목·항목 옵션·이력(CASCADE)이 사라지고, 메뉴·옵션의 RESTRICT FK가 풀린다.
   await service.from("orders").delete().eq("id", orderId);
   await service.from("menu_items").delete().eq("id", menuId);
   await service.from("app_settings").delete().eq("key", settingKey);
@@ -91,14 +131,27 @@ async function orderRow() {
   return must("주문 확인", service.from("orders").select("status, total_amount").eq("id", orderId).single());
 }
 
+// 준비한 행을 클라이언트가 읽어 오면 누수로 본다(에러 또는 0행이면 막힌 것).
 async function blockedReads(client: SupabaseClient, tables: readonly string[]): Promise<string[]> {
   const leaks: string[] = [];
-  for (const table of tables) {
-    const { data, error } = await client.from(table).select("*").limit(1);
+  for (const { table, column, value } of FIXTURE_ROWS.filter((row) => tables.includes(row.table))) {
+    const { data, error } = await client.from(table).select("*").eq(column, value);
     if (!error && (data ?? []).length > 0) leaks.push(table);
   }
   return leaks;
 }
+
+describe("검증 데이터 준비", () => {
+  test("12개 테이블 모두 이 테스트의 행이 1개 이상 있다(service_role 기준)", async () => {
+    const missing: string[] = [];
+    for (const { table, column, value } of FIXTURE_ROWS) {
+      const rows = await must(`${table} 준비 확인`, service.from(table).select("*").eq(column, value));
+      if (rows.length === 0) missing.push(table);
+    }
+    expect(missing).toEqual([]);
+    expect(FIXTURE_ROWS.map((row) => row.table).sort()).toEqual([...TABLES].sort());
+  });
+});
 
 describe("비로그인(anon) 클라이언트", () => {
   test("12개 테이블 모두 한 행도 읽지 못한다", async () => {
@@ -138,10 +191,9 @@ describe("비로그인(anon) 클라이언트", () => {
 
 describe("로그인한 관리자(authenticated) 클라이언트", () => {
   test("counters를 뺀 11개 테이블은 읽을 수 있고, counters는 읽지 못한다", async () => {
-    const readable = TABLES.filter((table) => table !== "counters");
-    for (const table of readable) {
-      const { error } = await admin.from(table).select("*").limit(1);
-      expect({ table, error }).toEqual({ table, error: null });
+    for (const { table, column, value } of FIXTURE_ROWS.filter((row) => row.table !== "counters")) {
+      const { data, error } = await admin.from(table).select("*").eq(column, value);
+      expect({ table, error, found: (data ?? []).length > 0 }).toEqual({ table, error: null, found: true });
     }
     const orders = await must("관리자 주문 조회", admin.from("orders").select("id").eq("id", orderId));
     expect(orders).toEqual([{ id: orderId }]);
