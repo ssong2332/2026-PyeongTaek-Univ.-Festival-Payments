@@ -53,6 +53,13 @@ export const AdminOrdersResponseSchema = z.object({
 });
 export type AdminOrdersResponse = z.infer<typeof AdminOrdersResponseSchema>;
 
+export const AdminTransitionRequestSchema = z.object({
+    action: z.enum(TRANSITION_ACTIONS),
+    reason: z.string().min(1).max(200).optional(),
+    refundChannel: z.enum(REFUND_CHANNELS).optional(),
+});
+export type AdminTransitionRequest = z.infer<typeof AdminTransitionRequestSchema>;
+
 export {
     type OrderStatus,
     type PaymentMethod,
