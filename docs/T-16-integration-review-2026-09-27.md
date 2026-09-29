@@ -15,3 +15,14 @@
 | 데스크톱·모바일 | `/dev/admin` 목업을 1440×900에서 계좌이체 입금 확인→조리 시작→완료, 390×844에서 현금 수령 확인→조리 완료 버튼과 상태 표시를 확인했다. 모바일 가로 넘침은 없었다(`scrollWidth=clientWidth=390`). | 인증된 실제 `/admin`의 화면 캡처와 동작 기록 첨부 |
 
 T-17의 취소·환불은 #54 완료 조건에 포함하지 않는다. #51·#48 통합 및 실제 계정 검증 전까지 #54는 Draft로 유지한다.
+
+## 2026-09-29 공통 API 결정과 #54 정리 순서
+
+공동팀장 검토 결과 [#60](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/60)을 T-16·T-17의 **단일 상태 전환 API**로 사용한다. #60의 관리자 action 6종 제한과 주문 ID UUID 검증 보완·재검수 후 #60을 먼저 `dev`에 병합한다. 2026-09-29 현재 #60·#51·#48은 미병합이며 #54는 #51 기반 Draft다.
+
+1. #60 병합 후 최신 `dev`를 반영한다. #54의 중복 `src/app/api/admin/orders/[id]/transition/route.ts`와 `tests/unit/api/adminTransitionRoute.test.ts`를 PR diff에서 제거한다. #60의 Route Handler와 요청 DTO가 남는지 확인한다.
+2. T-16 관리자 상태 변경 UI(`OrderActionButtons`, `OrderDashboard`, `LiveOrderDashboard`)와 UI 회귀 테스트는 유지한다. [#58](https://github.com/ssong2332/2026-PyeongTaek-Univ.-Festival-Payments/pull/58)의 T-17 취소·환불 UI도 같은 API에 연결할 수 있도록 별도의 4종 API를 병합하지 않는다.
+3. `tests/integration/t16-admin-transition-route.test.ts`의 **3개 PostgreSQL 통합 테스트는 보존**하고 #60 API를 호출하도록 재검증한다. 계좌이체 입금 확인 → 조리 시작 → 완료, 현금 수령 → 조리중, 불허 전환 및 동시 중복 요청의 200/409·상태 이력 검증을 유지한다.
+4. #51 병합 후 #54의 base를 `dev`로 변경하고, diff에 T-15 선행 구현과 중복 API가 남지 않았는지 확인한다. #48 인증 통합 후 실제 관리자 세션에서 API·UI를 검증한다.
+
+선행 병합 전에는 API 파일이나 통합 테스트를 삭제하지 않는다. 위 정리와 실환경 검증이 끝나기 전까지 #54는 Draft로 유지한다.
