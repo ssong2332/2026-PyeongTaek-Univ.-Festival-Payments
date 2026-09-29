@@ -19,6 +19,10 @@ function parseDateRange(request: NextRequest): CsvDateRange {
     }
 
     const range = { from: fromValues[0], to: toValues[0] };
+    if (range.from === "all" || range.to === "all") {
+        if (range.from === "all" && range.to === "all") return range;
+        throw new AppError("VALIDATION_ERROR", 400);
+    }
     try {
         if (kstDayUtcRange(range.from).start >= kstDayUtcRange(range.to).end) {
             throw new RangeError("from must not be after to");
@@ -39,7 +43,7 @@ export const GET = withHandler(async (request: NextRequest) => {
         status: 200,
         headers: {
             "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": `attachment; filename="orders_${range.from}_${range.to}.csv"`,
+            "Content-Disposition": `attachment; filename="${range.from === "all" ? "orders_all" : `orders_${range.from}_${range.to}`}.csv"`,
             "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff",
         },

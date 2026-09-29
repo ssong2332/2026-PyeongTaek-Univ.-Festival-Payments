@@ -72,8 +72,9 @@ export function buildOrdersCsv(
     orders: readonly CsvOrder[],
     range: CsvDateRange = FESTIVAL_DATES,
 ): OrdersCsvResult {
-    const start = Date.parse(kstDayUtcRange(range.from).start);
-    const end = Date.parse(kstDayUtcRange(range.to).end);
+    const all = range.from === "all" && range.to === "all";
+    const start = all ? Number.NEGATIVE_INFINITY : Date.parse(kstDayUtcRange(range.from).start);
+    const end = all ? Number.POSITIVE_INFINITY : Date.parse(kstDayUtcRange(range.to).end);
     if (start >= end) throw new RangeError("from must not be after to");
 
     const rows: string[] = [CSV_HEADERS.join(",")];

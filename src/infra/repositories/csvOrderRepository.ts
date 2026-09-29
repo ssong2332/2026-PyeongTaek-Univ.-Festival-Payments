@@ -74,16 +74,16 @@ function toCsvOrder(row: DbOrder): CsvOrder {
 
 /** Uses the order-time snapshots, so later menu and option edits cannot change an export. */
 export async function loadCsvOrders(client: SupabaseClient, range: CsvDateRange): Promise<CsvOrder[]> {
-    const start = kstDayUtcRange(range.from).start;
-    const end = kstDayUtcRange(range.to).end;
-    if (start >= end) throw new RangeError("from must not be after to");
+    const all = range.from === "all" && range.to === "all";
+    const start = all ? null : kstDayUtcRange(range.from).start;
+    const end = all ? null : kstDayUtcRange(range.to).end;
+    if (start !== null && end !== null && start >= end) throw new RangeError("from must not be after to");
 
     const orders: CsvOrder[] = [];
     for (let offset = 0; ; offset += PAGE_SIZE) {
-        const { data, error } = await client.from("orders")
-            .select(ORDER_SELECT)
-            .gte("created_at", start)
-            .lt("created_at", end)
+        const query = client.from("orders").select(ORDER_SELECT);
+        const selected = start === null || end === null ? query : query.gte("created_at", start).lt("created_at", end);
+        const { data, error } = await selected
             .order("created_at", { ascending: true })
             .order("id", { ascending: true })
             .range(offset, offset + PAGE_SIZE - 1);

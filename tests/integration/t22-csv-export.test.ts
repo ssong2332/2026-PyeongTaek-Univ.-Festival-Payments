@@ -79,6 +79,10 @@ test("T-22 exports database item/option snapshots, KST boundaries, refunds, and 
         expect(stats.error).toBeNull();
         expect(stats.data.sales).toBe(csv.sales);
 
+        const allOrderIds = (await loadCsvOrders(service, { from: "all", to: "all" }))
+            .map(order => order.id);
+        expect(allOrderIds).toEqual(expect.arrayContaining([paidId, refundedId, outsideId]));
+
         const emptyRange = { from: "2099-03-03", to: "2099-03-03" };
         const empty = buildOrdersCsv(await loadCsvOrders(service, emptyRange), emptyRange);
         expect(empty).toMatchObject({ sales: 0, rowCount: 0 });

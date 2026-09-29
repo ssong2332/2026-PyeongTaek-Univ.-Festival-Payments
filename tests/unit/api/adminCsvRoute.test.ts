@@ -58,7 +58,15 @@ describe("GET /api/admin/stats/csv", () => {
         expect(await response.text()).toContain('기본호떡,견과류,1,3500,현금,환불,"고객, 요청",3500');
     });
 
-    it.each(["?from=2026-10-07", "?from=2026-02-30&to=2026-10-08",
+    it("downloads the same all-time period as the stats screen", async () => {
+        const response = await GET(url("?from=all&to=all"));
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-disposition")).toBe('attachment; filename="orders_all.csv"');
+        expect(loadCsvOrders).toHaveBeenCalledWith(createServiceClient(), { from: "all", to: "all" });
+    });
+
+    it.each(["?from=2026-10-07", "?from=all&to=2026-10-07", "?from=2026-10-07&to=all",
+        "?from=2026-02-30&to=2026-10-08",
         "?from=2026-10-09&to=2026-10-08", "?from=2026-10-07&from=2026-10-08&to=2026-10-08"])(
         "rejects an invalid date range: %s", async query => {
             const response = await GET(url(query));

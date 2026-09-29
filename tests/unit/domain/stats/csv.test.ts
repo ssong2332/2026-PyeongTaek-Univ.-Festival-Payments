@@ -55,6 +55,21 @@ describe("T-22 order CSV", () => {
         expect(() => buildOrdersCsv([], { from: "2026-02-30", to: "2026-10-07" })).toThrow(RangeError);
     });
 
+    it("includes dates outside the festival for an all-time export", () => {
+        const before = { ...base, id: "before", createdAt: "2026-09-28T00:00:00Z" };
+        const after = { ...base, id: "after", createdAt: "2026-10-09T00:00:00Z" };
+        const orders = [before, base, after];
+        const csv = buildOrdersCsv(orders, { from: "all", to: "all" });
+        const stats = aggregateStats(orders.map(order => ({
+            id: order.id, status: order.status, totalAmount: order.totalAmount,
+            createdAt: order.createdAt, items: [],
+        })), "all");
+        expect(csv.rowCount).toBe(6);
+        expect(csv.sales).toBe(stats.sales);
+        expect(csv.content).toContain("before,");
+        expect(csv.content).toContain("after,");
+    });
+
     it("quotes CSV controls and neutralizes spreadsheet formulas", () => {
         const order: CsvOrder = {
             ...base, status: "refunded", reason: "-환불, \"요청\"",
