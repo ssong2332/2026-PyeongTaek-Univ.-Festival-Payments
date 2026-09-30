@@ -12,9 +12,12 @@ export function parseUuidParam(value: string | undefined, name: string = "id"): 
         throw new AppError("NOT_FOUND", 404);
     }
 
+    // z.uuid()가 아니라 z.guid()를 쓴다: Zod 4의 z.uuid()는 RFC variant 비트까지 검사해
+    // PostgreSQL uuid 컬럼엔 정상 저장되는 seed ID(예: 11111111-1111-1111-1111-111111111111)도 거부한다.
+    // 목적은 22P02(형식 오류) 차단이므로 8-4-4-4-12 hex 형태만 확인하는 z.guid()로 충분하다.
     // object 스키마로 감싸 issues의 path에 파라미터 이름이 담기게 한다
     // (POST /api/orders가 details로 parsed.error.issues를 내려주는 형식과 동일).
-    const parsed = z.object({ [name]: z.uuid() }).safeParse({ [name]: value });
+    const parsed = z.object({ [name]: z.guid() }).safeParse({ [name]: value });
     if (!parsed.success) {
         throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
     }

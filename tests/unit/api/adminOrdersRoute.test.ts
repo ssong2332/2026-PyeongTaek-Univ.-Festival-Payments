@@ -18,6 +18,9 @@ import type { User } from "@supabase/supabase-js";
 const ORDER_ID = "11111111-1111-4111-8111-111111111111";
 const MISSING_ORDER_ID = "22222222-2222-4222-8222-222222222222";
 const MALFORMED_ID = "abc";
+// supabase/seed.sql 형식의 ID. RFC variant 비트가 맞지 않아 Zod 4 z.uuid()는 거부하지만
+// PostgreSQL uuid 컬럼에는 정상 저장되므로 라우트는 통과시켜야 한다(z.guid() 회귀 방지).
+const SEED_STYLE_ID = "11111111-1111-1111-1111-111111111111";
 
 function createMockOrder(id: string, acknowledgedAt: string | null = null): AdminOrderDto {
     return {
@@ -140,6 +143,27 @@ describe("Admin Orders Route Handlers", () => {
             expect(res.status).toBe(404);
             const data = await res.json();
             expect(data.error.code).toBe("NOT_FOUND");
+        });
+
+        it("seed 형식 id(RFC variant 비준수)도 형식 검증을 통과해 200을 반환한다", async () => {
+            const mockOrder = createMockOrder(SEED_STYLE_ID, null);
+
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return {
+                    list: vi.fn(),
+                    findById: vi.fn().mockResolvedValue(mockOrder),
+                    acknowledge: vi.fn(),
+                } as unknown as SupabaseAdminOrderRepository;
+            });
+
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${SEED_STYLE_ID}`);
+            const res = await getOrderById(req, {
+                params: Promise.resolve({ id: SEED_STYLE_ID }),
+            });
+
+            expect(res.status).toBe(200);
+            const data = await res.json();
+            expect(data.id).toBe(SEED_STYLE_ID);
         });
 
         it("id가 uuid 형식이 아니면 DB 조회 없이 400 VALIDATION_ERROR를 반환한다", async () => {
