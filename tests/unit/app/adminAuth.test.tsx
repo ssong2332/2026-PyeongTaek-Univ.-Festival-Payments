@@ -6,6 +6,7 @@ vi.mock("server-only", () => ({}));
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import AdminLoginPage from "@/app/admin/login/page";
 import AdminProtectedLayout from "@/app/admin/(protected)/layout";
+import { LogoutButton } from "@/components/admin/LogoutButton";
 
 // Mock next/navigation
 const mockPush = vi.fn();
@@ -158,5 +159,77 @@ describe("AdminProtectedLayout", () => {
         expect(screen.getByText("평택대 부스 관리자")).toBeTruthy();
         expect(screen.getByText("admin@ptu.ac.kr")).toBeTruthy();
         expect(screen.getByTestId("child")).toBeTruthy();
+    });
+});
+
+describe("LogoutButton", () => {
+    const LOGOUT_ERROR = "로그아웃에 실패했습니다. 다시 시도해 주세요.";
+
+    beforeEach(() => {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "dummy-anon-key";
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
+    function logoutButton() {
+        return screen.getByRole("button", { name: "로그아웃" }) as HTMLButtonElement;
+    }
+
+    it("로그아웃 성공 시 /admin/login으로 이동한다", async () => {
+        mockSignOut.mockResolvedValueOnce({ error: null });
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+
+        await waitFor(() => {
+            expect(mockPush).toHaveBeenCalledWith("/admin/login");
+            expect(mockRefresh).toHaveBeenCalled();
+        });
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("signOut()이 error를 반환하면 이동하지 않고 오류를 표시하며 버튼을 다시 활성화한다", async () => {
+        mockSignOut.mockResolvedValueOnce({ error: { message: "Failed to fetch" } });
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+
+        expect((await screen.findByRole("alert")).textContent).toBe(LOGOUT_ERROR);
+        expect(logoutButton().disabled).toBe(false);
+        expect(mockPush).not.toHaveBeenCalled();
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it("signOut()이 예외를 던져도 이동하지 않고 같은 오류를 표시한다", async () => {
+        mockSignOut.mockRejectedValueOnce(new Error("network down"));
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+
+        expect((await screen.findByRole("alert")).textContent).toBe(LOGOUT_ERROR);
+        expect(logoutButton().disabled).toBe(false);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("실패 후 다시 누르면 재시도하고, 성공하면 오류를 지우고 이동한다", async () => {
+        mockSignOut
+            .mockResolvedValueOnce({ error: { message: "Failed to fetch" } })
+            .mockResolvedValueOnce({ error: null });
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+        await screen.findByRole("alert");
+
+        fireEvent.click(logoutButton());
+
+        await waitFor(() => {
+            expect(mockPush).toHaveBeenCalledWith("/admin/login");
+        });
+        expect(mockSignOut).toHaveBeenCalledTimes(2);
+        expect(screen.queryByRole("alert")).toBeNull();
     });
 });
