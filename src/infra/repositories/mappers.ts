@@ -1,6 +1,14 @@
 import type { OrderStatus, PaymentMethod } from "@/domain/order/status";
 import { CreateOrderResponseSchema, type CreateOrderResponse } from "@/lib/dto/order";
-import type { OrderByTokenResult, OrderForTransition, OrderItemDetail } from "@/services/ports";
+import type {
+  MenuItemRecord,
+  MenuNameTranslation,
+  MenuOptionGroupRecord,
+  MenuOptionRecord,
+  OrderByTokenResult,
+  OrderForTransition,
+  OrderItemDetail,
+} from "@/services/ports";
 
 type OrderRow = { id: string; status: OrderStatus; payment_method: PaymentMethod };
 
@@ -113,5 +121,90 @@ export function toOrderByTokenResult(data: unknown): OrderByTokenResult {
     transferReportedAt: row.transfer_reported_at,
     cancelRequestedAt: row.cancel_requested_at,
     cancelRejectedAt: row.cancel_rejected_at,
+  };
+}
+
+interface DbNameTranslationRow {
+  locale: string;
+  name: string;
+}
+
+interface DbMenuItemTranslationRow extends DbNameTranslationRow {
+  description?: string | null;
+}
+
+interface DbMenuOptionRow {
+  id: string;
+  extra_price: number;
+  sort_order: number;
+  is_active: boolean;
+  option_translations?: DbNameTranslationRow[] | null;
+}
+
+interface DbMenuOptionGroupRow {
+  id: string;
+  min_select: number;
+  max_select: number;
+  sort_order: number;
+  is_active: boolean;
+  option_group_translations?: DbNameTranslationRow[] | null;
+  options?: DbMenuOptionRow[] | null;
+}
+
+interface DbMenuItemRow {
+  id: string;
+  base_price: number;
+  stock: number;
+  is_sold_out_manual: boolean;
+  is_active: boolean;
+  sort_order: number;
+  image_url?: string | null;
+  menu_item_translations?: DbMenuItemTranslationRow[] | null;
+  option_groups?: DbMenuOptionGroupRow[] | null;
+}
+
+function toMenuNameTranslations(rows: DbNameTranslationRow[] | null | undefined): MenuNameTranslation[] {
+  return (rows ?? []).map((row) => ({ locale: row.locale, name: row.name }));
+}
+
+function toMenuOptionRecord(row: DbMenuOptionRow): MenuOptionRecord {
+  return {
+    id: row.id,
+    extraPrice: row.extra_price,
+    sortOrder: row.sort_order,
+    isActive: row.is_active,
+    translations: toMenuNameTranslations(row.option_translations),
+  };
+}
+
+function toMenuOptionGroupRecord(row: DbMenuOptionGroupRow): MenuOptionGroupRecord {
+  return {
+    id: row.id,
+    minSelect: row.min_select,
+    maxSelect: row.max_select,
+    sortOrder: row.sort_order,
+    isActive: row.is_active,
+    translations: toMenuNameTranslations(row.option_group_translations),
+    options: (row.options ?? []).map(toMenuOptionRecord),
+  };
+}
+
+// menu_items 임베드 조회 행 → 메뉴 포트 레코드. 스프레드 금지, 필드 명시 나열(Architecture "DTO ↔ 도메인 변환 위치").
+export function toMenuItemRecord(data: unknown): MenuItemRecord {
+  const row = data as DbMenuItemRow;
+  return {
+    id: row.id,
+    basePrice: row.base_price,
+    stock: row.stock,
+    isSoldOutManual: row.is_sold_out_manual,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    imageUrl: row.image_url ?? null,
+    translations: (row.menu_item_translations ?? []).map((translation) => ({
+      locale: translation.locale,
+      name: translation.name,
+      description: translation.description ?? null,
+    })),
+    optionGroups: (row.option_groups ?? []).map(toMenuOptionGroupRecord),
   };
 }
