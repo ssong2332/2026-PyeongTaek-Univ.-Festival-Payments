@@ -215,6 +215,19 @@ describe("LogoutButton", () => {
         expect(mockPush).not.toHaveBeenCalled();
     });
 
+    it("로그아웃 진행 중에는 버튼이 잠기고, 다시 눌러도 signOut()을 한 번만 호출한다", async () => {
+        mockSignOut.mockReturnValueOnce(new Promise(() => {}));
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+
+        const pending = (await screen.findByRole("button", { name: "로그아웃 중..." })) as HTMLButtonElement;
+        expect(pending.disabled).toBe(true);
+        fireEvent.click(pending);
+        expect(mockSignOut).toHaveBeenCalledTimes(1);
+        expect(mockPush).not.toHaveBeenCalled();
+    });
+
     it("실패 후 다시 누르면 재시도하고, 성공하면 오류를 지우고 이동한다", async () => {
         mockSignOut
             .mockResolvedValueOnce({ error: { message: "Failed to fetch" } })
