@@ -297,6 +297,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
 | 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
 | 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | Draft PR #49 |
+| 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | PR #61 검토 중 |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016` 적용(`0016`은 DB1 서동혁이 `supabase db push`, 10-01 운영 조회로 확인). `seed.sql`은 운영 미적용(`app_settings`·`menu_items` 0행) — 앱 배포(#50) 전에 SQL Editor에서 1회 실행한다(아래 운영 절차·T-36). 남은 적용 순서는 `0017` → `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
@@ -359,10 +360,10 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|---|
 | `GET /api/health` | — | `{ ok: true, db: true, time }` | DB `select 1` 실패 시 503 `{ ok:false, db:false }`. 대시보드 연결 감시용 |
 | `GET /api/menu?lang=ko` | `lang` ∈ SUPPORTED_LOCALES(기본 ko) | `MenuResponse { items: MenuItemDto[], waitingCount: number, locale }` · `MenuItemDto { id, name, description, price, stock, isAvailable, isSoldOut, imageUrl, optionGroups: [{ id, name, minSelect, maxSelect, options: [{ id, name, extraPrice }] }] }` | `is_active` 메뉴만. `isSoldOut = is_sold_out_manual OR stock=0`, `isAvailable = !isSoldOut`. 이름은 요청 언어 → ko 폴백. 비활성 옵션·그룹 제외. `waitingCount` = 전체 미완료 수(F-11 메뉴판) |
-| `GET /api/queue` | — | `{ waitingCount }` | 메뉴판 주기 갱신(30초)용 |
+| `GET /api/queue` | — | `{ waitingCount }` | 메뉴판 주기 갱신(30초)용. 200 응답 `Cache-Control: no-store` |
 | `GET /api/settings/transfer` | — | `TransferSettingsDto { configured: boolean, bankName, accountNumber, accountHolder }` | `transfer.*` 키만(계좌 정보 3개). 빈값은 `''`. `configured` = 은행 3값 모두 비어있지 않음. 비어 있으면 서버 `warn` 로그(F-44) |
 | `POST /api/orders` | `CreateOrderRequest { idempotencyKey: uuid, paymentMethod: 'cash'|'transfer' (transfer = 계좌이체), locale, items: [{ menuItemId: uuid, quantity: int 1..99, optionIds: uuid[] }] (1..20개) }` — 가격 필드 없음 — `totalAmount`, `price` 등 요청 규격에 없는 필드가 포함되면 Zod `strict()`로 400 `VALIDATION_ERROR`, 주문·항목 생성 및 재고 차감 없음(2026-09-26 팀장 결정, GitHub #45) | 201 신규 / 200 멱등 재요청: `CreateOrderResponse { orderId, pickupNumber, statusToken, status, totalAmount, createdAt, created: boolean }` | `paymentMethod` 누락·허용 외 값 → 400. 멱등키 기존 주문이면 속도 제한 미소비로 200. 신규면 `consume_rate_limit` → 초과 시 429 `RATE_LIMITED`(ADR-0009). 이후 ADR-0002 함수. 에러 409 OUT_OF_STOCK 등 |
-| `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 클라이언트 5초 폴링 |
+| `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 시각 4개는 ISO UTC `…Z`(밀리초)로 응답하고 대기 수 계산에는 DB 원본(µs)을 쓴다. 클라이언트 5초 폴링. 200 응답 `Cache-Control: private, no-store` |
 | `POST /api/orders/{token}/transfer-report` | 본문 없음 | `{ transferReportedAt }` | `status='pending' AND payment_method='transfer'`가 아니면(현금 주문 포함) 409 `INVALID_TRANSITION`. 이미 신고됨이면 기존 시각 그대로 200(멱등, F-43) |
 | `POST /api/orders/{token}/cancel-request` | 본문 없음 | `{ cancelRequestedAt }` | `status ∈ {pending,paid}` 아님 또는 `cancel_rejected_at` 있음 → 409 `CANCEL_REQUEST_NOT_ALLOWED`. 이미 요청됨이면 기존 시각 200(멱등, F-45) |
 
