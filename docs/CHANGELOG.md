@@ -5,6 +5,11 @@
 ## [Unreleased]
 
 ### Changed
+- 2026-10-01 운영 DB 적용 담당 확정: 마이그레이션 `db push`·seed 운영 적용은 DB1, seed 작성·유지는 DB2, 운영 계좌 입력은 팀장(DECISIONS #47, Tasks 역할 표·T-36, Architecture 배포 절, 신규 `T-30-transfer-settings.md`)
+- 2026-10-01 통합 테스트 mock 기준 확정: 동작을 바꾸는 mock(`requireAdmin` 등) 금지, `server-only` 스텁만 허용(DECISIONS #46, Architecture 테스트 절·CodingRules 테스트 작성 기준)
+- 2026-10-01 운영 DB 적용 현황 갱신: 0016 적용 확인, seed 미적용(Architecture 2-1절, Tasks T-36)
+- 2026-10-01 Tasks 근거 열 갱신: T-16(#54 자체 API 제거 반영)·T-17(PR #72·#58)·T-36(운영 seed 미적용)
+- 2026-09-30 운영 DB 마이그레이션 적용 순서 확정: 0016 → 0017 → 0018 → 0019, 병합 전 0014(#62)·0015(#52)는 0018·0019로 이름 변경(DECISIONS #45, Architecture 2-1절 운영 적용 현황)
 - 2026-09-25 주문 생성 제한 초기값을 공용 IP 환경을 고려해 5건/분에서 100건/분으로 상향(F-47, T-51, DECISIONS #44)
 - 2026-09-25 노션 스프린트 보드: 담당자별 파트 진행 속성(진행중 담당·완료 담당·파트 진행)·"내 파트" 보기 추가, 진행 카드 44개 본문 최신화(담당·일정·마이그레이션 번호·호스팅) — Tasks 변경 이력
 - 2026-09-25 DECISIONS #35(Vercel Hobby) 폐기 표시, #43 Cloudflare Workers 호스팅 추가 — T-50 결과가 결정 로그에만 누락돼 있던 것 정정
