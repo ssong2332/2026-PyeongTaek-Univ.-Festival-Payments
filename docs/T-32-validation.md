@@ -28,7 +28,8 @@
 
 ## 테스트 (Red-First: 서비스 테스트 17개가 `reportTransfer` 없음으로 실패 확인 후 구현)
 
-- `tests/unit/services/transferReportService.test.ts` 17개(가짜 저장소) — T-51(#62)이 `orderService.test.ts`를 고치므로 충돌을 피해 파일 분리
+- `tests/unit/services/transferReportService.test.ts` 17개 — T-51(#62)이 `orderService.test.ts`를 고치므로 충돌을 피해 파일 분리
+- 가짜 저장소는 Architecture 테스트 규칙(`tests/unit/fakes/*.ts` in-memory 포트 구현)대로 `tests/unit/fakes/fakeTokenOrderRepository.ts` — DB처럼 조건부로 기록하고, 끼어드는 요청(동시 신고·입금 확인·만료)을 흉내 낼 수 있다. 재조회 로직을 일부러 빼면 동시 신고 테스트가 실패하는 것을 확인
 - `tests/integration/supabaseOrderRepository.transferReport.test.ts` 11개(실제 로컬 DB — 저장소 7 + 서비스 4)
 - `tests/unit/api/transferReportRoute.test.ts` 4개(경로 토큰 전달·200·409·404·500 비노출)
 
