@@ -82,7 +82,7 @@ describe("orderService - getOrderByToken (T-11)", () => {
             paymentMethod: "transfer",
             totalAmount: 12000,
             items: mockOrder.items,
-            createdAt: "2026-09-28T10:00:00Z",
+            createdAt: "2026-09-28T10:00:00.000Z",
             transferReportedAt: null,
             cancelRequestedAt: null,
             cancelRejectedAt: null,
@@ -92,6 +92,39 @@ describe("orderService - getOrderByToken (T-11)", () => {
         });
 
         expect(repo.countWaitingBefore).toHaveBeenCalledWith("2026-09-28T10:00:00Z");
+    });
+
+    it("DB 시각(µs, +00:00)은 응답에서 ISO UTC(ms, Z)로 바꾸고 대기 수 집계에는 원본을 그대로 넘긴다", async () => {
+        const mockOrder = createMockOrderByToken({
+            createdAt: "2026-10-07T01:02:03.123456+00:00",
+            transferReportedAt: "2026-10-07T01:05:00.5+00:00",
+            cancelRequestedAt: "2026-10-07T01:06:00+00:00",
+            cancelRejectedAt: null,
+        });
+        const repo = {
+            findByToken: vi.fn().mockResolvedValue(mockOrder),
+            countWaitingBefore: vi.fn().mockResolvedValue(2),
+        };
+
+        const result = await getOrderByToken(VALID_TOKEN, { orderRepository: repo });
+
+        expect(result).toMatchObject({
+            createdAt: "2026-10-07T01:02:03.123Z",
+            transferReportedAt: "2026-10-07T01:05:00.500Z",
+            cancelRequestedAt: "2026-10-07T01:06:00.000Z",
+            cancelRejectedAt: null,
+        });
+        // ms로 깎은 값을 넘기면 같은 ms 안에 먼저 생성된 주문이 대기 수에서 빠진다.
+        expect(repo.countWaitingBefore).toHaveBeenCalledWith("2026-10-07T01:02:03.123456+00:00");
+    });
+
+    it("해석할 수 없는 DB 시각이면 다른 표기를 내보내지 않고 RangeError를 던진다(withHandler에서 500)", async () => {
+        const repo = {
+            findByToken: vi.fn().mockResolvedValue(createMockOrderByToken({ createdAt: "not-a-date" })),
+            countWaitingBefore: vi.fn().mockResolvedValue(0),
+        };
+
+        await expect(getOrderByToken(VALID_TOKEN, { orderRepository: repo })).rejects.toThrow(RangeError);
     });
 
     describe("canTransferReport 플래그 계산 검증", () => {

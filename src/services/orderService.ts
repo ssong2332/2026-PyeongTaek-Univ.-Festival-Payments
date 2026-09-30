@@ -6,6 +6,7 @@ import type {
 } from "@/lib/dto/order";
 import type { OrderRepository } from "./ports";
 import { AppError } from "@/lib/api/errors";
+import { toUtcIsoString } from "@/domain/time/utcIso";
 
 const STATUS_TOKEN_REGEX = /^[0-9a-f]{64}$/;
 
@@ -38,6 +39,7 @@ export async function getOrderByToken(
     throw new AppError("NOT_FOUND", 404);
   }
 
+  // DB 원본(µs) 그대로 넘긴다 — ms로 깎으면 같은 ms 안에 먼저 생성된 주문이 대기 수에서 빠진다.
   const aheadCount = await deps.orderRepository.countWaitingBefore(order.createdAt);
 
   const canTransferReport =
@@ -57,10 +59,10 @@ export async function getOrderByToken(
     paymentMethod: order.paymentMethod,
     totalAmount: order.totalAmount,
     items: order.items,
-    createdAt: order.createdAt,
-    transferReportedAt: order.transferReportedAt,
-    cancelRequestedAt: order.cancelRequestedAt,
-    cancelRejectedAt: order.cancelRejectedAt,
+    createdAt: toUtcIsoString(order.createdAt),
+    transferReportedAt: toUtcIsoString(order.transferReportedAt),
+    cancelRequestedAt: toUtcIsoString(order.cancelRequestedAt),
+    cancelRejectedAt: toUtcIsoString(order.cancelRejectedAt),
     aheadCount,
     canTransferReport,
     canCancelRequest,

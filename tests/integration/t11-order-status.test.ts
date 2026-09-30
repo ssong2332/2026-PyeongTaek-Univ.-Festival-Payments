@@ -168,7 +168,8 @@ describe("T-11 getOrderByToken — create_order로 만든 실제 주문을 실�
       paymentMethod: "transfer",
       totalAmount: 7000,
       items: [{ name: "씨앗호떡", quantity: 2, options: ["치즈"], lineTotal: 7000 }],
-      createdAt: expect.any(String),
+      // POST /api/orders 응답과 같은 ISO UTC(…Z, ms) 표기
+      createdAt: created.createdAt,
       transferReportedAt: null,
       cancelRequestedAt: null,
       cancelRejectedAt: null,
@@ -176,7 +177,6 @@ describe("T-11 getOrderByToken — create_order로 만든 실제 주문을 실�
       canTransferReport: true,
       canCancelRequest: true,
     });
-    expect(new Date(order.createdAt).toISOString()).toBe(created.createdAt);
     expect(OrderStatusDtoSchema.safeParse(order).error).toBeUndefined();
   });
 

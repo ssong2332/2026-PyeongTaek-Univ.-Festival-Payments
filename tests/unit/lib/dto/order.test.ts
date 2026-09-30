@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CreateOrderRequestSchema, CreateOrderResponseSchema } from "@/lib/dto/order";
+import { CreateOrderRequestSchema, CreateOrderResponseSchema, OrderStatusDtoSchema } from "@/lib/dto/order";
 
 const MENU_ID = "33333333-3333-4333-8333-333333333333";
 const OPTION_ID = "44444444-4444-4444-8444-444444444444";
@@ -119,5 +119,43 @@ describe("CreateOrderResponseSchema", () => {
     ["uuid가 아닌 주문 ID", { orderId: "abc" }],
   ])("%s는 거부한다", (_label, override) => {
     expect(CreateOrderResponseSchema.safeParse({ ...response, ...override }).success).toBe(false);
+  });
+});
+
+describe("OrderStatusDtoSchema", () => {
+  const status = {
+    orderId: "22222222-2222-4222-8222-222222222222",
+    pickupNumber: 151,
+    status: "pending",
+    paymentMethod: "transfer",
+    totalAmount: 7000,
+    items: [{ name: "씨앗호떡", quantity: 2, options: ["치즈"], lineTotal: 7000 }],
+    createdAt: "2026-10-07T01:02:03.123Z",
+    transferReportedAt: null,
+    cancelRequestedAt: null,
+    cancelRejectedAt: null,
+    aheadCount: 0,
+    canTransferReport: true,
+    canCancelRequest: true,
+  };
+  const later = "2026-10-07T01:05:00.000Z";
+
+  it("시각은 ISO UTC(…Z), 아직 없는 시각은 null이면 통과한다", () => {
+    expect(OrderStatusDtoSchema.safeParse(status).success).toBe(true);
+    expect(OrderStatusDtoSchema.safeParse({
+      ...status, transferReportedAt: later, cancelRequestedAt: later, cancelRejectedAt: later,
+    }).success).toBe(true);
+  });
+
+  it.each(["createdAt", "transferReportedAt", "cancelRequestedAt", "cancelRejectedAt"])(
+    "%s가 DB 원문 표기(µs, +00:00)면 거부한다 — 응답 시각은 POST /api/orders처럼 …Z",
+    (field) => {
+      expect(OrderStatusDtoSchema.safeParse({ ...status, [field]: "2026-10-07T01:02:03.123456+00:00" }).success)
+        .toBe(false);
+    },
+  );
+
+  it("createdAt은 null일 수 없다", () => {
+    expect(OrderStatusDtoSchema.safeParse({ ...status, createdAt: null }).success).toBe(false);
   });
 });
