@@ -51,16 +51,17 @@ export const OrderStatusItemDtoSchema = z.object({
 export type OrderStatusItemDto = z.infer<typeof OrderStatusItemDtoSchema>;
 
 export const OrderStatusDtoSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   pickupNumber: z.number().int().positive(),
   status: z.enum(ORDER_STATUSES),
   paymentMethod: z.enum(["cash", "transfer"]),
   totalAmount: z.number().int().nonnegative(),
   items: z.array(OrderStatusItemDtoSchema),
-  createdAt: z.string(),
-  transferReportedAt: z.string().nullable(),
-  cancelRequestedAt: z.string().nullable(),
-  cancelRejectedAt: z.string().nullable(),
+  // ISO 8601 UTC (Architecture "API 규격 — 공통") — CreateOrderResponse.createdAt과 같은 …Z 표기
+  createdAt: z.iso.datetime(),
+  transferReportedAt: z.iso.datetime().nullable(),
+  cancelRequestedAt: z.iso.datetime().nullable(),
+  cancelRejectedAt: z.iso.datetime().nullable(),
   aheadCount: z.number().int().nonnegative(),
   canTransferReport: z.boolean(),
   canCancelRequest: z.boolean(),

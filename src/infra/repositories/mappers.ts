@@ -1,6 +1,6 @@
 import type { OrderStatus, PaymentMethod } from "@/domain/order/status";
 import { CreateOrderResponseSchema, type CreateOrderResponse } from "@/lib/dto/order";
-import type { OrderForTransition } from "@/services/ports";
+import type { OrderByTokenResult, OrderForTransition, OrderItemDetail } from "@/services/ports";
 
 type OrderRow = { id: string; status: OrderStatus; payment_method: PaymentMethod };
 
@@ -54,8 +54,6 @@ export function toExistingOrderResponse(row: OrderResponseRow): CreateOrderRespo
     created: false,
   });
 }
-
-import type { OrderByTokenResult, OrderItemDetail } from "@/services/ports";
 
 interface DbOrderItemOptionSnapshot {
   option_name_ko: string;

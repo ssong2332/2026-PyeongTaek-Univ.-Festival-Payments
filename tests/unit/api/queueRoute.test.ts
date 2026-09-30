@@ -23,6 +23,8 @@ describe("GET /api/queue", () => {
         const res = await getQueue();
 
         expect(res.status).toBe(200);
+        // 30초 주기 갱신 값 — 캐시된 대기 수를 보여주지 않는다.
+        expect(res.headers.get("Cache-Control")).toBe("no-store");
         const data = await res.json();
         expect(data).toEqual({ waitingCount: 7 });
         expect(getQueueStatus).toHaveBeenCalledWith(expect.any(Object));
