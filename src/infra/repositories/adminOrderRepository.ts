@@ -5,6 +5,7 @@ import type { AdminOrderRepository, OrderListFilter } from "@/services/ports";
 import type { AdminOrderDto, AdminOrderItemDto } from "@/lib/dto/adminOrder";
 import { availableActions } from "@/domain/order/stateMachine";
 import type { OrderStatus, PaymentMethod, RefundChannel } from "@/domain/order/status";
+import { kstDayUtcRange } from "@/domain/time/kst";
 
 interface DbOrderItemOption {
     option_name_ko: string;
@@ -130,10 +131,9 @@ export class SupabaseAdminOrderRepository implements AdminOrderRepository {
             // F-22: pickupNumber 지정 시 date 무시
             query = query.eq("pickup_number", filter.pickupNumber);
         } else if (filter?.date) {
-            // KST 날짜 기준 범위 필터
-            const startUtc = new Date(`${filter.date}T00:00:00+09:00`).toISOString();
-            const endUtc = new Date(`${filter.date}T23:59:59.999+09:00`).toISOString();
-            query = query.gte("created_at", startUtc).lte("created_at", endUtc);
+            // KST 날짜 기준 범위 필터 [start, end)
+            const { start, end } = kstDayUtcRange(filter.date);
+            query = query.gte("created_at", start).lt("created_at", end);
         }
 
         if (filter?.status && filter.status.length > 0) {
