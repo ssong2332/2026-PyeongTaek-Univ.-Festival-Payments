@@ -104,6 +104,26 @@ describe("POST /api/admin/orders/[id]/transition", () => {
             const data = await res.json();
             expect(data.error.code).toBe("VALIDATION_ERROR");
         });
+
+        // 시스템 전용 action은 상태 머신에는 있지만 관리자 API 계약에는 없으므로
+        // 서비스(→ 409 INVALID_TRANSITION)까지 가지 않고 요청 검증에서 400으로 거부돼야 한다.
+        it.each(["auto_complete", "expire"])(
+            "시스템 전용 action(%s)은 400 VALIDATION_ERROR를 반환하고 서비스를 호출하지 않는다",
+            async (action) => {
+                const req = new NextRequest("http://localhost:3000/api/admin/orders/order-1/transition", {
+                    method: "POST",
+                    body: JSON.stringify({ action }),
+                });
+                const res = await postTransition(req, {
+                    params: Promise.resolve({ id: "order-1" }),
+                });
+
+                expect(res.status).toBe(400);
+                const data = await res.json();
+                expect(data.error.code).toBe("VALIDATION_ERROR");
+                expect(transition).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe("성공 시나리오 (200 OK)", () => {

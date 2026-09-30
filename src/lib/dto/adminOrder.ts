@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+    ADMIN_TRANSITION_ACTIONS,
     ORDER_STATUSES,
     PAYMENT_METHODS,
     REFUND_CHANNELS,
@@ -54,7 +55,8 @@ export const AdminOrdersResponseSchema = z.object({
 export type AdminOrdersResponse = z.infer<typeof AdminOrdersResponseSchema>;
 
 export const AdminTransitionRequestSchema = z.object({
-    action: z.enum(TRANSITION_ACTIONS),
+    // 공용 TRANSITION_ACTIONS가 아닌 관리자 6종만 허용(auto_complete·expire → 400 VALIDATION_ERROR).
+    action: z.enum(ADMIN_TRANSITION_ACTIONS),
     reason: z.string().min(1).max(200).optional(),
     refundChannel: z.enum(REFUND_CHANNELS).optional(),
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
-import type { OrderStatus, RefundChannel, TransitionAction } from "@/domain/order/status";
+import { ADMIN_TRANSITION_ACTIONS, type OrderStatus, type RefundChannel, type TransitionAction } from "@/domain/order/status";
 
 const statuses: OrderStatus[] = ["pending", "paid", "cooking", "completed", "cancelled", "refunded", "expired"];
 const actions: TransitionAction[] = ["confirm_payment", "confirm_cash", "start_cooking", "complete", "auto_complete", "cancel", "refund", "expire"];
@@ -71,6 +71,18 @@ it("관리자 버튼은 시스템 동작을 제외하고 사유 입력 전에도
   for (const status of ["completed", "cancelled", "refunded", "expired"] as const) {
     expect(availableActions(order(status))).toEqual([]);
   }
+});
+
+// 관리자 API 허용 목록(ADMIN_TRANSITION_ACTIONS)과 상태 머신의 actor: "admin" 규칙이 어긋나지 않게 고정한다.
+// 상태 머신에 관리자 action이 추가·변경되면 이 테스트가 깨져 목록 갱신을 알린다.
+it("ADMIN_TRANSITION_ACTIONS는 상태 머신의 관리자 action 전체와 같다", () => {
+  const adminActions = new Set<TransitionAction>();
+  for (const status of statuses) {
+    for (const paymentMethod of ["cash", "transfer"] as const) {
+      for (const action of availableActions({ status, paymentMethod })) adminActions.add(action);
+    }
+  }
+  expect([...adminActions].sort()).toEqual([...ADMIN_TRANSITION_ACTIONS].sort());
 });
 
 it("판정은 전달받은 주문을 변경하지 않는다", () => {
