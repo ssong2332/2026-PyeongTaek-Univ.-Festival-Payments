@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/infra/repositories/adminOrderRepository");
@@ -88,6 +88,74 @@ describe("Admin Orders Route Handlers", () => {
             const data = await res.json();
             expect(data.orders.length).toBe(2);
             expect(data.unacknowledgedCount).toBe(1);
+        });
+
+        describe("date 쿼리 (기본 오늘 KST · pickupNumber 우선 · 형식 검증)", () => {
+            function mockListRepo() {
+                const list = vi.fn().mockResolvedValue([]);
+                vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                    return { list, findById: vi.fn(), acknowledge: vi.fn() } as unknown as SupabaseAdminOrderRepository;
+                });
+                return list;
+            }
+
+            afterEach(() => {
+                vi.useRealTimers();
+            });
+
+            it("date가 없으면 서버 시각 기준 오늘 KST 날짜로 조회한다 (UTC 10-07 15:30 → 2026-10-08)", async () => {
+                vi.useFakeTimers({ toFake: ["Date"] });
+                vi.setSystemTime(new Date("2026-10-07T15:30:00Z"));
+                const list = mockListRepo();
+
+                const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders"));
+
+                expect(res.status).toBe(200);
+                expect(list).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-08" }));
+            });
+
+            it("date를 명시하면 그 날짜로 조회한다", async () => {
+                const list = mockListRepo();
+
+                const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?date=2026-10-01"));
+
+                expect(res.status).toBe(200);
+                expect(list).toHaveBeenCalledWith(expect.objectContaining({ date: "2026-10-01" }));
+            });
+
+            it("pickupNumber가 있으면 date 없이 번호로만 조회한다", async () => {
+                const list = mockListRepo();
+
+                const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?pickupNumber=101"));
+
+                expect(res.status).toBe(200);
+                expect(list).toHaveBeenCalledWith(expect.objectContaining({ pickupNumber: 101 }));
+                expect(list.mock.calls[0][0].date).toBeUndefined();
+            });
+
+            it.each(["2026-13-99", "2026-02-30", "20261007", "today"])(
+                "달력에 없는/형식이 틀린 date(%s)는 조회 없이 400 VALIDATION_ERROR",
+                async (bad) => {
+                    const list = mockListRepo();
+
+                    const res = await getOrders(
+                        new NextRequest(`http://localhost:3000/api/admin/orders?date=${encodeURIComponent(bad)}`),
+                    );
+
+                    expect(res.status).toBe(400);
+                    const data = await res.json();
+                    expect(data.error.code).toBe("VALIDATION_ERROR");
+                    expect(list).not.toHaveBeenCalled();
+                },
+            );
+
+            it("미인증 요청은 date 형식이 틀려도 401이 먼저 반환된다", async () => {
+                vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
+
+                const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?date=2026-13-99"));
+
+                expect(res.status).toBe(401);
+            });
         });
     });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { kstDayUtcRange } from "@/domain/time/kst";
 import { AppError } from "./errors";
 
 // 동적 라우트의 uuid 파라미터 검증.
@@ -18,6 +19,30 @@ export function parseUuidParam(value: string | undefined, name: string = "id"): 
     // object 스키마로 감싸 issues의 path에 파라미터 이름이 담기게 한다
     // (POST /api/orders가 details로 parsed.error.issues를 내려주는 형식과 동일).
     const parsed = z.object({ [name]: z.guid() }).safeParse({ [name]: value });
+    if (!parsed.success) {
+        throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
+    }
+
+    return value;
+}
+
+// `?date=YYYY-MM-DD`(KST 날짜) 쿼리 검증. 없거나 빈 값이면 undefined — 서비스가 오늘(KST)로 채운다.
+// 달력에 없는 날짜(예: 2026-13-99, 2026-02-30)를 그대로 넘기면 리포지토리의 범위 계산에서
+// RangeError(Invalid Date)가 나 500 INTERNAL_ERROR가 되므로, 라우트 진입부에서 400 VALIDATION_ERROR로 막는다.
+export function parseKstDateParam(value: string | null, name: string = "date"): string | undefined {
+    if (!value) return undefined;
+
+    const isCalendarDay = (date: string) => {
+        try {
+            kstDayUtcRange(date);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+    const parsed = z
+        .object({ [name]: z.string().refine(isCalendarDay, "date must be a valid YYYY-MM-DD calendar day") })
+        .safeParse({ [name]: value });
     if (!parsed.success) {
         throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
     }
