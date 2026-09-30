@@ -15,9 +15,11 @@ export function QueueCount({ waitingCount }: { waitingCount: number | null }) {
                 <span className="text-sm font-bold text-neutral-900">현재 처리 중인 주문</span>
                 <span className="text-xs text-stone-500">{detail}</span>
             </span>
-            <span className="text-2xl font-extrabold text-brand-deep" aria-hidden="true">
-                {waitingCount ?? "-"}
-            </span>
+            {waitingCount !== null && (
+                <span className="text-2xl font-extrabold text-brand-deep" aria-hidden="true">
+                    {waitingCount}
+                </span>
+            )}
         </section>
     );
 }

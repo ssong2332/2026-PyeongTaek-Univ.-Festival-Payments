@@ -62,9 +62,15 @@ describe("QueueCount — 현재 처리 중인 주문 (F-11)", () => {
         expect(screen.getByText("대기 없음")).toBeTruthy();
     });
 
-    it("아직 모르면(null) '확인 중'", () => {
+    it("아직 모르면(null) '확인 중', 큰 숫자 자리는 비운다", () => {
         render(<QueueCount waitingCount={null} />);
         expect(screen.getByText("확인 중")).toBeTruthy();
+        expect(screen.getByRole("region", { name: "현재 처리 중인 주문" }).textContent).toBe("현재 처리 중인 주문확인 중");
+    });
+
+    it("큰 숫자는 대기 건수 그대로", () => {
+        render(<QueueCount waitingCount={12} />);
+        expect(screen.getByRole("region", { name: "현재 처리 중인 주문" }).textContent).toBe("현재 처리 중인 주문12건이 처리 중입니다12");
     });
 });
 
