@@ -1,4 +1,5 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import { afterEach, describe, expect, test } from "vitest";
 import { ORDER_STATUSES, type OrderStatus } from "@/domain/order/status";
 import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrderRepository";
@@ -138,6 +139,15 @@ describe("T-11 count_waiting_before — 저장소 countWaitingBefore로 호출",
       omitted: after.omitted - before.omitted,
       queue: after.queue - before.queue,
     }).toEqual({ nullArg: 3, omitted: 3, queue: 3 });
+  });
+});
+
+describe("T-11 count_waiting_before 권한(0017 REVOKE)", () => {
+  test("anon 키로는 호출할 수 없다", async () => {
+    const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+    const { data, error } = await anon.rpc("count_waiting_before", { p_created_at: null });
+    expect(error?.code).toBe("42501");
+    expect(data).toBeNull();
   });
 });
 
