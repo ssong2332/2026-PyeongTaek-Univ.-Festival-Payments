@@ -158,4 +158,9 @@ describe("OrderStatusDtoSchema", () => {
   it("createdAt은 null일 수 없다", () => {
     expect(OrderStatusDtoSchema.safeParse({ ...status, createdAt: null }).success).toBe(false);
   });
+
+  it("주문 ID는 DB ID 규칙(z.guid) — RFC 버전 비트가 없는 ID도 통과, uuid 모양이 아니면 거부", () => {
+    expect(OrderStatusDtoSchema.safeParse({ ...status, orderId: SEED_MENU_ID }).success).toBe(true);
+    expect(OrderStatusDtoSchema.safeParse({ ...status, orderId: "order-123" }).success).toBe(false);
+  });
 });

@@ -51,7 +51,7 @@ export const OrderStatusItemDtoSchema = z.object({
 export type OrderStatusItemDto = z.infer<typeof OrderStatusItemDtoSchema>;
 
 export const OrderStatusDtoSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.guid(),
   pickupNumber: z.number().int().positive(),
   status: z.enum(ORDER_STATUSES),
   paymentMethod: z.enum(["cash", "transfer"]),
