@@ -295,8 +295,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0012 | `0012_sweep_auto_complete.sql` | `sweep_order_timeouts` 자동 완료 부분(`CREATE OR REPLACE`) | T-19 · DB2 | 0011 | 원격 브랜치 없음 |
 | 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
 | 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
-| 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
-| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | Draft PR #49 |
+| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | dev 병합 |
+| 0019 | `0019_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | Draft PR #52 · 0016→0017→0018 뒤 적용 |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
 ### 3. RLS 정책 표 (`0003_rls.sql`, N-04)

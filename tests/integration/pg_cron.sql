@@ -1,4 +1,4 @@
--- 로컬 Supabase에서 0015가 지원 환경에 잡을 정확히 한 개 등록하는지 확인한다.
+-- 로컬 Supabase에서 0019가 지원 환경에 잡을 정확히 한 개 등록하는지 확인한다.
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'pg_cron') THEN
