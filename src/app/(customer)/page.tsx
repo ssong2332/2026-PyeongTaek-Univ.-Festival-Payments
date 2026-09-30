@@ -47,7 +47,7 @@ export default function MenuPage() {
                     >
                         <CartIcon className="size-6" />
                         {cartCount > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white">
+                            <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full bg-orange-700 px-1 text-xs font-bold text-white">
                                 {cartCount}
                             </span>
                         )}

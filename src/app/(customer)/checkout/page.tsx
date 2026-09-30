@@ -35,7 +35,7 @@ export default function CheckoutPage() {
     } else if (hydrated && items.length === 0 && !checkout.submitting) {
         body = (
             <EmptyState title="장바구니가 비어 있습니다">
-                <Link href="/" className="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
+                <Link href="/" className="rounded-full bg-orange-700 px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
                     메뉴판으로 돌아가기
                 </Link>
             </EmptyState>
@@ -82,7 +82,7 @@ export default function CheckoutPage() {
                         disabled={!checkout.canSubmit}
                         aria-busy={checkout.submitting}
                         onClick={() => void checkout.submit()}
-                        className={`${checkout.canSubmit ? CTA_ENABLED : CTA_DISABLED} justify-center`}
+                        className={checkout.canSubmit ? CTA_ENABLED : CTA_DISABLED}
                     >
                         {confirmLabel}
                     </button>
@@ -107,7 +107,7 @@ function CheckoutErrorPanel({ error, onRetry }: { error: CheckoutError; onRetry:
                 </ul>
             )}
             {isRetryableCheckoutError(error) ? (
-                <button type="button" onClick={() => void onRetry()} className="self-start rounded-full bg-brand px-4 py-2 font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
+                <button type="button" onClick={() => void onRetry()} className="self-start rounded-full bg-orange-700 px-4 py-2 font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
                     다시 시도
                 </button>
             ) : (

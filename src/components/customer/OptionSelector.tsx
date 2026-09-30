@@ -66,7 +66,7 @@ export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelector
                                             {checked && <CheckIcon className="size-4" />}
                                         </span>
                                         <span className="flex-1 text-sm font-bold text-neutral-900">{option.name}</span>
-                                        <span className={`text-sm font-bold ${checked ? "text-brand" : "text-stone-400"}`}>
+                                        <span className={`text-sm font-bold ${checked ? "text-orange-700" : "text-stone-500"}`}>
                                             {formatOptionPrice(option.extraPrice)}
                                         </span>
                                     </label>

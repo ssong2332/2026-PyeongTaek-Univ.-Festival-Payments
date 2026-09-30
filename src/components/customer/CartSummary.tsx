@@ -37,12 +37,12 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                                     type="button"
                                     aria-label={`${line.name} 삭제`}
                                     onClick={() => onRemove(line.lineId)}
-                                    className="-m-1 flex size-7 shrink-0 items-center justify-center rounded-full text-stone-400 focus-visible:outline-2 focus-visible:outline-brand"
+                                    className="-m-1 flex size-7 shrink-0 items-center justify-center rounded-full text-stone-500 focus-visible:outline-2 focus-visible:outline-brand"
                                 >
                                     <CloseIcon className="size-4" />
                                 </button>
                             </div>
-                            {line.optionSummary && <p className="text-xs font-bold text-brand">{line.optionSummary}</p>}
+                            {line.optionSummary && <p className="text-xs font-bold text-orange-700">{line.optionSummary}</p>}
                             <div className="mt-2 flex items-center justify-between gap-2">
                                 <QuantityStepper
                                     size="sm"

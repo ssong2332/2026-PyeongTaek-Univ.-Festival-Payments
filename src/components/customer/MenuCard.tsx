@@ -29,7 +29,7 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, onSelect
                 </span>
                 {description && <span className="mt-1 line-clamp-2 text-xs text-stone-500">{description}</span>}
                 <span className="mt-auto flex items-end justify-between pt-2">
-                    <span className="text-lg font-extrabold text-brand">{formatWon(price)}</span>
+                    <span className="text-xl font-extrabold text-brand">{formatWon(price)}</span>
                     <span className="flex size-8 items-center justify-center rounded-full bg-brand text-white" aria-hidden="true">
                         <PlusIcon className="size-4" />
                     </span>

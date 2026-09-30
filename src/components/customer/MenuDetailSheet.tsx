@@ -76,34 +76,32 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                 onKeyDown={handleKeyDown}
                 className="relative flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-xl"
             >
-                <div className="relative h-40 shrink-0">
-                    <MenuThumbnail imageUrl={imageUrl} className="h-full w-full" />
-                    <button
-                        ref={closeRef}
-                        type="button"
-                        aria-label="닫기"
-                        onClick={onClose}
-                        className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-black/45 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                    >
-                        <CloseIcon className="size-5" />
-                    </button>
-                </div>
+                <button
+                    ref={closeRef}
+                    type="button"
+                    aria-label="닫기"
+                    onClick={onClose}
+                    className="absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-black/45 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                >
+                    <CloseIcon className="size-5" />
+                </button>
 
-                <div className="flex-1 overflow-y-auto px-5 pt-4 pb-5">
-                    <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 overflow-y-auto pb-5">
+                    <MenuThumbnail imageUrl={imageUrl} className="h-40 w-full" />
+                    <div className="flex items-start justify-between gap-3 px-5 pt-4">
                         <h2 id={titleId} className="text-xl font-extrabold text-neutral-900">
                             {name}
                         </h2>
                         <p className="shrink-0 text-xl font-extrabold text-brand-deep">{formatWon(price)}</p>
                     </div>
-                    {description && <p className="mt-2 text-sm text-stone-600">{description}</p>}
+                    {description && <p className="mt-2 px-5 text-sm text-stone-600">{description}</p>}
                     {props.groups.length > 0 && (
-                        <div className="mt-5">
+                        <div className="mt-5 px-5">
                             <OptionSelector groups={props.groups} selectedIds={props.selectedIds} onToggle={props.onToggleOption} />
                         </div>
                     )}
-                    <div className="mt-5">
-                        <p className="mb-2 text-sm font-bold text-brand-amber">수량</p>
+                    <div className="mt-5 px-5">
+                        <p className="mb-2 text-sm font-bold text-amber-700">수량</p>
                         <QuantityStepper value={props.quantity} max={props.maxQuantity} onChange={props.onQuantityChange} />
                     </div>
                 </div>

@@ -5,7 +5,7 @@ export function ErrorRetry({ message, onRetry, retryLabel = "다시 시도" }: {
             <button
                 type="button"
                 onClick={onRetry}
-                className="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
+                className="rounded-full bg-orange-700 px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
             >
                 {retryLabel}
             </button>

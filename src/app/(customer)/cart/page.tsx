@@ -44,7 +44,7 @@ export default function CartPage() {
             <div className="flex flex-col gap-3 px-4 pt-4">
                 {hydrated && items.length === 0 && (
                     <EmptyState title="장바구니가 비어 있습니다">
-                        <Link href="/" className="rounded-full bg-brand px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
+                        <Link href="/" className="rounded-full bg-orange-700 px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
                             메뉴판으로 돌아가기
                         </Link>
                     </EmptyState>

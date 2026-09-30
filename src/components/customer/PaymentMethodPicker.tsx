@@ -16,7 +16,7 @@ export interface PaymentMethodPickerProps {
 export function PaymentMethodPicker({ value, onChange, disabled = false }: PaymentMethodPickerProps) {
     return (
         <section className="rounded-[20px] border border-orange-100 bg-white p-4">
-            <h2 id="payment-method-title" className="mb-3 text-xs font-bold tracking-widest text-brand-amber">
+            <h2 id="payment-method-title" className="mb-3 text-xs font-bold tracking-widest text-amber-700">
                 결제 방법
             </h2>
             <div role="radiogroup" aria-labelledby="payment-method-title" className="grid grid-cols-2 gap-3">
