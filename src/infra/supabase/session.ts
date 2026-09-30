@@ -31,7 +31,7 @@ export async function createSessionClient() {
 }
 
 /**
- * Architecture 7절 / 8절: 관리자 API 및 라우트 세션 확인
+ * Architecture 7절: 관리자 API 세션 확인
  * 세션이 없거나 유효하지 않으면 401 UNAUTHORIZED 에러를 던진다.
  */
 export async function requireAdmin(): Promise<User> {

@@ -3,9 +3,9 @@ import { describe, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
 
 // Architecture 3절 RLS 정책 및 315라인 검증:
-// - anon: orders, menu_items, app_settings SELECT 접근 거부 또는 빈 결과; RPC 함수 execute 거부
-// - authenticated: orders UPDATE/INSERT 거부 (SELECT만 허용)
-// - service_role: 모든 권한 허용
+// - anon: orders, menu_items, app_settings SELECT 접근 거부 또는 빈 결과; create_order 실행 거부
+// - service_role: orders 조회 허용
+// authenticated 쓰기 차단을 포함한 전체 RLS 검증은 DB1 PR #43에서 담당한다.
 
 const supabaseUrl = process.env.SUPABASE_URL || "http://127.0.0.1:54321";
 const anonKey = process.env.SUPABASE_ANON_KEY || "dummy-anon-key";
@@ -44,7 +44,7 @@ describe("T-13 / Architecture 3절: RLS 정책 검증", () => {
         }
     });
 
-    test("anon 클라이언트는 create_order 또는 transition_order RPC를 직접 실행할 수 없다 (거부)", async () => {
+    test("anon 클라이언트는 create_order RPC를 직접 실행할 수 없다 (거부)", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error } = await anonClient.rpc("create_order" as any, {} as any);
         // EXECUTE 권한이 REVOKE되어 있으므로 반드시 에러 발생
@@ -56,3 +56,4 @@ describe("T-13 / Architecture 3절: RLS 정책 검증", () => {
         expect(error).toBeNull();
     });
 });
+

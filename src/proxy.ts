@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { readPublicConfig } from "@/infra/supabase/config";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
     });
@@ -60,3 +60,4 @@ export async function middleware(request: NextRequest) {
 export const config = {
     matcher: ["/admin/:path*"],
 };
+
