@@ -27,7 +27,6 @@ export function LogoutButton() {
                 return;
             }
 
-            // 로그아웃이 성공했을 때만 로그인 화면으로 이동
             router.push("/admin/login");
             router.refresh();
         } catch {
