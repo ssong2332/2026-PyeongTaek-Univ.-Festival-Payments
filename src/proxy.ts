@@ -51,7 +51,12 @@ export async function proxy(request: NextRequest) {
     if (pathname === "/admin/login" && user) {
         const dashboardUrl = request.nextUrl.clone();
         dashboardUrl.pathname = "/admin";
-        return NextResponse.redirect(dashboardUrl);
+        const redirectResponse = NextResponse.redirect(dashboardUrl);
+        // getUser()가 세션을 갱신했다면 그 쿠키는 supabaseResponse에만 있으므로 redirect 응답으로 옮긴다
+        supabaseResponse.cookies.getAll().forEach((cookie) =>
+            redirectResponse.cookies.set(cookie),
+        );
+        return redirectResponse;
     }
 
     return supabaseResponse;
