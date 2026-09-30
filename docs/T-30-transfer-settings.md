@@ -50,13 +50,15 @@ SQL Editor에서 실행한다. 결과에는 참/거짓만 나온다.
 
 ```sql
 SELECT key,
-       btrim(value, E' \t\r\n') <> '' AS filled,
-       char_length(value) <= 200      AS within_limit
+       btrim(value, E' \t\r\n\u000b\u000c\u00a0\u3000\ufeff') <> '' AS filled,
+       char_length(value) <= 200                                   AS within_limit
 FROM public.app_settings
 WHERE key IN ('transfer.bank_name', 'transfer.account_number', 'transfer.account_holder')
 ORDER BY key;
 ```
 
+- `filled`는 앱의 `trim()`이 지우는 주요 공백 문자(일반 공백·탭·줄바꿈·NBSP·전각 공백·BOM)를 지운 뒤 판단한다.
+  드문 유니코드 공백까지 앱과 완전히 같지는 않다.
 - 기대 결과: 3행, 모든 열 `true`. 단톡에는 "transfer 3개 모두 true"처럼 결과만 공유한다.
 - 3행이 아니면 1단계(seed 적용)를 먼저 확인한다. `false`가 있으면 해당 `key` 이름만 팀장에게 알린다.
 
