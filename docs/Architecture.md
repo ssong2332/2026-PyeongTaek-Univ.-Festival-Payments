@@ -299,6 +299,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | Draft PR #49 |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
+> **운영 DB 적용 현황(2026-09-30)**: `0001`·`0003`·`0007`~`0013` 적용. `0016`은 dev 병합·운영 미적용. 적용 순서는 `0016` → `0017` → `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
+
 ### 3. RLS 정책 표 (`0003_rls.sql`, N-04)
 
 원칙(ADR-0001): anon 역할에는 **정책 0개**(모든 테이블 거부). authenticated(관리자)는 Realtime·읽기용 SELECT만. 모든 쓰기는 service_role(RLS 우회)로 Route Handler에서만.
@@ -359,7 +361,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `GET /api/menu?lang=ko` | `lang` ∈ SUPPORTED_LOCALES(기본 ko) | `MenuResponse { items: MenuItemDto[], waitingCount: number, locale }` · `MenuItemDto { id, name, description, price, stock, isAvailable, isSoldOut, imageUrl, optionGroups: [{ id, name, minSelect, maxSelect, options: [{ id, name, extraPrice }] }] }` | `is_active` 메뉴만. `isSoldOut = is_sold_out_manual OR stock=0`, `isAvailable = !isSoldOut`. 이름은 요청 언어 → ko 폴백. 비활성 옵션·그룹 제외. `waitingCount` = 전체 미완료 수(F-11 메뉴판) |
 | `GET /api/queue` | — | `{ waitingCount }` | 메뉴판 주기 갱신(30초)용 |
 | `GET /api/settings/transfer` | — | `TransferSettingsDto { configured: boolean, bankName, accountNumber, accountHolder }` | `transfer.*` 키만(계좌 정보 3개). 빈값은 `''`. `configured` = 은행 3값 모두 비어있지 않음. 비어 있으면 서버 `warn` 로그(F-44) |
-| `POST /api/orders` | `CreateOrderRequest { idempotencyKey: uuid, paymentMethod: 'cash'|'transfer' (transfer = 계좌이체), locale, items: [{ menuItemId: uuid, quantity: int 1..99, optionIds: uuid[] }] (1..20개) }` — 가격 필드 없음(있어도 zod `strict`로 400) | 201 신규 / 200 멱등 재요청: `CreateOrderResponse { orderId, pickupNumber, statusToken, status, totalAmount, createdAt, created: boolean }` | `paymentMethod` 누락·허용 외 값 → 400. 멱등키 기존 주문이면 속도 제한 미소비로 200. 신규면 `consume_rate_limit` → 초과 시 429 `RATE_LIMITED`(ADR-0009). 이후 ADR-0002 함수. 에러 409 OUT_OF_STOCK 등 |
+| `POST /api/orders` | `CreateOrderRequest { idempotencyKey: uuid, paymentMethod: 'cash'|'transfer' (transfer = 계좌이체), locale, items: [{ menuItemId: uuid, quantity: int 1..99, optionIds: uuid[] }] (1..20개) }` — 가격 필드 없음 — `totalAmount`, `price` 등 요청 규격에 없는 필드가 포함되면 Zod `strict()`로 400 `VALIDATION_ERROR`, 주문·항목 생성 및 재고 차감 없음(2026-09-26 팀장 결정, GitHub #45) | 201 신규 / 200 멱등 재요청: `CreateOrderResponse { orderId, pickupNumber, statusToken, status, totalAmount, createdAt, created: boolean }` | `paymentMethod` 누락·허용 외 값 → 400. 멱등키 기존 주문이면 속도 제한 미소비로 200. 신규면 `consume_rate_limit` → 초과 시 429 `RATE_LIMITED`(ADR-0009). 이후 ADR-0002 함수. 에러 409 OUT_OF_STOCK 등 |
 | `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 클라이언트 5초 폴링 |
 | `POST /api/orders/{token}/transfer-report` | 본문 없음 | `{ transferReportedAt }` | `status='pending' AND payment_method='transfer'`가 아니면(현금 주문 포함) 409 `INVALID_TRANSITION`. 이미 신고됨이면 기존 시각 그대로 200(멱등, F-43) |
 | `POST /api/orders/{token}/cancel-request` | 본문 없음 | `{ cancelRequestedAt }` | `status ∈ {pending,paid}` 아님 또는 `cancel_rejected_at` 있음 → 409 `CANCEL_REQUEST_NOT_ALLOWED`. 이미 요청됨이면 기존 시각 200(멱등, F-45) |
@@ -368,7 +370,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 | 메서드·경로 | 요청 | 응답 | 규칙 |
 |---|---|---|---|
-| `GET /api/admin/orders?date=YYYY-MM-DD&status=&pickupNumber=` | `date` 기본 오늘(KST). `status` 콤마 목록 선택. `pickupNumber` 정수(있으면 date 무시) | `{ orders: AdminOrderDto[], unacknowledgedCount }` — `created_at DESC` | `AdminOrderDto { id, pickupNumber, status, paymentMethod, totalAmount, items: [{ menuNameKo, quantity, options: [{ nameKo, extraPrice }], lineTotal }], createdAt, updatedAt, acknowledgedAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, paidAt, cookingStartedAt, completedAt, closedAt, refundChannel, lastReason, availableActions: TransitionAction[] }`. F-22: `pickupNumber` 결과 0건이면 `orders: []` |
+| `GET /api/admin/orders?date=YYYY-MM-DD&status=&pickupNumber=` | `date` 기본 오늘(KST — 서버 시각 기준). 달력에 없는 날짜면 400 `VALIDATION_ERROR`. `status` 콤마 목록 선택. `pickupNumber` 정수(있으면 date 무시) | `{ orders: AdminOrderDto[], unacknowledgedCount }` — `created_at DESC` | `AdminOrderDto { id, pickupNumber, status, paymentMethod, totalAmount, items: [{ menuNameKo, quantity, options: [{ nameKo, extraPrice }], lineTotal }], createdAt, updatedAt, acknowledgedAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, paidAt, cookingStartedAt, completedAt, closedAt, refundChannel, lastReason, availableActions: TransitionAction[] }`. F-22: `pickupNumber` 결과 0건이면 `orders: []` |
 | `GET /api/admin/orders/{id}` | — | `AdminOrderDto` | Realtime INSERT 하이드레이션용 |
 | `POST /api/admin/orders/{id}/acknowledge` | — | `AdminOrderDto` | 이미 확인됨이면 그대로 200 |
 | `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id` |
