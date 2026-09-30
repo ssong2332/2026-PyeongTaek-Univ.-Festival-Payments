@@ -62,3 +62,20 @@ describe("T-15 order dashboard", () => {
         expect(props.onSearch).not.toHaveBeenCalled();
     });
 });
+
+describe("T-23 connection banner", () => {
+    it("shows the interruption prominently, retries, and clears when connection recovers", async () => {
+        const props = base();
+        const { rerender } = render(<OrderDashboard {...props} disconnected />);
+        expect(screen.getByRole("alert").textContent).toContain("서버 연결이 끊겼습니다");
+        fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
+        await waitFor(() => expect(props.onReload).toHaveBeenCalledTimes(1));
+        rerender(<OrderDashboard {...props} disconnected={false} />);
+        expect(screen.queryByText("서버 연결이 끊겼습니다")).toBeNull();
+    });
+
+    it("prevents repeated retry while orders are loading", () => {
+        render(<OrderDashboard {...base()} disconnected isLoading />);
+        expect((screen.getByRole("button", { name: "확인 중…" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+});
