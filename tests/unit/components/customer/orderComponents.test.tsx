@@ -57,7 +57,7 @@ describe("OrderSummary — 주문 내역", () => {
 
 describe("PaymentMethodPicker — 결제 방법 (F-06)", () => {
     it("현금·계좌이체 두 가지, 처음엔 아무것도 선택되지 않음", () => {
-        render(<PaymentMethodPicker value={null} onChange={() => {}} />);
+        render(<PaymentMethodPicker value={null} onChange={() => {}} enabledMethods={["cash", "transfer"]} />);
         const radios = screen.getAllByRole("radio") as HTMLInputElement[];
         expect(radios.map((radio) => radio.checked)).toEqual([false, false]);
         expect(screen.getByRole("radiogroup", { name: "결제 방법" })).toBeTruthy();
@@ -65,22 +65,32 @@ describe("PaymentMethodPicker — 결제 방법 (F-06)", () => {
 
     it("선택하면 onChange('cash'|'transfer')", () => {
         const onChange = vi.fn();
-        render(<PaymentMethodPicker value={null} onChange={onChange} />);
+        render(<PaymentMethodPicker value={null} onChange={onChange} enabledMethods={["cash", "transfer"]} />);
         fireEvent.click(screen.getByRole("radio", { name: "현금" }));
         fireEvent.click(screen.getByRole("radio", { name: "계좌이체" }));
         expect(onChange.mock.calls).toEqual([["cash"], ["transfer"]]);
     });
 
+    it("enabledMethods에 없는 결제수단은 '(준비 중)' 표시 + 비활성, 눌러도 onChange 없음", () => {
+        const onChange = vi.fn();
+        render(<PaymentMethodPicker value={null} onChange={onChange} enabledMethods={["cash"]} />);
+        const transfer = screen.getByRole("radio", { name: "계좌이체 (준비 중)" }) as HTMLInputElement;
+        expect(transfer.disabled).toBe(true);
+        fireEvent.click(transfer);
+        expect(onChange).not.toHaveBeenCalled();
+        expect((screen.getByRole("radio", { name: "현금" }) as HTMLInputElement).disabled).toBe(false);
+    });
+
     it("현금이면 '부스에서 현금으로 결제해 주세요.' 안내만, 계좌이체면 안내 없음", () => {
-        const { rerender } = render(<PaymentMethodPicker value="cash" onChange={() => {}} />);
+        const { rerender } = render(<PaymentMethodPicker value="cash" onChange={() => {}} enabledMethods={["cash", "transfer"]} />);
         expect(screen.getByText("부스에서 현금으로 결제해 주세요.")).toBeTruthy();
         expect(document.body.textContent).not.toContain("거스름돈");
-        rerender(<PaymentMethodPicker value="transfer" onChange={() => {}} />);
+        rerender(<PaymentMethodPicker value="transfer" onChange={() => {}} enabledMethods={["cash", "transfer"]} />);
         expect(screen.queryByText("부스에서 현금으로 결제해 주세요.")).toBeNull();
     });
 
     it("제출 중에는 바꿀 수 없다", () => {
-        render(<PaymentMethodPicker value="cash" onChange={() => {}} disabled />);
+        render(<PaymentMethodPicker value="cash" onChange={() => {}} enabledMethods={["cash", "transfer"]} disabled />);
         expect((screen.getAllByRole("radio") as HTMLInputElement[]).every((radio) => radio.disabled)).toBe(true);
     });
 });

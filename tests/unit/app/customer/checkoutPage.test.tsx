@@ -78,7 +78,7 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         fillCart();
         fetchMock.mockResolvedValueOnce(json(201, order));
         render(<CheckoutPage />);
-        fireEvent.click(screen.getByRole("radio", { name: "계좌이체" }));
+        fireEvent.click(screen.getByRole("radio", { name: "현금" }));
         fireEvent.click(confirmButton());
 
         expect(await screen.findByText("주문이 접수됐어요. 주문 화면으로 이동하고 있어요.")).toBeTruthy();
@@ -86,7 +86,18 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         expect(useCart.getState().items).toEqual([]);
         expect(screen.queryByText("장바구니가 비어 있습니다")).toBeNull();
         const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-        expect(body.paymentMethod).toBe("transfer");
+        expect(body.paymentMethod).toBe("cash");
+    });
+
+    it("P1은 현금만: 계좌이체는 '준비 중'으로 비활성, 눌러도 선택되지 않고 주문 버튼도 열리지 않는다(Tasks T-31 P2)", () => {
+        fillCart();
+        render(<CheckoutPage />);
+        const transfer = screen.getByRole("radio", { name: "계좌이체 (준비 중)" }) as HTMLInputElement;
+        expect(transfer.disabled).toBe(true);
+        fireEvent.click(transfer);
+        expect(transfer.checked).toBe(false);
+        expect(confirmButton().disabled).toBe(true);
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("로딩: 주문 생성 중에는 버튼 잠금 + 진행 표시(중복 탭 방지)", async () => {
@@ -100,7 +111,7 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         expect(busy.getAttribute("aria-busy")).toBe("true");
         fireEvent.click(busy);
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect((screen.getByRole("radio", { name: "계좌이체" }) as HTMLInputElement).disabled).toBe(true);
+        expect((screen.getByRole("radio", { name: "현금" }) as HTMLInputElement).disabled).toBe(true);
     });
 
     it("에러(재고 부족): 어떤 항목이 부족한지 표시 + 장바구니로 복귀 링크, 장바구니 유지", async () => {

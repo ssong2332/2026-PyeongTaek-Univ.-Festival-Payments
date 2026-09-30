@@ -125,10 +125,19 @@ describe("useCheckout.submit — 성공", () => {
         expect(result.current.canSubmit).toBe(false);
     });
 
+    it("P1은 현금만: selectPaymentMethod('transfer')는 무시되고 제출할 수 없다(Tasks T-31 P2)", async () => {
+        const { result } = setup();
+        act(() => result.current.selectPaymentMethod("transfer"));
+        expect(result.current.paymentMethod).toBeNull();
+        expect(result.current.canSubmit).toBe(false);
+        await act(async () => { await result.current.submit(); });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("T-10: 첫 요청이 8초 타임아웃 → 같은 멱등키로 자동 재시도 성공 → 주문 1건(onSuccess 1회)", async () => {
         fetchMock.mockImplementationOnce(hang).mockResolvedValueOnce(json(200, { ...order, created: false }));
         const { result, onSuccess } = setup();
-        act(() => result.current.selectPaymentMethod("transfer"));
+        act(() => result.current.selectPaymentMethod("cash"));
         await submitAndSettle(result);
 
         const bodies = sentBodies();
@@ -205,7 +214,7 @@ describe("useCheckout.submit — 실패", () => {
         fetchMock.mockResolvedValueOnce(json(429, envelope("RATE_LIMITED", { retryAfterSeconds: 30 })));
         const { result } = setup();
         const key = sessionStorage.getItem(IDEMPOTENCY_STORAGE_KEY);
-        act(() => result.current.selectPaymentMethod("transfer"));
+        act(() => result.current.selectPaymentMethod("cash"));
         await submitAndSettle(result);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(result.current.error).toEqual({ kind: "rateLimited" });

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ChevronLeftIcon } from "@/components/ui/icons";
 import { lineTotal } from "@/domain/order/pricing";
 import { checkoutErrorMessage, isRetryableCheckoutError } from "@/features/customer/messages";
+import { ENABLED_PAYMENT_METHODS } from "@/features/customer/paymentMethods";
 import { selectCartTotal, useCart, useCartHydrated } from "@/features/customer/useCart";
 import { useCheckout, type CheckoutError } from "@/features/customer/useCheckout";
 import { formatWon } from "@/lib/format";
@@ -43,7 +44,12 @@ export default function CheckoutPage() {
     } else if (hydrated) {
         body = (
             <>
-                <PaymentMethodPicker value={checkout.paymentMethod} onChange={checkout.selectPaymentMethod} disabled={checkout.submitting} />
+                <PaymentMethodPicker
+                    value={checkout.paymentMethod}
+                    onChange={checkout.selectPaymentMethod}
+                    enabledMethods={ENABLED_PAYMENT_METHODS}
+                    disabled={checkout.submitting}
+                />
                 <OrderSummary
                     lines={items.map((item) => ({
                         lineId: item.lineId,

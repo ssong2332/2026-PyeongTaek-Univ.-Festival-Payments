@@ -7,6 +7,7 @@ import type { PaymentMethod } from "@/domain/order/status";
 import { postOrderWithRetry } from "@/lib/api/client";
 import { AppError } from "@/lib/api/errors";
 import { CreateOrderRequestSchema, type CreateOrderResponse } from "@/lib/dto/order";
+import { isPaymentMethodEnabled } from "./paymentMethods";
 import { useCart, type CartItem } from "./useCart";
 
 // DECISIONS #23: 멱등키는 결제 화면 진입 시 만들어 sessionStorage에 두고, 주문 성공 시 장바구니와 함께 폐기한다.
@@ -160,9 +161,14 @@ export function useCheckout(options: { onSuccess: (order: CreateOrderResponse) =
         }
     }, [paymentMethod, succeeded]);
 
+    // 화면이 막아도 받지 않는 결제수단은 선택되지 않게 한 번 더 막는다(P1 현금만).
+    const selectPaymentMethod = useCallback((method: PaymentMethod) => {
+        if (isPaymentMethodEnabled(method)) setPaymentMethod(method);
+    }, []);
+
     return {
         paymentMethod,
-        selectPaymentMethod: setPaymentMethod,
+        selectPaymentMethod,
         submitting,
         succeeded,
         error,
