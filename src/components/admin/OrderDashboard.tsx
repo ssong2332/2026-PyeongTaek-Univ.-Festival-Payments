@@ -5,6 +5,7 @@ import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
 
 const LABELS: Record<OrderStatus, string> = {
@@ -116,8 +117,10 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             else await onTransition(order.id, action);
             if (searchNumber !== null) setSearchResults(await onSearch(searchNumber));
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문 상태를 변경했습니다.`);
-        } catch {
-            setActionError("상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.");
+        } catch (error) {
+            setActionError(error instanceof TransitionRequestError
+                ? error.message
+                : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.");
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }

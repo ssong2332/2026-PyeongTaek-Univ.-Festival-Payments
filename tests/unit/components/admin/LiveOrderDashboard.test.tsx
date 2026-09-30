@@ -47,13 +47,31 @@ it("sends only the allowed transition action and applies the validated server re
     expect((screen.getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(false);
 });
 
-it("reloads the order after a conflicting transition response", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 409 })));
+it.each([
+    ["INVALID_TRANSITION", "현재 주문 상태에서는 이 작업을 할 수 없습니다"],
+    ["STATE_CHANGED", "다른 요청으로 주문 상태가 변경됐습니다"],
+])("shows the %s conflict separately and reloads the order", async (code, message) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code } }), { status: 409 })));
     render(<LiveOrderDashboard />);
     fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
     fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain(message));
     expect(reloadOrders).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+    ["REASON_REQUIRED", "취소·환불 사유가 필요합니다"],
+    ["REFUND_CHANNEL_REQUIRED", "환불 경로 정보가 누락됐습니다"],
+])("shows the %s validation error and keeps the refund reason", async (code, message) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code } }), { status: 400 })));
+    render(<LiveOrderDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+    fireEvent.click(screen.getByRole("button", { name: "환불 처리" }));
+    fireEvent.change(screen.getByLabelText("환불 사유 (필수, 최대 200자)"), { target: { value: "고객 요청" } });
+    fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain(message));
+    expect((screen.getByLabelText("환불 사유 (필수, 최대 200자)") as HTMLTextAreaElement).value).toBe("고객 요청");
+    expect(reloadOrders).not.toHaveBeenCalled();
 });
 
 it("sends refund reason and payment-specific channel to the transition endpoint", async () => {

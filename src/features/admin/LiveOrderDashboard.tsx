@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
@@ -33,16 +34,23 @@ export function LiveOrderDashboard() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action, ...input }),
             });
-            if (response.status === 409) {
-                setConfirmed(previous => {
-                    const next = { ...previous };
-                    delete next[id];
-                    return next;
-                });
-                await feed.reload();
-                throw new Error("Order state changed");
+            if (!response.ok) {
+                const body: unknown = await response.json().catch(() => null);
+                const code = parseTransitionErrorCode(body);
+                if (response.status === 409) {
+                    setConfirmed(previous => {
+                        const next = { ...previous };
+                        delete next[id];
+                        return next;
+                    });
+                    await feed.reload().catch(() => undefined);
+                }
+                if (code && ((response.status === 400 && (code === "REASON_REQUIRED" || code === "REFUND_CHANNEL_REQUIRED"))
+                    || (response.status === 409 && (code === "INVALID_TRANSITION" || code === "STATE_CHANGED")))) {
+                    throw new TransitionRequestError(code);
+                }
+                throw new Error("Order transition failed");
             }
-            if (!response.ok) throw new Error("Order transition failed");
             const updated = AdminOrderDtoSchema.parse(await response.json());
             setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
         }} />;
