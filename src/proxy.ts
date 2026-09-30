@@ -2,6 +2,19 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { readPublicConfig } from "@/infra/supabase/config";
 
+// getUser()가 갱신·삭제한 세션 쿠키는 supabaseResponse에만 있으므로 redirect 응답으로 옮긴다
+function redirectWithSessionCookies(
+    request: NextRequest,
+    supabaseResponse: NextResponse,
+    pathname: string,
+) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname;
+    const response = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    return response;
+}
+
 export async function proxy(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
@@ -41,22 +54,13 @@ export async function proxy(request: NextRequest) {
     // 비로그인 사용자: /admin/(?!login) 접근 시 /admin/login으로 리다이렉트
     if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
         if (!user) {
-            const loginUrl = request.nextUrl.clone();
-            loginUrl.pathname = "/admin/login";
-            return NextResponse.redirect(loginUrl);
+            return redirectWithSessionCookies(request, supabaseResponse, "/admin/login");
         }
     }
 
     // 이미 로그인된 사용자: /admin/login 접근 시 /admin으로 리다이렉트
     if (pathname === "/admin/login" && user) {
-        const dashboardUrl = request.nextUrl.clone();
-        dashboardUrl.pathname = "/admin";
-        const redirectResponse = NextResponse.redirect(dashboardUrl);
-        // getUser()가 세션을 갱신했다면 그 쿠키는 supabaseResponse에만 있으므로 redirect 응답으로 옮긴다
-        supabaseResponse.cookies.getAll().forEach((cookie) =>
-            redirectResponse.cookies.set(cookie),
-        );
-        return redirectResponse;
+        return redirectWithSessionCookies(request, supabaseResponse, "/admin");
     }
 
     return supabaseResponse;

@@ -64,6 +64,32 @@ describe("proxy (관리자 라우트 보호)", () => {
         },
     );
 
+    it("비로그인 리다이렉트 응답에도 getUser()가 넘긴 삭제 쿠키를 싣는다 (무효 refresh token)", async () => {
+        auth.refreshedCookies = [
+            { name: "sb-test-auth-token", value: "", options: { ...REFRESH_OPTIONS, maxAge: 0 } },
+        ];
+
+        const response = await proxy(request("/admin"));
+
+        expect(response.headers.get("location")).toBe(`${ORIGIN}/admin/login`);
+        expect(response.headers.getSetCookie().map(parseSetCookie)).toEqual([
+            { name: "sb-test-auth-token", value: "", attrs: ["Max-Age=0", "Path=/", "SameSite=lax"] },
+        ]);
+    });
+
+    it("세션 갱신 직후 사용자 조회가 실패해도 비로그인 리다이렉트에 갱신된 쿠키를 싣는다", async () => {
+        auth.refreshedCookies = [
+            { name: "sb-test-auth-token", value: "rotated-session", options: REFRESH_OPTIONS },
+        ];
+
+        const response = await proxy(request("/admin/menus"));
+
+        expect(response.headers.get("location")).toBe(`${ORIGIN}/admin/login`);
+        expect(response.headers.getSetCookie().map(parseSetCookie)).toEqual([
+            { name: "sb-test-auth-token", value: "rotated-session", attrs: ["Max-Age=34560000", "Path=/", "SameSite=lax"] },
+        ]);
+    });
+
     it("비로그인 사용자의 /admin/login 접근은 리다이렉트하지 않는다 (루프 방지)", async () => {
         const response = await proxy(request("/admin/login"));
 

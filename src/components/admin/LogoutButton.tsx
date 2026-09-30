@@ -18,7 +18,8 @@ export function LogoutButton() {
 
         try {
             const supabase = createAdminBrowserClient();
-            const { error } = await supabase.auth.signOut();
+            // 같은 계정을 여러 기기가 함께 쓰므로 이 기기 세션만 끝낸다 (DECISIONS #48)
+            const { error } = await supabase.auth.signOut({ scope: "local" });
 
             if (error) {
                 // signOut()은 실패를 throw 대신 { error }로 돌려줄 수 있고, 이때 세션이 남아 있을 수 있다

@@ -192,6 +192,19 @@ describe("LogoutButton", () => {
         expect(screen.queryByRole("alert")).toBeNull();
     });
 
+    it("이 기기 세션만 끝내도록 signOut({ scope: \"local\" })을 호출한다", async () => {
+        mockSignOut.mockResolvedValueOnce({ error: null });
+
+        render(<LogoutButton />);
+        fireEvent.click(logoutButton());
+
+        await waitFor(() => {
+            expect(mockPush).toHaveBeenCalledWith("/admin/login");
+        });
+        expect(mockSignOut).toHaveBeenCalledTimes(1);
+        expect(mockSignOut).toHaveBeenCalledWith({ scope: "local" });
+    });
+
     it("signOut()이 error를 반환하면 이동하지 않고 오류를 표시하며 버튼을 다시 활성화한다", async () => {
         mockSignOut.mockResolvedValueOnce({ error: { message: "Failed to fetch" } });
 
