@@ -119,5 +119,19 @@ export function createSupabaseOrderRepository(
       if (error) throw toError("count_waiting_before", error);
       return typeof data === "number" ? data : 0;
     },
+
+    async setTransferReported(id) {
+      // 조건이 맞는 행만 갱신한다(결제대기·계좌이체·미신고). 동시 요청이어도 한 건만 갱신된다.
+      const { data, error } = await client
+        .from("orders")
+        .update({ transfer_reported_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("status", "pending")
+        .eq("payment_method", "transfer")
+        .is("transfer_reported_at", null)
+        .select("transfer_reported_at");
+      if (error) throw toError("orders.setTransferReported", error);
+      return data.length > 0 ? new Date(data[0].transfer_reported_at).toISOString() : null;
+    },
   };
 }
