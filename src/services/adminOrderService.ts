@@ -1,14 +1,24 @@
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 import type { RefundChannel, TransitionAction } from "@/domain/order/status";
-import type { AdminOrderRepository, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
+import { kstDate } from "@/domain/time/kst";
+import type { AdminOrderRepository, Clock, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
 import type { AdminOrderDto, AdminOrdersResponse } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
 
+const systemClock: Clock = { now: () => new Date() };
+
+// Architecture 관리자 API 표: `date` 기본 오늘(KST), `pickupNumber`가 있으면 date 무시.
+// 오늘은 서버 시각(clock)으로 계산한다 — 런타임이 UTC라 로컬 시간대를 쓰면 00:00~09:00 KST에 전날이 된다.
 export async function listAdminOrders(
     repository: AdminOrderRepository,
     filter?: OrderListFilter,
+    clock: Clock = systemClock,
 ): Promise<AdminOrdersResponse> {
-    const orders = await repository.list(filter);
+    const needsDefaultDate = filter?.pickupNumber === undefined && !filter?.date;
+    const effectiveFilter = needsDefaultDate
+        ? { ...filter, date: kstDate(clock.now().toISOString()) }
+        : filter;
+    const orders = await repository.list(effectiveFilter);
 
     const unacknowledgedCount = orders.filter(
         (o) => o.acknowledgedAt === null && ["pending", "paid", "cooking"].includes(o.status),
