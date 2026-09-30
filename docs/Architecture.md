@@ -419,7 +419,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 재사용 컴포넌트 계약(요지): `components/*`는 props로만 데이터를 받고 fetch·전역 상태 접근을 하지 않는다(테스트·디자인 병렬을 위해). `OrderActionButtons`는 `availableActions`만 보고 버튼을 활성화한다 — 상태 머신 로직을 컴포넌트에 복제하지 않는다.
 
-관리자 라우트 보호: `src/app/admin/(protected)/layout.tsx`(서버 컴포넌트)에서 `@supabase/ssr` 세션 클라이언트로 `getUser()` → 없으면 `redirect('/admin/login')`. 추가로 `middleware.ts`에서 `/admin/(?!login)` 경로에 세션 쿠키 갱신(`@supabase/ssr` 권장 패턴). API는 각 핸들러의 `requireAdmin()`이 최종 판정(레이아웃 가드는 UX용).
+관리자 라우트 보호: `src/app/admin/(protected)/layout.tsx`(서버 컴포넌트)에서 `@supabase/ssr` 세션 클라이언트로 `getUser()` → 없으면 `redirect('/admin/login')`. 추가로 `src/proxy.ts`(Next.js 16 proxy — 옛 `middleware.ts`)가 matcher `/admin/:path*`(로그인 화면 포함)에서 세션 쿠키를 갱신하고(`@supabase/ssr` 권장 패턴), 비로그인 `/admin/*` → `/admin/login`, 로그인 상태 `/admin/login` → `/admin`으로 보낸다. 두 redirect 모두 `getUser()`가 갱신·삭제한 세션 쿠키를 redirect 응답에 옮겨 싣는다. 관리자 로그아웃은 `signOut({ scope: 'local' })`로 이 기기 세션만 끝낸다(DECISIONS #48). API는 각 핸들러의 `requireAdmin()`이 최종 판정(레이아웃 가드는 UX용).
 
 ### 계층 규칙 (DB·외부 API가 있는 프로젝트만 — 없으면 "해당 없음" 기재)
 
