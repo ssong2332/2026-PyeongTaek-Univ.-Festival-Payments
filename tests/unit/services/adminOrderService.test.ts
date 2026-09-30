@@ -5,7 +5,7 @@ import {
     acknowledgeAdminOrder,
     transition,
 } from "@/services/adminOrderService";
-import type { AdminOrderRepository, OrderForTransition, OrderRepository } from "@/services/ports";
+import type { AdminOrderRepository, Clock, OrderForTransition, OrderRepository } from "@/services/ports";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
 import { createFakeOrderRepository } from "../fakes/fakeOrderRepository";
@@ -92,6 +92,46 @@ describe("adminOrderService (list, getById, acknowledge)", () => {
         expect(repo.acknowledge).not.toHaveBeenCalled();
         expect(result).toBe(alreadyAcked);
     });
+
+describe("listAdminOrders 기본 날짜 (Architecture: date 기본 오늘(KST), pickupNumber 있으면 date 무시)", () => {
+    function listSpyRepo() {
+        const list = vi.fn().mockResolvedValue([]);
+        const repo: AdminOrderRepository = { list, findById: vi.fn(), acknowledge: vi.fn() };
+        return { repo, list };
+    }
+    // UTC로는 10-07 15:30이지만 KST로는 10-08 00:30 — 런타임(UTC) 로컬 날짜를 쓰면 틀리는 경계.
+    const clock: Clock = { now: () => new Date("2026-10-07T15:30:00Z") };
+
+    it("date·pickupNumber가 없으면 clock 기준 오늘 KST 날짜로 조회한다", async () => {
+        const { repo, list } = listSpyRepo();
+        await listAdminOrders(repo, undefined, clock);
+        expect(list).toHaveBeenCalledWith({ date: "2026-10-08" });
+    });
+
+    it("status만 있어도 date는 오늘 KST로 채우고 status는 유지한다", async () => {
+        const { repo, list } = listSpyRepo();
+        await listAdminOrders(repo, { status: ["pending", "paid"] }, clock);
+        expect(list).toHaveBeenCalledWith({ status: ["pending", "paid"], date: "2026-10-08" });
+    });
+
+    it("KST 자정 직전(UTC 14:59:59.999)은 아직 전날로 계산한다", async () => {
+        const { repo, list } = listSpyRepo();
+        await listAdminOrders(repo, undefined, { now: () => new Date("2026-10-07T14:59:59.999Z") });
+        expect(list).toHaveBeenCalledWith({ date: "2026-10-07" });
+    });
+
+    it("date를 명시하면 그 값을 그대로 쓴다", async () => {
+        const { repo, list } = listSpyRepo();
+        await listAdminOrders(repo, { date: "2026-10-01" }, clock);
+        expect(list).toHaveBeenCalledWith({ date: "2026-10-01" });
+    });
+
+    it("pickupNumber가 있으면 date를 채우지 않는다 (날짜 무관 번호 검색)", async () => {
+        const { repo, list } = listSpyRepo();
+        await listAdminOrders(repo, { pickupNumber: 101 }, clock);
+        expect(list).toHaveBeenCalledWith({ pickupNumber: 101 });
+    });
+});
 });
 
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
@@ -184,7 +224,7 @@ describe("adminOrderService.transition", () => {
 
     it("읽은 뒤 다른 관리자가 먼저 바꾸면 repo의 409 STATE_CHANGED를 그대로 전달한다", async () => {
         const { repo, store } = setup();
-        const racingRepo: OrderRepository = {
+        const racingRepo: Pick<OrderRepository, "findById" | "transition"> = {
             findById: repo.findById,
             async transition(command) {
                 store.get(ORDER_ID)!.status = "cancelled";
