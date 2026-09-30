@@ -47,6 +47,9 @@ export function cartIssueMessage(issue: CartIssue): string {
     }
 }
 
+export const STOCK_ALREADY_IN_CART_MESSAGE = "남은 재고만큼 이미 장바구니에 담았어요.";
+export const CART_FULL_MESSAGE = "장바구니에는 최대 20가지까지 담을 수 있어요.";
+
 export function menuBlockMessage(reason: MenuBlockReason): string {
     return reason === "soldOut" ? "품절된 메뉴예요." : "지금은 고를 수 있는 옵션이 없어 담을 수 없어요.";
 }
