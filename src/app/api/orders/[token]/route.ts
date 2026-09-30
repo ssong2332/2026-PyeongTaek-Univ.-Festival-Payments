@@ -7,6 +7,9 @@ import { AppError } from "@/lib/api/errors";
 
 export const dynamic = "force-dynamic";
 
+// URL의 토큰이 곧 접근 권한인 주문 정보(F-10) — 공유 캐시는 물론 브라우저에도 저장하지 않는다.
+const CACHE_CONTROL = "private, no-store";
+
 export const GET = withHandler(
   async (
     _request?: NextRequest,
@@ -21,7 +24,7 @@ export const GET = withHandler(
     const orderRepository = createSupabaseOrderRepository(createServiceClient());
     const order = await getOrderByToken(token, { orderRepository });
 
-    return NextResponse.json(order, { status: 200 });
+    return NextResponse.json(order, { status: 200, headers: { "Cache-Control": CACHE_CONTROL } });
   },
   { route: "/api/orders/[token]" },
 );

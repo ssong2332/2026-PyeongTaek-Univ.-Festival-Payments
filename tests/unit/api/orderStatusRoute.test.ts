@@ -54,6 +54,8 @@ describe("GET /api/orders/[token]", () => {
         });
 
         expect(res.status).toBe(200);
+        // 토큰 URL의 주문 정보 — 브라우저·중간 캐시 어디에도 저장하지 않는다.
+        expect(res.headers.get("Cache-Control")).toBe("private, no-store");
         const data = await res.json();
         expect(data).toEqual(mockOrderStatus);
         expect(getOrderByToken).toHaveBeenCalledWith(VALID_TOKEN, expect.any(Object));
