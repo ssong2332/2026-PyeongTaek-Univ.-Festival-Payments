@@ -55,7 +55,7 @@ const INTERNAL_ERROR_ENVELOPE = {
 
 async function get(query = "") {
     const response = await GET(new NextRequest(`http://localhost/api/menu${query}`));
-    return { status: response.status, json: await response.json() };
+    return { status: response.status, headers: response.headers, json: await response.json() };
 }
 
 beforeEach(() => {
@@ -105,11 +105,26 @@ describe("GET /api/menu", () => {
         expect(json.items[0].optionGroups[0].options[0].name).toBe("치즈");
     });
 
+    it.each(["", "?lang=en"])("성공 응답(쿼리 %j)에는 Cache-Control: no-store를 붙인다", async (query) => {
+        const { status, headers } = await get(query);
+
+        expect(status).toBe(200);
+        expect(headers.get("cache-control")).toBe("no-store");
+    });
+
     it("lang 외 쿼리는 무시한다", async () => {
         const { status, json } = await get("?lang=en&_=1727740800000");
 
         expect(status).toBe(200);
         expect(json.locale).toBe("en");
+    });
+
+    it("lang이 여러 번 오면 첫 값을 쓴다(?lang=en&lang=ko → en)", async () => {
+        const { status, json } = await get("?lang=en&lang=ko");
+
+        expect(status).toBe(200);
+        expect(json.locale).toBe("en");
+        expect(json.items[0].name).toBe("Original Hotteok");
     });
 
     it.each(["?lang=fr", "?lang=EN", "?lang=", "?lang=ko,en", "?lang=%20ko"])(

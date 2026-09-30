@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { AppError } from "@/lib/api/errors";
 import type { MenuRepository } from "@/services/ports";
 import { toMenuItemRecord } from "./mappers";
 
@@ -20,8 +21,8 @@ export function createSupabaseMenuRepository(client: SupabaseClient): MenuReposi
     return {
         async listMenuItems() {
             const { data, error } = await client.from("menu_items").select(MENU_SELECT);
-            // AppError로 바꾸지 않는다 — withHandler가 기록하고 500 INTERNAL_ERROR로 숨긴다(DB 메시지 비노출).
-            if (error) throw new Error(`menu_items.list failed: ${error.code ?? "unknown"} ${error.message}`);
+            // DB 에러 원문은 담지 않는다(Architecture 5절 — 500은 상세 비노출).
+            if (error) throw new AppError("INTERNAL_ERROR", 500);
             return (data ?? []).map((row: unknown) => toMenuItemRecord(row));
         },
     };

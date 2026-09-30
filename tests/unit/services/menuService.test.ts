@@ -127,6 +127,7 @@ describe("menuService.getMenu — GET /api/menu", () => {
             { label: "재고 0", isSoldOutManual: false, stock: 0, isSoldOut: true },
             { label: "수동 품절 + 재고 0", isSoldOutManual: true, stock: 0, isSoldOut: true },
             { label: "재고 1(경계)", isSoldOutManual: false, stock: 1, isSoldOut: false },
+            { label: "재고 -1(음수 — stock <= 0 고정)", isSoldOutManual: false, stock: -1, isSoldOut: true },
         ])("$label → isSoldOut $isSoldOut", async ({ isSoldOutManual, stock, isSoldOut }) => {
             const [item] = (await menuFor([menu({ isSoldOutManual, stock })])).items;
 

@@ -6,7 +6,6 @@ import type {
     MenuOptionGroupDto,
     MenuResponse,
 } from "@/lib/dto/menu";
-import { getQueueStatus } from "./orderService";
 import type {
     MenuItemRecord,
     MenuItemTranslation,
@@ -46,7 +45,7 @@ function localizedDescription(translations: MenuItemTranslation[], locale: MenuL
     return hasText(fallback) ? fallback : null;
 }
 
-// sort_order 오름차순, 같으면 id 순 — create_order가 옵션 스냅샷을 쌓는 순서(g.sort_order, op.sort_order, op.id)와 같다.
+// sort_order가 같으면 id로 한 번 더 정렬해 요청마다 순서가 같게 한다.
 function bySortOrder<T extends { id: string; sortOrder: number }>(list: T[]): T[] {
     return [...list].sort((a, b) => {
         if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
@@ -98,7 +97,6 @@ function toMenuItemDto(item: MenuItemRecord, locale: MenuLocale): MenuItemDto | 
 }
 
 // Architecture "고객 API" GET /api/menu (F-01, F-05, F-11, F-25, F-26).
-// waitingCount는 /api/queue와 같은 getQueueStatus(전체 미완료 수)를 쓴다 — 메뉴판 첫 로드와 30초 갱신 값의 정의가 같다.
 export async function getMenu(
     locale: MenuLocale,
     deps: {
@@ -106,14 +104,15 @@ export async function getMenu(
         orderRepository: Pick<OrderRepository, "countWaitingBefore">;
     },
 ): Promise<MenuResponse> {
-    const [menuItems, queue] = await Promise.all([
+    const [menuItems, waitingCount] = await Promise.all([
         deps.menuRepository.listMenuItems(),
-        getQueueStatus({ orderRepository: deps.orderRepository }),
+        // 전체 미완료 수. /api/queue(getQueueStatus)와 같은 정의여야 메뉴판 첫 값과 30초 갱신 값이 어긋나지 않는다.
+        deps.orderRepository.countWaitingBefore(null),
     ]);
 
     const items = bySortOrder(menuItems.filter((item) => item.isActive))
         .map((item) => toMenuItemDto(item, locale))
         .filter(isPresent);
 
-    return { items, waitingCount: queue.waitingCount, locale };
+    return { items, waitingCount, locale };
 }

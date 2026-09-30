@@ -146,13 +146,14 @@ describe("supabaseMenuRepository.listMenuItems", () => {
         expect(await listWith(null)).toEqual([]);
     });
 
-    it("DB 에러는 AppError가 아닌 일반 에러로 던진다(핸들러가 500으로 숨기고 기록)", async () => {
+    it("DB 에러는 AppError(INTERNAL_ERROR, 500)로 던지고 DB 메시지·details를 담지 않는다", async () => {
         const { client } = fakeClient({ data: null, error: { message: "connection refused", code: "08006" } });
 
         const error = await createSupabaseMenuRepository(client).listMenuItems().catch((e: unknown) => e);
 
-        expect(error).toBeInstanceOf(Error);
-        expect(error).not.toBeInstanceOf(AppError);
-        expect((error as Error).message).toContain("08006");
+        expect(error).toBeInstanceOf(AppError);
+        expect(error).toMatchObject({ code: "INTERNAL_ERROR", status: 500, details: undefined });
+        expect((error as Error).message).not.toContain("connection refused");
+        expect((error as Error).message).not.toContain("08006");
     });
 });
