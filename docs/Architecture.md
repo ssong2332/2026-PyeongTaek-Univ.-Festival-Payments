@@ -161,7 +161,7 @@ POST /api/orders (Route Handler)
   ▼
 201 (신규) / 200 (멱등 재요청) CreateOrderResponse {orderId, pickupNumber, statusToken, …}
   ▼
-[클라이언트] 장바구니·멱등키 폐기 → router.replace(`/orders/${statusToken}`)
+[클라이언트] 장바구니·멱등키 폐기 → router.replace(`/orders/${statusToken}?new=1`) — `new=1`이면 상태 페이지가 주문 완료 보기부터 보여 준다
 ```
 
 ### 관리자 상태 전환 (F-15, F-16, F-18, F-19, F-23)
@@ -296,8 +296,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
 | 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
 | 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
-| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | Draft PR #49 |
-| 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | PR #61 검토 중 |
+| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | `dev` 병합, 운영 적용(DB1, 2026-10-01 확인 — DECISIONS #47) |
+| 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016` 적용(`0016`은 DB1 서동혁이 `supabase db push`, 10-01 운영 조회로 확인). `seed.sql`은 운영 미적용(`app_settings`·`menu_items` 0행) — 앱 배포(#50) 전에 SQL Editor에서 1회 실행한다(아래 운영 절차·T-36). 남은 적용 순서는 `0017` → `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
@@ -392,11 +392,11 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 | 화면 | 경로 | 상태 소유자(훅) | 데이터 원천·갱신 | 빈 값·로딩·에러 처리 위치 |
 |---|---|---|---|---|
-| 고객 메뉴판 | `/` | `useMenu(locale)` — `{ status: 'loading'|'ready'|'error', items, waitingCount, reload }` | `GET /api/menu` 마운트 시 + `GET /api/queue` 30초 | 로딩: `MenuSkeleton`; 에러: `ErrorRetry`(reload); 빈 값: `isAvailable` 메뉴 0개 → `EmptyState('menu.empty')`; 품절: `MenuCard disabled` + 라벨. 언어: `layout.tsx`가 쿠키/쿼리로 결정해 `LocaleProvider`로 하위 전달 |
-| 메뉴 상세(옵션·수량) | `/`의 `MenuDetailSheet`(모달, 라우트 없음) | `useCart`(zustand) `addItem` | 클라이언트 | 수량 상한 = `stock`(F-02) — `QuantityStepper max`. 옵션 min/max 미충족 시 담기 비활성 |
+| 고객 메뉴판 | `/` | `useMenu(locale)` — `{ status: 'loading'|'ready'|'error', items, waitingCount, reload }` | `GET /api/menu` 마운트 시 + `GET /api/queue` 30초 | 로딩: `MenuSkeleton`; 에러: `ErrorRetry`(reload); 빈 값: `isAvailable` 메뉴 0개 → `EmptyState('menu.empty')`; 품절: `MenuCard disabled` + 라벨. 검색(팀장 결정 2026-10-01): 이미 받은 목록을 이름·설명으로 거름(공백·대소문자 무시), 0건 → "검색 결과가 없습니다". 언어: `layout.tsx`가 쿠키/쿼리로 결정해 `LocaleProvider`로 하위 전달 |
+| 메뉴 상세(옵션·수량) | `/`의 `MenuDetailSheet`(모달, 라우트 없음) | `useCart`(zustand) `addItem` | 클라이언트 | 수량 상한 = `stock`(F-02) — `QuantityStepper max`. 옵션 min/max 미충족 시 담기 비활성. 필수 그룹(`minSelect ≥ 1`)의 선택지가 `minSelect`보다 적으면 담기 비활성 + 이유 문구(팀장 결정 7, 2026-10-01) |
 | 장바구니 | `/cart` | `useCart` — `items, total(=domain/pricing), update, remove, clear` + `useMenu`로 품절 재검사 | sessionStorage + 마운트 시 `GET /api/menu` | 빈 값: `EmptyCart` + 메뉴판 링크, 주문 버튼 비활성; 담은 메뉴가 품절/비활성 → 항목 경고 + 진행 차단 |
-| 결제수단 선택/확정 | `/checkout` | `useCheckout` — `{ paymentMethod, idempotencyKey, submitting, error, submit }` | `POST /api/orders` (재시도 DECISIONS #24) | 미선택 → 확정 비활성; `submitting` 중 버튼 잠금; `OUT_OF_STOCK` → `details`로 항목 표시 + `/cart` 복귀; 네트워크 실패 → 수동 재시도 버튼(장바구니 유지); `RATE_LIMITED`(429) → `errors.RATE_LIMITED` 문구("잠시 후 다시 시도") + 같은 수동 재시도 버튼 + 장바구니·멱등키 유지(F-47); 성공 → cart·key 폐기 후 `/orders/{token}` |
-| 주문 완료/상태 | `/orders/[token]` | `useOrderStatus(token)` — `{ status:'loading'|'ready'|'notFound'|'error', order, actions }` | `GET /api/orders/{token}` 5초 폴링 + `GET /api/settings/transfer`(계좌이체 주문만, 1회) | 404 → `NotFound('order.notFound')`; 로딩 표시; `TransferGuide`(계좌이체 안내 — 은행명·계좌번호·예금주·금액 + 복사 버튼 + 입금자명=픽업 번호 안내, 설정 빈값 → "준비 중"); `[송금했어요]`/`[취소 요청]` 버튼은 `canTransferReport`/`canCancelRequest`; 클릭 중 잠금, 실패 토스트; 거절됨 문구 `cancelRejectedAt` |
+| 결제수단 선택/확정 | `/checkout` | `useCheckout` — `{ paymentMethod, idempotencyKey, submitting, error, submit }` | `POST /api/orders` (재시도 DECISIONS #24) | 미선택 → 확정 비활성; P1은 현금만 — 계좌이체는 "(준비 중)"으로 비활성(`features/customer/paymentMethods.ts`, T-31 계좌 안내 때 다시 켬); `submitting` 중 버튼 잠금; `OUT_OF_STOCK` → `details`로 항목 표시 + `/cart` 복귀; 네트워크 실패 → 수동 재시도 버튼(장바구니 유지); `RATE_LIMITED`(429) → `errors.RATE_LIMITED` 문구("잠시 후 다시 시도") + 같은 수동 재시도 버튼 + 장바구니·멱등키 유지(F-47); 성공 → cart·key 폐기 후 `/orders/{token}?new=1` |
+| 주문 완료/상태 | `/orders/[token]` | `useOrderStatus(token)` — `{ status:'loading'|'ready'|'notFound'|'error', order, refreshFailed, retry }`(P2에서 `actions` 추가) | `GET /api/orders/{token}` 5초 폴링(완료·취소·환불·만료·404면 중지) + (P2) `GET /api/settings/transfer`(계좌이체 주문만, 1회) | `?new=1`이면 완료 보기(`OrderCompleteCard`) 먼저, "주문 현황 보기"로 전환; 404 → `NotFound('order.notFound')`; 로딩 표시; 주문을 받은 뒤 갱신 실패 → 픽업 번호 유지 + 안내(`refreshFailed`); (P2) `TransferGuide`(계좌이체 안내 — 은행명·계좌번호·예금주·금액 + 복사 버튼 + 입금자명=픽업 번호 안내, 설정 빈값 → "준비 중"); (P2) `[송금했어요]`/`[취소 요청]` 버튼은 `canTransferReport`/`canCancelRequest`; 클릭 중 잠금, 실패 토스트; 거절됨 문구 `cancelRejectedAt` |
 | 개인정보 고지 | `/privacy` | 없음(정적) | `messages` | 없음 — 정적. 고객 레이아웃 푸터 링크(1탭) |
 | 관리자 로그인 | `/admin/login` | 로컬 폼 상태 | `supabase.auth.signInWithPassword`(브라우저 클라이언트) → 성공 시 `/admin` | 빈칸 → 제출 비활성; 오류 메시지 표시. 회원가입 링크 없음 |
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
