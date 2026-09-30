@@ -7,6 +7,7 @@ import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRep
 import { transition, getAdminOrderById } from "@/services/adminOrderService";
 import { AdminTransitionRequestSchema } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
+import { parseUuidParam } from "@/lib/api/params";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +19,9 @@ export const POST = withHandler(
         const adminUser = await requireAdmin();
 
         const params = await context?.params;
-        const orderId = params?.id;
-        if (!orderId) {
-            throw new AppError("NOT_FOUND", 404);
-        }
+        // requireAdmin() 이후에 검증해 미인증 요청은 id 형식과 무관하게 401을 먼저 받는다.
+        // 형식이 틀린 id가 DB까지 가면 22P02 → 500이 되므로 여기서 400으로 거른다.
+        const orderId = parseUuidParam(params?.id);
 
         if (!request) {
             throw new AppError("VALIDATION_ERROR", 400);
