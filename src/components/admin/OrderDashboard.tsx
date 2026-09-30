@@ -88,11 +88,18 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         acknowledging.current = true; setPendingId(order.id); setActionError(""); setNotice("");
         try {
             await onAcknowledge(order.id);
-            if (searchNumber !== null) {
-                const result = await onSearch(searchNumber);
-                setSearchResults(result);
-            }
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문을 확인했습니다.`);
+            if (searchNumber !== null) {
+                const version = searchVersion.current;
+                try {
+                    const result = await onSearch(searchNumber);
+                    if (version === searchVersion.current) setSearchResults(result);
+                } catch {
+                    if (version === searchVersion.current) {
+                        setActionError("주문 확인은 완료됐지만 검색 결과를 새로고침하지 못했습니다.");
+                    }
+                }
+            }
         } catch { setActionError("확인 처리에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요."); }
         finally { acknowledging.current = false; setPendingId(null); }
     }

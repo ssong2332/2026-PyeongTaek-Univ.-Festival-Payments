@@ -26,6 +26,20 @@ describe("T-15 order dashboard", () => {
         expect(screen.getByRole("button", { name: "확인 처리" })).toBeTruthy();
         expect(screen.queryByText("픽업 #001 주문을 확인했습니다.")).toBeNull();
     });
+    it("reports a search refresh failure separately after acknowledge succeeds", async () => {
+        const props = base();
+        const onSearch = vi.fn().mockResolvedValueOnce([props.orders[0]]).mockRejectedValueOnce(new Error("refresh failed"));
+        render(<OrderDashboard {...props} orders={[]} onSearch={onSearch} />);
+        fireEvent.change(screen.getByLabelText("픽업 번호"), { target: { value: "001" } });
+        fireEvent.click(screen.getByRole("button", { name: "검색" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy());
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "확인 처리" }));
+        await waitFor(() => expect(props.onAcknowledge).toHaveBeenCalledWith(props.orders[0].id));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("검색 결과를 새로고침하지 못했습니다"));
+        expect(screen.getByText("픽업 #001 주문을 확인했습니다.")).toBeTruthy();
+        expect(screen.getByRole("alert").textContent).not.toContain("확인 처리에 실패");
+    });
     it("searches locally and falls back to the server for an older pickup number", async () => {
         const props = base(); render(<OrderDashboard {...props} />);
         fireEvent.change(screen.getByLabelText("픽업 번호"), { target: { value: "002" } });
