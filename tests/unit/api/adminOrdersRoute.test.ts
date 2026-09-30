@@ -14,6 +14,11 @@ import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
 import type { User } from "@supabase/supabase-js";
 
+// 라우트가 id를 uuid로 검증하므로 픽스처 id도 유효한 uuid를 쓴다.
+const ORDER_ID = "11111111-1111-4111-8111-111111111111";
+const MISSING_ORDER_ID = "22222222-2222-4222-8222-222222222222";
+const MALFORMED_ID = "abc";
+
 function createMockOrder(id: string, acknowledgedAt: string | null = null): AdminOrderDto {
     return {
         id,
@@ -87,9 +92,9 @@ describe("Admin Orders Route Handlers", () => {
         it("인증되지 않은 사용자는 401 UNAUTHORIZED 에러를 받는다", async () => {
             vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
 
-            const req = new NextRequest("http://localhost:3000/api/admin/orders/order-123");
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID}`);
             const res = await getOrderById(req, {
-                params: Promise.resolve({ id: "order-123" }),
+                params: Promise.resolve({ id: ORDER_ID }),
             });
 
             expect(res.status).toBe(401);
@@ -98,7 +103,7 @@ describe("Admin Orders Route Handlers", () => {
         });
 
         it("존재하는 주문의 단건 조회가 성공하면 200 JSON을 반환한다", async () => {
-            const mockOrder = createMockOrder("order-123", null);
+            const mockOrder = createMockOrder(ORDER_ID, null);
 
             vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
                 return {
@@ -108,14 +113,14 @@ describe("Admin Orders Route Handlers", () => {
                 } as unknown as SupabaseAdminOrderRepository;
             });
 
-            const req = new NextRequest("http://localhost:3000/api/admin/orders/order-123");
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID}`);
             const res = await getOrderById(req, {
-                params: Promise.resolve({ id: "order-123" }),
+                params: Promise.resolve({ id: ORDER_ID }),
             });
 
             expect(res.status).toBe(200);
             const data = await res.json();
-            expect(data.id).toBe("order-123");
+            expect(data.id).toBe(ORDER_ID);
         });
 
         it("주문이 없으면 404 NOT_FOUND 에러를 반환한다", async () => {
@@ -127,14 +132,40 @@ describe("Admin Orders Route Handlers", () => {
                 } as unknown as SupabaseAdminOrderRepository;
             });
 
-            const req = new NextRequest("http://localhost:3000/api/admin/orders/not-found");
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${MISSING_ORDER_ID}`);
             const res = await getOrderById(req, {
-                params: Promise.resolve({ id: "not-found" }),
+                params: Promise.resolve({ id: MISSING_ORDER_ID }),
             });
 
             expect(res.status).toBe(404);
             const data = await res.json();
             expect(data.error.code).toBe("NOT_FOUND");
+        });
+
+        it("id가 uuid 형식이 아니면 DB 조회 없이 400 VALIDATION_ERROR를 반환한다", async () => {
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${MALFORMED_ID}`);
+            const res = await getOrderById(req, {
+                params: Promise.resolve({ id: MALFORMED_ID }),
+            });
+
+            expect(res.status).toBe(400);
+            const data = await res.json();
+            expect(data.error.code).toBe("VALIDATION_ERROR");
+            // 형식 오류는 리포지토리(→ PostgREST 22P02 → 500)까지 내려가지 않아야 한다.
+            expect(SupabaseAdminOrderRepository).not.toHaveBeenCalled();
+        });
+
+        it("미인증 요청은 id 형식이 틀려도 401이 먼저 반환된다", async () => {
+            vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
+
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${MALFORMED_ID}`);
+            const res = await getOrderById(req, {
+                params: Promise.resolve({ id: MALFORMED_ID }),
+            });
+
+            expect(res.status).toBe(401);
+            const data = await res.json();
+            expect(data.error.code).toBe("UNAUTHORIZED");
         });
     });
 
@@ -142,11 +173,11 @@ describe("Admin Orders Route Handlers", () => {
         it("인증되지 않은 사용자는 401 UNAUTHORIZED 에러를 받는다", async () => {
             vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
 
-            const req = new NextRequest("http://localhost:3000/api/admin/orders/order-123/acknowledge", {
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID}/acknowledge`, {
                 method: "POST",
             });
             const res = await postAcknowledge(req, {
-                params: Promise.resolve({ id: "order-123" }),
+                params: Promise.resolve({ id: ORDER_ID }),
             });
 
             expect(res.status).toBe(401);
@@ -155,8 +186,8 @@ describe("Admin Orders Route Handlers", () => {
         });
 
         it("주문 확인이 성공하면 200 JSON과 갱신된 주문을 반환한다", async () => {
-            const unacked = createMockOrder("order-123", null);
-            const acked = createMockOrder("order-123", "2026-09-25T10:05:00Z");
+            const unacked = createMockOrder(ORDER_ID, null);
+            const acked = createMockOrder(ORDER_ID, "2026-09-25T10:05:00Z");
 
             vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
                 return {
@@ -166,16 +197,45 @@ describe("Admin Orders Route Handlers", () => {
                 } as unknown as SupabaseAdminOrderRepository;
             });
 
-            const req = new NextRequest("http://localhost:3000/api/admin/orders/order-123/acknowledge", {
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID}/acknowledge`, {
                 method: "POST",
             });
             const res = await postAcknowledge(req, {
-                params: Promise.resolve({ id: "order-123" }),
+                params: Promise.resolve({ id: ORDER_ID }),
             });
 
             expect(res.status).toBe(200);
             const data = await res.json();
             expect(data.acknowledgedAt).toBe("2026-09-25T10:05:00Z");
+        });
+
+        it("id가 uuid 형식이 아니면 DB 갱신 없이 400 VALIDATION_ERROR를 반환한다", async () => {
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${MALFORMED_ID}/acknowledge`, {
+                method: "POST",
+            });
+            const res = await postAcknowledge(req, {
+                params: Promise.resolve({ id: MALFORMED_ID }),
+            });
+
+            expect(res.status).toBe(400);
+            const data = await res.json();
+            expect(data.error.code).toBe("VALIDATION_ERROR");
+            expect(SupabaseAdminOrderRepository).not.toHaveBeenCalled();
+        });
+
+        it("미인증 요청은 id 형식이 틀려도 401이 먼저 반환된다", async () => {
+            vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
+
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${MALFORMED_ID}/acknowledge`, {
+                method: "POST",
+            });
+            const res = await postAcknowledge(req, {
+                params: Promise.resolve({ id: MALFORMED_ID }),
+            });
+
+            expect(res.status).toBe(401);
+            const data = await res.json();
+            expect(data.error.code).toBe("UNAUTHORIZED");
         });
     });
 });
