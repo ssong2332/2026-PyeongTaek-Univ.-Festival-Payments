@@ -36,7 +36,8 @@ export const POST = withHandler(
 
         const parsed = AdminTransitionRequestSchema.safeParse(body);
         if (!parsed.success) {
-            throw new AppError("VALIDATION_ERROR", 400, parsed.error.format());
+            // POST /api/orders·parseUuidParam과 같은 details 형식(zod issues 배열)으로 맞춘다.
+            throw new AppError("VALIDATION_ERROR", 400, parsed.error.issues);
         }
 
         const serviceClient = createServiceClient();

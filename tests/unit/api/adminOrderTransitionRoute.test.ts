@@ -143,6 +143,10 @@ describe("POST /api/admin/orders/[id]/transition", () => {
             expect(res.status).toBe(400);
             const data = await res.json();
             expect(data.error.code).toBe("VALIDATION_ERROR");
+            // details는 POST /api/orders와 같은 zod issues 배열 형식이어야 한다.
+            expect(data.error.details).toEqual(
+                expect.arrayContaining([expect.objectContaining({ path: ["action"] })]),
+            );
         });
 
         // 시스템 전용 action은 상태 머신에는 있지만 관리자 API 계약에는 없으므로
