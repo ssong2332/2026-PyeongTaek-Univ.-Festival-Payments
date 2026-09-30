@@ -31,10 +31,10 @@ const CLOSED_NOTICES: Partial<Record<OrderStatus, { title: string; body: string 
 };
 
 const CARD = "rounded-3xl border border-[#F3E7DA] bg-white p-5";
-const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B3A1E]";
+const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep";
 // 글씨가 왼쪽에 있어 그라데이션의 어두운 쪽(대비 4.7:1 이상) 위에 놓인다.
-const PRIMARY_CTA = `flex h-13 w-full items-center rounded-2xl bg-linear-to-br from-[#8B3A1E] to-[#D08A35] px-5 text-base font-bold text-white shadow-md ${FOCUS_RING}`;
-const SECONDARY_CTA = `flex h-13 w-full items-center rounded-2xl border border-[#F5E08A] bg-[#F5E08A]/20 px-5 text-base font-bold text-[#8B3A1E] ${FOCUS_RING}`;
+const PRIMARY_CTA = `flex h-13 w-full items-center rounded-2xl bg-linear-to-br from-brand-deep to-brand-amber px-5 text-base font-bold text-white shadow-md ${FOCUS_RING}`;
+const SECONDARY_CTA = `flex h-13 w-full items-center rounded-2xl border border-badge bg-badge/20 px-5 text-base font-bold text-brand-deep ${FOCUS_RING}`;
 
 function isProgressStatus(status: OrderStatus): status is ProgressStatus {
   return PROGRESS_STATUSES.includes(status);
@@ -71,7 +71,7 @@ function OrderStatusScreen({ token, openedFromCheckout }: { token: string; opene
 
 function Screen({ children, bottom }: { children: ReactNode; bottom?: ReactNode }) {
   return (
-    <main className="min-h-screen bg-[#FDF8F3]">
+    <main className="min-h-screen bg-cream">
       <div className={`mx-auto flex max-w-md flex-col ${bottom ? "pb-44" : "pb-8"}`}>{children}</div>
       {bottom && (
         <div className="fixed inset-x-0 bottom-0 border-t border-[#F3E7DA] bg-white">
@@ -157,7 +157,7 @@ function StatusView({
         {notice}
         {isProgressStatus(order.status) && (
           <section aria-labelledby="progress-heading" className={CARD}>
-            <h2 id="progress-heading" className="text-xs font-semibold tracking-[0.2em] text-[#8B3A1E]">
+            <h2 id="progress-heading" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
               진행 상황
             </h2>
             <div className="mt-4">
@@ -183,10 +183,10 @@ function RefreshFailedNotice({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       role="status"
-      className="flex items-center justify-between gap-3 rounded-2xl border border-[#F5E08A] bg-[#F5E08A]/30 px-4 py-3 text-sm text-neutral-800"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-badge bg-badge/30 px-4 py-3 text-sm text-neutral-800"
     >
       <p>최신 상태를 불러오지 못했어요. 5초마다 자동으로 다시 확인해요.</p>
-      <button type="button" onClick={onRetry} className={`shrink-0 font-semibold text-[#8B3A1E] underline ${FOCUS_RING}`}>
+      <button type="button" onClick={onRetry} className={`shrink-0 font-semibold text-brand-deep underline ${FOCUS_RING}`}>
         다시 시도
       </button>
     </div>

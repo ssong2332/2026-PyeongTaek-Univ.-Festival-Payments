@@ -15,7 +15,7 @@ export function OrderStatusHeader({
   onBack?: () => void;
 }) {
   return (
-    <header className="bg-linear-to-br from-[#8B3A1E] to-[#D08A35] px-5 pt-6 pb-8 text-white">
+    <header className="bg-linear-to-br from-brand-deep to-brand-amber px-5 pt-6 pb-8 text-white">
       <h1 className="sr-only">주문 현황</h1>
       {onBack && (
         <button
@@ -30,7 +30,7 @@ export function OrderStatusHeader({
       <div aria-live="polite" className="mt-5 flex flex-wrap gap-2">
         <OrderStatusBadge status={status} />
         {aheadCount !== null && (
-          <span className="inline-flex items-center rounded-full bg-[#8B3A1E]/90 px-4 py-2 text-sm font-semibold">
+          <span className="inline-flex items-center rounded-full bg-brand-deep/90 px-4 py-2 text-sm font-semibold">
             {aheadCount > 0 ? `내 앞 대기 ${aheadCount}건` : "대기 없음"}
           </span>
         )}

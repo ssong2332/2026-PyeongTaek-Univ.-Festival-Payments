@@ -26,7 +26,7 @@ const TONES: Record<OrderStatus, Tone> = {
 // 헤더 그라데이션의 가장 밝은 쪽 위에서도 글씨 대비 4.5:1 이상이 되도록 배경을 거의 불투명하게 깐다.
 // active는 캡처 12의 연두 글씨·점·테두리, closed는 같은 모양의 회색.
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {
-  active: { pill: "border-[#C2DFA7]/60 bg-[#8B3A1E]/90 text-[#C2DFA7]", dot: "bg-[#C2DFA7]" },
+  active: { pill: "border-[#C2DFA7]/60 bg-brand-deep/90 text-[#C2DFA7]", dot: "bg-[#C2DFA7]" },
   closed: { pill: "border-neutral-400 bg-neutral-600 text-white", dot: "bg-neutral-300" },
 };
 

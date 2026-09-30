@@ -1,6 +1,7 @@
 import type { PaymentMethod } from "@/domain/order/status";
 import type { OrderStatusItemDto } from "@/lib/dto/order";
-import { formatWon, PAYMENT_METHOD_LABELS } from "./orderDisplay";
+import { formatWon } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS } from "./orderDisplay";
 
 // 주문 현황의 "주문 내역" 카드 — 금액은 서버가 계산한 주문 시점 값을 그대로 보여 준다.
 export function OrderStatusItems({
@@ -14,7 +15,7 @@ export function OrderStatusItems({
 }) {
   return (
     <section aria-labelledby="order-items-heading" className="rounded-3xl border border-[#F3E7DA] bg-white p-5">
-      <h2 id="order-items-heading" className="text-xs font-semibold tracking-[0.2em] text-[#8B3A1E]">
+      <h2 id="order-items-heading" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
         주문 내역
       </h2>
       <ul className="mt-3 flex flex-col gap-3">
@@ -25,9 +26,9 @@ export function OrderStatusItems({
               <p className="font-semibold text-neutral-900">
                 {item.name} <span className="font-normal text-neutral-500">× {item.quantity}</span>
               </p>
-              {item.options.length > 0 && <p className="text-sm text-[#8B3A1E]/80">{item.options.join(", ")}</p>}
+              {item.options.length > 0 && <p className="text-sm text-brand-deep/80">{item.options.join(", ")}</p>}
             </div>
-            <p className="shrink-0 font-bold text-[#8B3A1E]">{formatWon(item.lineTotal)}</p>
+            <p className="shrink-0 font-bold text-brand-deep">{formatWon(item.lineTotal)}</p>
           </li>
         ))}
       </ul>
@@ -38,7 +39,7 @@ export function OrderStatusItems({
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-neutral-700">합계</dt>
-          <dd className="text-2xl font-black text-[#8B3A1E]">{formatWon(totalAmount)}</dd>
+          <dd className="text-2xl font-black text-brand-deep">{formatWon(totalAmount)}</dd>
         </div>
       </dl>
     </section>

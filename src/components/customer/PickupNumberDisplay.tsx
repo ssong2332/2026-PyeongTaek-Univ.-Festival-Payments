@@ -24,7 +24,7 @@ export function PickupNumberDisplay({
 
   return (
     <section aria-label="픽업 번호" className="flex justify-center">
-      <p className="flex h-32 min-w-48 items-center justify-center rounded-3xl bg-linear-to-br from-[#8B3A1E] to-[#D08A35] px-8 text-6xl font-black tabular-nums text-white shadow-lg shadow-[#8B3A1E]/30">
+      <p className="flex h-32 min-w-48 items-center justify-center rounded-3xl bg-linear-to-br from-brand-deep to-brand-amber px-8 text-6xl font-black tabular-nums text-white shadow-lg shadow-brand-deep/30">
         {digits}
       </p>
     </section>

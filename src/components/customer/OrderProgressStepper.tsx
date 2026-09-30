@@ -11,9 +11,9 @@ const STEPS: readonly { status: ProgressStatus; label: string }[] = [
 ];
 
 const CIRCLE_CLASS: Record<StepState, string> = {
-  done: "bg-[#8B3A1E] text-white",
-  current: "bg-linear-to-br from-[#8B3A1E] to-[#D08A35] text-white ring-4 ring-[#E8703A]/20",
-  upcoming: "bg-[#F5E08A]/60 text-[#8B3A1E]",
+  done: "bg-brand-deep text-white",
+  current: "bg-linear-to-br from-brand-deep to-brand-amber text-white ring-4 ring-brand/20",
+  upcoming: "bg-badge/60 text-brand-deep",
 };
 
 const LABEL_CLASS: Record<StepState, string> = {
@@ -38,7 +38,7 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
             aria-current={state === "current" ? "step" : undefined}
             className="relative flex gap-3 pb-5 last:pb-0"
           >
-            {!isLast && <span aria-hidden="true" className="absolute top-8 bottom-0 left-[15px] w-px bg-[#F5E08A]" />}
+            {!isLast && <span aria-hidden="true" className="absolute top-8 bottom-0 left-[15px] w-px bg-badge" />}
             <span
               aria-hidden="true"
               className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${CIRCLE_CLASS[state]}`}

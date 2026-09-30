@@ -1,6 +1,7 @@
 import type { PaymentMethod } from "@/domain/order/status";
 import { PickupNumberDisplay } from "./PickupNumberDisplay";
-import { formatWon, PAYMENT_METHOD_LABELS } from "./orderDisplay";
+import { formatWon } from "@/lib/format";
+import { PAYMENT_METHOD_LABELS } from "./orderDisplay";
 
 // 캡처 11. 접수 카드는 작은 흰 글씨가 오른쪽 끝까지 가므로 그라데이션을 #AD6229에서 멈춰 대비 4.5:1 이상을 지킨다.
 export function OrderCompleteCard({
@@ -14,7 +15,7 @@ export function OrderCompleteCard({
 }) {
   return (
     <>
-      <section className="rounded-3xl bg-linear-to-br from-[#8B3A1E] to-[#AD6229] p-6 text-white">
+      <section className="rounded-3xl bg-linear-to-br from-brand-deep to-[#AD6229] p-6 text-white">
         <div className="flex items-center gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15">
             <CheckIcon />
@@ -36,7 +37,7 @@ export function OrderCompleteCard({
         </div>
         <div className="flex flex-col items-center gap-3 px-5 py-6">
           <PickupNumberDisplay pickupNumber={pickupNumber} />
-          <p className="text-xl font-bold text-[#8B3A1E]">{formatWon(totalAmount)}</p>
+          <p className="text-xl font-bold text-brand-deep">{formatWon(totalAmount)}</p>
         </div>
         <dl className="border-t border-[#F3E7DA] px-5 py-4">
           <dt className="text-xs text-neutral-500">결제 방법</dt>
