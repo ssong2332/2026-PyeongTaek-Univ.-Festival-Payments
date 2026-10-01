@@ -17,7 +17,7 @@
 | 차트 | recharts | F-30 메뉴별 판매율 (DECISIONS #28) |
 | 테스트 | Vitest(단위·통합), Playwright(E2E), Supabase CLI 로컬 스택 | ADR-0007 |
 | 배포 | Cloudflare Workers Free + Supabase Free, `*.workers.dev` | N-14. 한도는 "배포" 절 |
-| 패키지·런타임 | npm, Node 20 LTS | DECISIONS #28 |
+| 패키지·런타임 | npm, Node 22 LTS(`.nvmrc` 22.23.3 — 2026-10-01 Node 20에서 변경) | DECISIONS #28, #51 |
 
 ## 구조 개요
 
