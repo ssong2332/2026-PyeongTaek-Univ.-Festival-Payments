@@ -1,16 +1,15 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { afterEach, describe, expect, test, vi } from "vitest";
-
-vi.mock("@/infra/supabase/session");
-
-import { NextRequest } from "next/server";
-import { POST } from "@/app/api/admin/orders/[id]/transition/route";
-import { requireAdmin } from "@/infra/supabase/session";
+import { afterEach, describe, expect, test } from "vitest";
+import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrderRepository";
 import { createServiceClient } from "@/infra/supabase/server";
+import { AppError } from "@/lib/api/errors";
+import { transition, type AdminTransitionInput } from "@/services/adminOrderService";
 
-// T-17 취소·환불(F-18·F-19): T-16·T-17 공통 상태 전환 API(#60)를 실제 DB로 확인한다.
-// 규칙 자체(허용 전환·사유·환불 경로)는 T-14 단위·DB 함수 테스트에 있고, 여기서는 API 입구부터 DB까지를 본다.
+// T-17 취소·환불(F-18·F-19): 상태 전환 서비스 transition()을 실제 저장소·실제 DB에 연결해 확인한다.
+// 통합 테스트에는 동작을 바꾸는 mock을 쓰지 않는다(DECISIONS #46) — 관리자 인증·요청 검사 같은 Route Handler 경계는
+// 단위 테스트(tests/unit/api/adminOrderTransitionRoute.test.ts), 로그인을 포함한 흐름은 T-24 E2E에서 본다.
 const db = createServiceClient();
+const orderRepository = createSupabaseOrderRepository(db);
 const adminId = randomUUID();
 const createdOrders: string[] = [];
 const createdMenus: string[] = [];
@@ -54,12 +53,16 @@ async function createOrder(status: Status, paymentMethod: "cash" | "transfer", l
   return { id, menuIds };
 }
 
-function requestTransition(id: string, body: Record<string, unknown>) {
-  return POST(new NextRequest(`http://localhost/api/admin/orders/${id}/transition`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }), { params: Promise.resolve({ id }) });
+// 관리자 한 명이 한 요청. Route Handler가 넘기는 것과 같은 입력으로 서비스를 부른다.
+function requestTransition(id: string, body: Omit<AdminTransitionInput, "orderId" | "adminId">) {
+  return transition({ orderId: id, adminId, ...body }, { orderRepository });
+}
+
+// 거부된 요청이 던진 AppError의 code·HTTP 상태
+async function rejection(promise: Promise<unknown>) {
+  const error = await promise.then(() => null, (e: unknown) => e);
+  expect(error).toBeInstanceOf(AppError);
+  return { code: (error as AppError).code, status: (error as AppError).status };
 }
 
 async function stocks(menuIds: string[]) {
@@ -92,7 +95,6 @@ async function expectUnchanged(id: string, menuIds: string[], status: Status, st
 afterEach(async () => {
   if (createdOrders.length) await db.from("orders").delete().in("id", createdOrders.splice(0));
   if (createdMenus.length) await db.from("menu_items").delete().in("id", createdMenus.splice(0));
-  vi.clearAllMocks();
 });
 
 describe("T-17 취소 (결제대기·결제확인)", () => {
@@ -100,13 +102,11 @@ describe("T-17 취소 (결제대기·결제확인)", () => {
     ["pending", "cash"],
     ["paid", "transfer"],
   ] as const)("%s(%s) 주문 취소: 재고를 항목 수량만큼 복구하고 사유·주체 이력을 남긴다", async (status, paymentMethod) => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder(status, paymentMethod, [{ quantity: 2 }, { quantity: 3 }]);
 
-    const response = await requestTransition(id, { action: "cancel", reason: "  고객 요청  " });
+    const result = await requestTransition(id, { action: "cancel", reason: "  고객 요청  " });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ id, status: "cancelled", refundChannel: null, availableActions: [] });
+    expect(result).toEqual({ id, status: "cancelled", paymentMethod });
     expect(await stocks(menuIds)).toEqual([10, 10]);
     expect(await storedOrder(id)).toMatchObject({ status: "cancelled", refund_channel: null });
     expect((await storedOrder(id)).closed_at).not.toBeNull();
@@ -122,13 +122,11 @@ describe("T-17 환불 (조리중)", () => {
     ["transfer", "bank"],
     ["cash", "cash"],
   ] as const)("%s 주문 환불: 환불 경로 %s 기록, 재고 복구, 이력", async (paymentMethod, refundChannel) => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder("cooking", paymentMethod, [{ quantity: 1 }, { quantity: 4 }]);
 
-    const response = await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel });
+    const result = await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel });
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ id, status: "refunded", refundChannel, availableActions: [] });
+    expect(result).toEqual({ id, status: "refunded", paymentMethod });
     expect(await stocks(menuIds)).toEqual([10, 10]);
     expect(await storedOrder(id)).toMatchObject({ status: "refunded", refund_channel: refundChannel });
     expect(await history(id)).toEqual([{
@@ -138,7 +136,6 @@ describe("T-17 환불 (조리중)", () => {
   });
 
   test("환불하면 매출에서 빠지고 환불 금액·건수로 집계된다(T-21 get_stats)", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     // 다른 테스트 주문과 섞이지 않게 먼 미래 날짜(KST)에 둔다.
     const day = `2098-${String(randomInt(1, 13)).padStart(2, "0")}-${String(randomInt(1, 29)).padStart(2, "0")}`;
     const { id } = await createOrder("cooking", "transfer", [{ quantity: 2 }], `${day}T03:00:00Z`);
@@ -149,50 +146,42 @@ describe("T-17 환불 (조리중)", () => {
     };
     expect(await statsOf()).toMatchObject({ sales: 6000, refundedAmount: 0, refundedCount: 0 });
 
-    expect((await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel: "bank" })).status).toBe(200);
+    await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel: "bank" });
 
     expect(await statsOf()).toMatchObject({ sales: 0, refundedAmount: 6000, refundedCount: 1, byMenu: [] });
   });
 });
 
 describe("T-17 거부 — 주문·재고·이력이 바뀌지 않는다", () => {
+  // 빈 문자열을 요청 규격(1..200자) 위반 400 VALIDATION_ERROR로 거르는 것은 Route Handler 몫 — 단위 테스트에서 본다.
   test.each([
-    ["사유 없음", { action: "cancel" }, "REASON_REQUIRED"],
-    ["사유 공백", { action: "cancel", reason: "   " }, "REASON_REQUIRED"],
-    ["사유 빈 문자열(요청 규격 1..200자 위반)", { action: "cancel", reason: "" }, "VALIDATION_ERROR"],
-  ])("취소 %s → 400 %s", async (_label, body, code) => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
+    ["사유 없음", undefined],
+    ["사유 공백", "   "],
+    ["사유 빈 문자열", ""],
+  ])("취소 %s → 400 REASON_REQUIRED", async (_label, reason) => {
     const { id, menuIds } = await createOrder("pending", "cash", [{ quantity: 2 }]);
     const before = await stocks(menuIds);
 
-    const response = await requestTransition(id, body);
-
-    expect(response.status).toBe(400);
-    expect((await response.json()).error.code).toBe(code);
+    expect(await rejection(requestTransition(id, { action: "cancel", reason })))
+      .toEqual({ code: "REASON_REQUIRED", status: 400 });
     await expectUnchanged(id, menuIds, "pending", before);
   });
 
   test("환불 사유 공백 → 400 REASON_REQUIRED", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder("cooking", "transfer", [{ quantity: 2 }]);
     const before = await stocks(menuIds);
 
-    const response = await requestTransition(id, { action: "refund", reason: " ", refundChannel: "bank" });
-
-    expect(response.status).toBe(400);
-    expect((await response.json()).error.code).toBe("REASON_REQUIRED");
+    expect(await rejection(requestTransition(id, { action: "refund", reason: " ", refundChannel: "bank" })))
+      .toEqual({ code: "REASON_REQUIRED", status: 400 });
     await expectUnchanged(id, menuIds, "cooking", before);
   });
 
   test("환불 경로 없음 → 400 REFUND_CHANNEL_REQUIRED", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder("cooking", "transfer", [{ quantity: 2 }]);
     const before = await stocks(menuIds);
 
-    const response = await requestTransition(id, { action: "refund", reason: "재료 소진" });
-
-    expect(response.status).toBe(400);
-    expect((await response.json()).error.code).toBe("REFUND_CHANNEL_REQUIRED");
+    expect(await rejection(requestTransition(id, { action: "refund", reason: "재료 소진" })))
+      .toEqual({ code: "REFUND_CHANNEL_REQUIRED", status: 400 });
     await expectUnchanged(id, menuIds, "cooking", before);
   });
 
@@ -200,57 +189,50 @@ describe("T-17 거부 — 주문·재고·이력이 바뀌지 않는다", () => 
     ["cash", "bank"],
     ["transfer", "cash"],
   ] as const)("%s 주문에 결제수단과 다른 환불 경로(%s) → 409 INVALID_TRANSITION", async (paymentMethod, refundChannel) => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder("cooking", paymentMethod, [{ quantity: 2 }]);
     const before = await stocks(menuIds);
 
-    const response = await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel });
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).error.code).toBe("INVALID_TRANSITION");
+    expect(await rejection(requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel })))
+      .toEqual({ code: "INVALID_TRANSITION", status: 409 });
     await expectUnchanged(id, menuIds, "cooking", before);
   });
 
   test.each([
     ["cancel", { action: "cancel", reason: "고객 요청" }],
     ["refund", { action: "refund", reason: "고객 요청", refundChannel: "cash" }],
-  ])("완료 주문 %s → 409 INVALID_TRANSITION", async (_label, body) => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
+  ] as const)("완료 주문 %s → 409 INVALID_TRANSITION", async (_label, body) => {
     const { id, menuIds } = await createOrder("completed", "cash", [{ quantity: 2 }]);
     const before = await stocks(menuIds);
 
-    const response = await requestTransition(id, body);
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).error.code).toBe("INVALID_TRANSITION");
+    expect(await rejection(requestTransition(id, body))).toEqual({ code: "INVALID_TRANSITION", status: 409 });
     await expectUnchanged(id, menuIds, "completed", before);
   });
 });
 
 describe("T-17 중복 처리", () => {
-  test("같은 주문을 동시에 두 번 취소해도 한 번만 반영: 200·409, 재고 1회 복구, 이력 1행", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
+  test("같은 주문을 동시에 두 번 취소해도 한 번만 반영: 성공 1·409 1, 재고 1회 복구, 이력 1행", async () => {
     const { id, menuIds } = await createOrder("paid", "transfer", [{ quantity: 3 }]);
 
-    const responses = await Promise.all([
+    const results = await Promise.allSettled([
       requestTransition(id, { action: "cancel", reason: "고객 요청" }),
       requestTransition(id, { action: "cancel", reason: "고객 요청" }),
     ]);
 
-    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect(results.map((result) => result.status).sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = results.find((result) => result.status === "rejected") as PromiseRejectedResult;
+    expect(rejected.reason).toBeInstanceOf(AppError);
+    expect(rejected.reason).toMatchObject({ status: 409 });
     expect(await stocks(menuIds)).toEqual([10]);
     expect(await history(id)).toHaveLength(1);
   });
 
   test("이미 환불된 주문을 다시 환불하면 409, 재고는 한 번만 복구", async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({ id: adminId } as never);
     const { id, menuIds } = await createOrder("cooking", "cash", [{ quantity: 2 }]);
-    const body = { action: "refund", reason: "재료 소진", refundChannel: "cash" };
+    const body = { action: "refund", reason: "재료 소진", refundChannel: "cash" } as const;
 
-    expect((await requestTransition(id, body)).status).toBe(200);
-    const again = await requestTransition(id, body);
+    await requestTransition(id, body);
 
-    expect(again.status).toBe(409);
+    expect((await rejection(requestTransition(id, body))).status).toBe(409);
     expect(await stocks(menuIds)).toEqual([10]);
     expect(await history(id)).toHaveLength(1);
   });
