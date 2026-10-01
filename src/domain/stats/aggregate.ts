@@ -1,4 +1,8 @@
 import type { OrderStatus } from "@/domain/order/status";
+import { kstDate, kstDayUtcRange } from "@/domain/time/kst";
+
+// 기존 import 경로(@/domain/stats/aggregate) 호환.
+export { kstDayUtcRange };
 
 export interface StatsOrderItem {
     menuItemId: string;
@@ -32,29 +36,6 @@ export interface StatsSummary {
 }
 
 const includedInSales = new Set<OrderStatus>(["paid", "cooking", "completed"]);
-const kstOffsetMs = 9 * 60 * 60 * 1000;
-
-function kstDate(instant: string): string {
-    const timestamp = Date.parse(instant);
-    if (!Number.isFinite(timestamp)) throw new RangeError(`Invalid order timestamp: ${instant}`);
-    return new Date(timestamp + kstOffsetMs).toISOString().slice(0, 10);
-}
-
-export function kstDayUtcRange(date: string): { start: string; end: string } {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        throw new RangeError("date must be YYYY-MM-DD");
-    }
-    const [year, month, day] = date.split("-").map(Number);
-    const calendarDate = new Date(0);
-    calendarDate.setUTCFullYear(year, month - 1, day);
-    calendarDate.setUTCHours(0, 0, 0, 0);
-    if (calendarDate.toISOString().slice(0, 10) !== date) {
-        throw new RangeError("date must be a valid calendar day");
-    }
-    const start = calendarDate.getTime() - kstOffsetMs;
-    return { start: new Date(start).toISOString(), end: new Date(start + 24 * 60 * 60 * 1000).toISOString() };
-}
-
 export function aggregateStats(orders: readonly StatsOrder[], date: string): StatsSummary {
     if (date !== "all") kstDayUtcRange(date);
     const totals: Record<OrderStatus, number> = {

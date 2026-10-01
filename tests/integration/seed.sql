@@ -13,6 +13,10 @@ DO $$ BEGIN
             <> ARRAY[2000, 2500, 3500, 4000] THEN
         RAISE EXCEPTION 'menu count or prices mismatch';
     END IF;
+    IF (SELECT array_agg(stock ORDER BY sort_order) FROM public.menu_items)
+            <> ARRAY[100, 100, 100, 100] THEN
+        RAISE EXCEPTION 'initial stock mismatch (DECISIONS #50)';
+    END IF;
     IF (SELECT count(*) FROM public.app_settings) <> 6 OR EXISTS (
         SELECT 1 FROM (VALUES
             ('payment.expire_minutes', '10'), ('auto_complete.enabled', 'false'),
