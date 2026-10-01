@@ -39,7 +39,7 @@ export function LogoutButton() {
     return (
         <div className="flex items-center gap-2">
             {errorMessage && (
-                <span role="alert" aria-live="assertive" className="text-xs text-red-600">
+                <span role="alert" aria-live="assertive" className="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded">
                     {errorMessage}
                 </span>
             )}
