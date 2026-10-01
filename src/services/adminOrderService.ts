@@ -14,10 +14,11 @@ export async function listAdminOrders(
     filter?: OrderListFilter,
     clock: Clock = systemClock,
 ): Promise<AdminOrdersResponse> {
-    const needsDefaultDate = filter?.pickupNumber === undefined && !filter?.date;
-    const effectiveFilter = needsDefaultDate
-        ? { ...filter, date: kstDate(clock.now().toISOString()) }
-        : filter;
+    const effectiveFilter = filter?.pickupNumber !== undefined
+        ? { ...filter, date: undefined }
+        : filter?.date
+            ? filter
+            : { ...filter, date: kstDate(clock.now().toISOString()) };
     const orders = await repository.list(effectiveFilter);
 
     const unacknowledgedCount = orders.filter(
