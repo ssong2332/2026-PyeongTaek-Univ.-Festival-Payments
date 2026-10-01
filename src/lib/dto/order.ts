@@ -40,3 +40,36 @@ export const CreateOrderResponseSchema = z.object({
 });
 
 export type CreateOrderResponse = z.infer<typeof CreateOrderResponseSchema>;
+
+// Architecture "6. 고객 API" GET /api/orders/{token}
+export const OrderStatusItemDtoSchema = z.object({
+  name: z.string(),
+  quantity: z.number().int().positive(),
+  options: z.array(z.string()),
+  lineTotal: z.number().int().nonnegative(),
+});
+export type OrderStatusItemDto = z.infer<typeof OrderStatusItemDtoSchema>;
+
+export const OrderStatusDtoSchema = z.object({
+  orderId: z.guid(),
+  pickupNumber: z.number().int().positive(),
+  status: z.enum(ORDER_STATUSES),
+  paymentMethod: z.enum(["cash", "transfer"]),
+  totalAmount: z.number().int().nonnegative(),
+  items: z.array(OrderStatusItemDtoSchema),
+  // ISO 8601 UTC (Architecture "API 규격 — 공통") — CreateOrderResponse.createdAt과 같은 …Z 표기
+  createdAt: z.iso.datetime(),
+  transferReportedAt: z.iso.datetime().nullable(),
+  cancelRequestedAt: z.iso.datetime().nullable(),
+  cancelRejectedAt: z.iso.datetime().nullable(),
+  aheadCount: z.number().int().nonnegative(),
+  canTransferReport: z.boolean(),
+  canCancelRequest: z.boolean(),
+});
+export type OrderStatusDto = z.infer<typeof OrderStatusDtoSchema>;
+
+// Architecture "6. 고객 API" GET /api/queue
+export const QueueResponseSchema = z.object({
+  waitingCount: z.number().int().nonnegative(),
+});
+export type QueueResponse = z.infer<typeof QueueResponseSchema>;

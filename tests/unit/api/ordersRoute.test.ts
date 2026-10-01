@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { POST } from "@/app/api/orders/route";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
@@ -33,7 +34,6 @@ const rpcResult = {
 };
 
 async function post(payload: unknown) {
-  const { POST } = await import("@/app/api/orders/route");
   const request = new Request("http://localhost/api/orders", {
     method: "POST",
     headers: { "content-type": "application/json" },
