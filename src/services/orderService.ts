@@ -82,15 +82,15 @@ export async function reportTransfer(
   if (!order) throw new AppError("NOT_FOUND", 404);
   if (!canReportTransfer(order)) throw new AppError("INVALID_TRANSITION", 409);
   // 이미 신고됨이면 처음 시각 그대로(멱등)
-  if (order.transferReportedAt) return { transferReportedAt: toIso(order.transferReportedAt) };
+  if (order.transferReportedAt) return { transferReportedAt: toUtcIsoString(order.transferReportedAt) };
 
   const reportedAt = await deps.orderRepository.setTransferReported(order.id);
-  if (reportedAt) return { transferReportedAt: reportedAt };
+  if (reportedAt) return { transferReportedAt: toUtcIsoString(reportedAt) };
 
   // 기록되지 않음 = 조회 뒤에 다른 요청이 먼저 신고했거나 상태가 바뀜. 다시 읽어 판단한다.
   const latest = await deps.orderRepository.findByToken(token);
   if (latest && canReportTransfer(latest) && latest.transferReportedAt) {
-    return { transferReportedAt: toIso(latest.transferReportedAt) };
+    return { transferReportedAt: toUtcIsoString(latest.transferReportedAt) };
   }
   throw new AppError("INVALID_TRANSITION", 409);
 }
@@ -98,11 +98,6 @@ export async function reportTransfer(
 // 현금 주문이거나 결제대기가 아니면 신고할 수 없다.
 function canReportTransfer(order: { status: string; paymentMethod: string }): boolean {
   return order.status === "pending" && order.paymentMethod === "transfer";
-}
-
-// DB 시각 문자열(+00:00 등)을 ISO 8601 UTC(Z)로 맞춘다 (Architecture "API 규격 — 공통").
-function toIso(value: string): string {
-  return new Date(value).toISOString();
 }
 
 // Architecture "고객 API" GET /api/queue (T-11 메뉴판 주기 갱신용)

@@ -47,7 +47,7 @@ describe("supabaseOrderRepository.setTransferReported", () => {
     const at = await repo.setTransferReported(order.id);
     expect(at).not.toBeNull();
     expect(new Date(at!).getTime()).toBeGreaterThanOrEqual(before - 5_000);
-    expect(await stored(order.id)).toEqual({ status: "pending", transferReportedAt: at });
+    expect(await stored(order.id)).toEqual({ status: "pending", transferReportedAt: new Date(at!).toISOString() });
   });
 
   test("이미 신고된 주문은 덮어쓰지 않고 null", async () => {

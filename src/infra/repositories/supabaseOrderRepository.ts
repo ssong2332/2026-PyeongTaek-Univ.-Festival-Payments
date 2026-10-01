@@ -131,7 +131,8 @@ export function createSupabaseOrderRepository(
         .is("transfer_reported_at", null)
         .select("transfer_reported_at");
       if (error) throw toError("orders.setTransferReported", error);
-      return data.length > 0 ? new Date(data[0].transfer_reported_at).toISOString() : null;
+      // findByToken처럼 DB 시각 문자열 그대로 돌려준다 — 응답 표기(UTC ISO)는 서비스가 맞춘다.
+      return data.length > 0 ? (data[0].transfer_reported_at as string) : null;
     },
   };
 }
