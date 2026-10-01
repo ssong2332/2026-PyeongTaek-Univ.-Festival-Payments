@@ -56,6 +56,36 @@ describe("Admin Orders Route Handlers", () => {
     });
 
     describe("GET /api/admin/orders", () => {
+        it("날짜가 없으면 KST 오늘만 조회한다", async () => {
+            vi.useFakeTimers({ toFake: ["Date"] });
+            vi.setSystemTime(new Date("2026-09-30T15:30:00.000Z"));
+            const list = vi.fn().mockResolvedValue([]);
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list } as unknown as SupabaseAdminOrderRepository;
+            });
+
+            try {
+                const req = new NextRequest("http://localhost:3000/api/admin/orders");
+                const res = await getOrders(req);
+                expect(res.status).toBe(200);
+                expect(list).toHaveBeenCalledWith({ date: "2026-10-01", status: undefined, pickupNumber: undefined });
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it("픽업 번호 검색에서는 명시된 날짜도 무시한다", async () => {
+            const list = vi.fn().mockResolvedValue([]);
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list } as unknown as SupabaseAdminOrderRepository;
+            });
+
+            const req = new NextRequest("http://localhost:3000/api/admin/orders?pickupNumber=101&date=2026-09-29");
+            const res = await getOrders(req);
+            expect(res.status).toBe(200);
+            expect(list).toHaveBeenCalledWith({ date: undefined, status: undefined, pickupNumber: 101 });
+        });
+
         it("인증되지 않은 사용자는 401 UNAUTHORIZED 에러를 받는다", async () => {
             vi.mocked(requireAdmin).mockRejectedValueOnce(new AppError("UNAUTHORIZED", 401));
 
