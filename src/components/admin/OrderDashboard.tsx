@@ -110,15 +110,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
 
     return <div className={styles.shell}>
         <aside className={styles.sidebar}>
-            <div className={styles.brand}><UtensilsCrossed size={30} /><div><strong>호떡 부스</strong><small>축제 현장 주문 관리</small></div></div>
-            <div className={styles.operator}>운영자 화면<small>{preview ? "목업 미리보기" : "주문 관리"}</small></div>
             <nav aria-label="관리자 메뉴">{([
                 ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
             ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
                 onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}</nav>
             <p className={styles.sideNote}><Bell size={16} /> 미확인 주문 {unacknowledged}건</p>
         </aside>
-        <main className={styles.main}>
+        <div className={styles.main}>
             <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : "주문 관리"}</strong>
                 <button onClick={reload} disabled={isLoading}>새로고침</button></header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
@@ -174,6 +172,6 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     </section>
                 </section>
             </div>
-        </main>
+        </div>
     </div>;
 }
