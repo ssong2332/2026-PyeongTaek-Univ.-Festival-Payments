@@ -4,17 +4,29 @@
     "main": ".open-next/worker.js",
     "compatibility_date": "2024-09-23",
     "compatibility_flags": [
-        "nodejs_compat"
+        // Node.js API 사용(OpenNext 필수, compatibility_date 2024-09-23 이상)
+        "nodejs_compat",
+        // 앱 안에서 공개 URL(Supabase API 등) fetch 허용 — OpenNext 권장 설정
+        "global_fetch_strictly_public"
     ],
     "assets": {
         "directory": ".open-next/assets",
         "binding": "ASSETS"
     },
+    // OpenNext 권장 설정: service는 위 "name"과 같아야 한다
+    "services": [
+        {
+            "binding": "WORKER_SELF_REFERENCE",
+            "service": "ptu-festival-payments"
+        }
+    ],
     // Cloudflare Workers Free (100,000 req/day, 10ms CPU/req)
     // Production Branch: dev
-    // Production URL: https://ptu-festival-payments.workers.dev
+    // 운영 URL 형식: https://ptu-festival-payments.<계정 workers.dev 서브도메인>.workers.dev
+    //   계정 서브도메인은 Cloudflare 대시보드 Workers & Pages의 "Your subdomain"에서 확인한다(docs/T-25-deployment.md).
     "vars": {
-        // 비시크릿 환경변수는 여기에 등록하거나 Cloudflare 대시보드에서 설정합니다.
-        // 시크릿(SUPABASE_SERVICE_ROLE_KEY 등)은 wrangler secret put 또는 대시보드 Secret으로 등록합니다.
+        // 비시크릿 환경변수는 Cloudflare 대시보드에서 설정한다.
+        // NEXT_PUBLIC_* 는 빌드할 때 브라우저 코드에 들어가므로 "빌드 변수"에도 등록해야 한다(docs/T-25-deployment.md 3절).
+        // 시크릿(SUPABASE_SERVICE_ROLE_KEY)은 대시보드 Secret 또는 wrangler secret put으로만 등록한다.
     }
 }
