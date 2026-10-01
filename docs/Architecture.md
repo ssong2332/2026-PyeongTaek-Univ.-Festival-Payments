@@ -13,6 +13,7 @@
 | 프레임워크 | Next.js (App Router) + React + Tailwind CSS | PRD 확정 스택. Route Handler가 유일한 데이터 접근 경로 (ADR-0001) |
 | 저장소 | Supabase — PostgreSQL(RLS, Postgres 함수), Auth(관리자 이메일+비밀번호), Realtime(관리자 대시보드) | PRD 확정 스택. 원자성은 Postgres 함수 (ADR-0002), 실시간 (ADR-0003) |
 | 검증·상태 | zod(DTO 공유), zustand(장바구니, sessionStorage persist) | DECISIONS #23, #25 |
+| 아이콘 | lucide-react 1.48.0(관리자 대시보드 아이콘, ISC 라이선스, 정확한 버전 고정) | PR #51(T-15, 2026-10-01) |
 | 차트 | recharts | F-30 메뉴별 판매율 (DECISIONS #28) |
 | 테스트 | Vitest(단위·통합), Playwright(E2E), Supabase CLI 로컬 스택 | ADR-0007 |
 | 배포 | Cloudflare Workers Free + Supabase Free, `*.workers.dev` | N-14. 한도는 "배포" 절 |
