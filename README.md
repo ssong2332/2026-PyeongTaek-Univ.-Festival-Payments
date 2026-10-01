@@ -125,6 +125,7 @@ Docker를 사용할 수 있는 환경에서만 Supabase CLI 2.117.0으로 `supab
 
 > 축제 운영 중 웹 서비스 또는 네트워크에 문제가 발생했을 때 주문을 중단하지 않기 위한 대응 절차다.
 > Cloudflare Workers 배포 URL 및 관리자 계정 관련 최종 정보는 T-25 완료 후 확정한다.
+> 2026-10-01 첫 운영 배포·스모크 완료 — 주소와 결과는 [T-25 가이드 7절](docs/T-25-deployment.md). 계정 서브도메인은 QR 인쇄 전 팀장이 결정하므로 그 전까지 주소를 인쇄물에 쓰지 않는다.
 
 **현장 상세 매뉴얼:** [T-30 현장 운영 폴백 매뉴얼](docs/T-30-operations-runbook.md) — 현금 수기 주문, QR 점검, 장애 대응·연락 체계 및 관리자 설정 장애 시 폴백 절차. (운영 전 검수·리허설 필요)
 
@@ -232,7 +233,7 @@ QR을 직접 스캔하여 실제 `*.workers.dev` 서비스 주소로 연결되�
 
 다음 내용은 실제 배포가 완료된 뒤 확정한다.
 
-* 실제 `*.workers.dev` 운영 URL
+* 실제 `*.workers.dev` 운영 URL — 2026-10-01 첫 배포 주소 `https://ptu-festival-payments.asg21274.workers.dev`(계정 서브도메인 결정 전, [T-25 가이드 1절](docs/T-25-deployment.md))
 * Cloudflare Workers 장애 확인 위치
 * 이전 배포 버전으로 롤백하는 실제 절차
 * Supabase 관리자 계정 생성 절차 — 초안: [관리자 계정 생성 절차](docs/T-30-admin-accounts.md) (DB1 서동혁). 운영 회원가입 차단이 계정 생성보다 먼저다
