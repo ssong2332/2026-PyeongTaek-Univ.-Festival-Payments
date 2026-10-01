@@ -49,3 +49,53 @@ describe("T-19 자동 완료 설정 UI", () => {
         await waitFor(() => expect(settingsApi.save).toHaveBeenLastCalledWith({ "auto_complete.minutes": "25" }));
     });
 });
+
+describe("T-52 계좌 정보·미입금 만료 설정 UI", () => {
+    it("계좌 정보가 없으면 미입력을 알리고 만료 기본값 10분을 표시한다", async () => {
+        render(<SettingsPanel api={api()} />);
+        expect((await screen.findByRole("spinbutton", { name: "미입금 만료 기준 (분)" }) as HTMLInputElement).value).toBe("10");
+        expect(screen.getByText("계좌 정보가 미입력 상태입니다. 세 항목을 모두 입력해야 고객에게 계좌이체 안내가 표시됩니다.")).toBeTruthy();
+        expect((screen.getByRole("button", { name: "설정 저장" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("계좌번호와 만료 시간만 바꾸면 해당 두 키만 저장한다", async () => {
+        const settingsApi = api({
+            "transfer.bank_name": "국민은행", "transfer.account_number": "111-222",
+            "transfer.account_holder": "김혁", "payment.expire_minutes": "10",
+            "auto_complete.enabled": "true", "auto_complete.minutes": "20",
+        });
+        render(<SettingsPanel api={settingsApi} />);
+        fireEvent.change(await screen.findByRole("textbox", { name: "계좌번호" }), { target: { value: "333-444" } });
+        fireEvent.change(screen.getByRole("spinbutton", { name: "미입금 만료 기준 (분)" }), { target: { value: "12" } });
+        fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+        await waitFor(() => expect(settingsApi.save).toHaveBeenCalledWith({
+            "transfer.account_number": "333-444", "payment.expire_minutes": "12",
+        }));
+        expect(await screen.findByText("저장됐습니다.")).toBeTruthy();
+    });
+
+    it("만료 시간 범위를 벗어나면 저장하지 않고 입력 오류를 보여 준다", async () => {
+        const settingsApi = api({ "payment.expire_minutes": "10" });
+        render(<SettingsPanel api={settingsApi} />);
+        const minutes = await screen.findByRole("spinbutton", { name: "미입금 만료 기준 (분)" });
+        fireEvent.change(minutes, { target: { value: "0" } });
+        expect(screen.getByText("미입금 만료 기준은 1~120분의 정수여야 합니다.")).toBeTruthy();
+        expect((screen.getByRole("button", { name: "설정 저장" }) as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.change(minutes, { target: { value: "121" } });
+        expect((screen.getByRole("button", { name: "설정 저장" }) as HTMLButtonElement).disabled).toBe(true);
+        expect(settingsApi.save).not.toHaveBeenCalled();
+    });
+
+    it("계좌 저장에 실패해도 입력을 유지하고 다시 저장할 수 있다", async () => {
+        const settingsApi = api({ "transfer.bank_name": "국민은행" });
+        vi.mocked(settingsApi.save).mockRejectedValueOnce(new Error("500"));
+        render(<SettingsPanel api={settingsApi} />);
+        const bank = await screen.findByRole("textbox", { name: "은행명" });
+        fireEvent.change(bank, { target: { value: "신한은행" } });
+        fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+        expect(await screen.findByText(/설정을 저장하지 못했습니다/)).toBeTruthy();
+        expect((bank as HTMLInputElement).value).toBe("신한은행");
+        fireEvent.click(screen.getByRole("button", { name: "설정 저장" }));
+        await waitFor(() => expect(settingsApi.save).toHaveBeenLastCalledWith({ "transfer.bank_name": "신한은행" }));
+    });
+});
