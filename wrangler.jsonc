@@ -21,7 +21,7 @@
         }
     ],
     // Cloudflare Workers Free (100,000 req/day, 10ms CPU/req)
-    // Production Branch: dev
+    // Production Branch: main (DECISIONS #53 — dev → main PR 병합 시 배포)
     // 운영 URL 형식: https://ptu-festival-payments.<계정 workers.dev 서브도메인>.workers.dev
     //   계정 서브도메인은 Cloudflare 대시보드 Workers & Pages의 "Your subdomain"에서 확인한다(docs/T-25-deployment.md).
     "vars": {

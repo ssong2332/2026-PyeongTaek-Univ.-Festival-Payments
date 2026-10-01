@@ -8,9 +8,9 @@
 ## 1. 배포 아키텍처 개요
 
 - **호스팅 및 인프라**: **Cloudflare Workers Free + Supabase Free** (비용 0원 원칙 준수)
-- **프로덕션 배포 브랜치**: **`dev`**
-  - 작업 단위 브랜치(`feat/*`)가 `dev`에 PR 병합되면 자동으로 Cloudflare Workers 프로덕션에 배포됩니다.
-  - Vercel에서 Cloudflare Workers로 전환되었으나, `dev`를 배포 기준으로 삼는 방침은 유지됩니다.
+- **프로덕션 배포 브랜치**: **`main`** (2026-10-01 `dev`에서 변경, DECISIONS #53)
+  - 작업 단위 브랜치(`feat/*`)는 `dev`에 PR 병합(통합·CI). 운영 반영은 `dev` → `main` PR을 병합할 때 Cloudflare Workers가 `main`을 배포합니다.
+  - Vercel에서 Cloudflare Workers로 전환하면서 `dev`를 배포 기준으로 삼았으나(2026-09-23), 2026-10-01 `main`으로 바꿨습니다(DECISIONS #53).
 - **공식 운영 URL 및 QR 인쇄용 도메인** — 형식(Cloudflare 공식 문서):
   ```text
   https://ptu-festival-payments.<계정 workers.dev 서브도메인>.workers.dev
@@ -80,7 +80,7 @@ Cloudflare Workers에서 Next.js를 서빙하기 위한 Worker 엔트리포인�
 - **생성 산출물**:
   - Worker 스크립트: `.open-next/worker.js` (wrangler.jsonc의 `main` 필드와 일치)
   - 정적 에셋 디렉터리: `.open-next/assets` (wrangler.jsonc의 `assets.directory`와 일치)
-- **로컬/수동 배포 명령**(평소에는 쓰지 않음 — 배포는 Cloudflare의 Git 연동이 `dev` 기준으로 한다):
+- **로컬/수동 배포 명령**(평소에는 쓰지 않음 — 배포는 Cloudflare의 Git 연동이 `main` 기준으로 한다):
   ```bash
   npm run deploy
   # 내부 실행: opennextjs-cloudflare build && opennextjs-cloudflare deploy
@@ -94,7 +94,8 @@ Cloudflare Workers에서 Next.js를 서빙하기 위한 Worker 엔트리포인�
    - Cloudflare 대시보드 → **Workers & Pages** → **Create** → **Workers** → **Import a repository**(Git 연동)
    - 저장소: `ssong2332/2026-PyeongTaek-Univ.-Festival-Payments`, Worker 이름은 `wrangler.jsonc`의 `name`(`ptu-festival-payments`)과 같게
 2. **배포 브랜치 및 빌드 설정**:
-   - **Production branch**: `dev`
+   - **Production branch**: `main`
+   - **비프로덕션 브랜치 빌드**(`dev`·작업 브랜치의 미리보기): 켜면 운영과 같은 변수·Secret으로 같은 운영 Supabase를 쓴다 — 미리보기 주소에서 주문을 만들지 않는다(픽업 번호가 축제 전체에서 이어짐). 필요 없으면 끈다
    - **Build command**: `npm run build:worker`
    - **Deploy command**: `npx opennextjs-cloudflare deploy` (devDependency에 잠긴 1.20.7을 씀)
    - Worker 엔트리(`.open-next/worker.js`)와 정적 파일(`.open-next/assets`)은 `wrangler.jsonc`가 지정하므로 화면에 따로 넣지 않는다(이전 판의 "Build output directory"는 Pages용 항목).
@@ -128,7 +129,7 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 
 ## 5. 배포 후 스모크 테스트 시나리오 (Architecture 457)
 
-`dev` 브랜치 자동 배포 완료 후 프로덕션 URL(`https://ptu-festival-payments.workers.dev`)에서 아래 5단계를 수행합니다.
+`dev` → `main` 병합으로 자동 배포가 끝난 뒤 운영 URL(`https://ptu-festival-payments.<계정 서브도메인>.workers.dev`)에서 아래 5단계를 수행합니다.
 
 | 단계 | 수행 작업 | 기대 결과 | 구현/검증 위치 |
 |---|---|---|---|
