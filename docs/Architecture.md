@@ -13,6 +13,7 @@
 | 프레임워크 | Next.js (App Router) + React + Tailwind CSS | PRD 확정 스택. Route Handler가 유일한 데이터 접근 경로 (ADR-0001) |
 | 저장소 | Supabase — PostgreSQL(RLS, Postgres 함수), Auth(관리자 이메일+비밀번호), Realtime(관리자 대시보드) | PRD 확정 스택. 원자성은 Postgres 함수 (ADR-0002), 실시간 (ADR-0003) |
 | 검증·상태 | zod(DTO 공유), zustand(장바구니, sessionStorage persist) | DECISIONS #23, #25 |
+| 아이콘 | lucide-react 1.48.0(관리자 대시보드 아이콘, ISC 라이선스, 정확한 버전 고정) | PR #51(T-15, 2026-10-01) |
 | 차트 | recharts | F-30 메뉴별 판매율 (DECISIONS #28) |
 | 테스트 | Vitest(단위·통합), Playwright(E2E), Supabase CLI 로컬 스택 | ADR-0007 |
 | 배포 | Cloudflare Workers Free + Supabase Free, `*.workers.dev` | N-14. 한도는 "배포" 절 |
@@ -161,7 +162,7 @@ POST /api/orders (Route Handler)
   ▼
 201 (신규) / 200 (멱등 재요청) CreateOrderResponse {orderId, pickupNumber, statusToken, …}
   ▼
-[클라이언트] 장바구니·멱등키 폐기 → router.replace(`/orders/${statusToken}`)
+[클라이언트] 장바구니·멱등키 폐기 → router.replace(`/orders/${statusToken}?new=1`) — `new=1`이면 상태 페이지가 주문 완료 보기부터 보여 준다
 ```
 
 ### 관리자 상태 전환 (F-15, F-16, F-18, F-19, F-23)
@@ -296,10 +297,11 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
 | 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
 | 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
-| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | Draft PR #49 |
+| 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | `dev` 병합, 운영 적용(DB1, 2026-10-01 확인 — DECISIONS #47) |
+| 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
-> **운영 DB 적용 현황(2026-09-30)**: `0001`·`0003`·`0007`~`0013` 적용. `0016`은 dev 병합·운영 미적용. 적용 순서는 `0016` → `0017` → `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
+> **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016` 적용(`0016`은 DB1 서동혁이 `supabase db push`, 10-01 운영 조회로 확인). `seed.sql`은 운영 미적용(`app_settings`·`menu_items` 0행) — 앱 배포(#50) 전에 SQL Editor에서 1회 실행한다(아래 운영 절차·T-36). 남은 적용 순서는 `0017` → `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
 ### 3. RLS 정책 표 (`0003_rls.sql`, N-04)
 
@@ -358,11 +360,11 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 메서드·경로 | 요청 | 응답 (200 기본) | 규칙 |
 |---|---|---|---|
 | `GET /api/health` | — | `{ ok: true, db: true, time }` | DB `select 1` 실패 시 503 `{ ok:false, db:false }`. 대시보드 연결 감시용 |
-| `GET /api/menu?lang=ko` | `lang` ∈ SUPPORTED_LOCALES(기본 ko) | `MenuResponse { items: MenuItemDto[], waitingCount: number, locale }` · `MenuItemDto { id, name, description, price, stock, isAvailable, isSoldOut, imageUrl, optionGroups: [{ id, name, minSelect, maxSelect, options: [{ id, name, extraPrice }] }] }` | `is_active` 메뉴만. `isSoldOut = is_sold_out_manual OR stock=0`, `isAvailable = !isSoldOut`. 이름은 요청 언어 → ko 폴백. 비활성 옵션·그룹 제외. `waitingCount` = 전체 미완료 수(F-11 메뉴판) |
-| `GET /api/queue` | — | `{ waitingCount }` | 메뉴판 주기 갱신(30초)용 |
+| `GET /api/menu?lang=ko` | `lang` ∈ SUPPORTED_LOCALES(기본 ko) | `MenuResponse { items: MenuItemDto[], waitingCount: number, locale }` · `MenuItemDto { id, name, description, price, stock, isAvailable, isSoldOut, imageUrl, optionGroups: [{ id, name, minSelect, maxSelect, options: [{ id, name, extraPrice }] }] }` | `is_active` 메뉴만. `isSoldOut = is_sold_out_manual OR stock=0`, `isAvailable = !isSoldOut`. 이름은 요청 언어 → ko 폴백(공백뿐인 번역은 누락으로 봄), 설명은 요청 언어 → ko → `null`. ko 이름이 없는 메뉴·그룹·옵션은 제외(`create_order`가 거부하므로 — 필수 그룹이 이렇게 빠지면 그 메뉴는 주문할 수 없으니 seed 적용 후 점검, 배포 절 "DB·상태 마이그레이션"). 비활성 옵션·그룹 제외, 활성 옵션이 0개인 활성 그룹은 `options: []`로 둔다(화면이 `minSelect`로 담기 가능 여부 판단). 정렬은 `sort_order` → `id`. 허용 외 `lang`(빈 값 포함)은 400, 응답 `locale`은 요청 언어. `waitingCount` = 전체 미완료 수(F-11 메뉴판, `count_waiting_before(NULL)` — `/api/queue`와 같은 정의). 200 응답 `Cache-Control: no-store` |
+| `GET /api/queue` | — | `{ waitingCount }` | 메뉴판 주기 갱신(30초)용. 200 응답 `Cache-Control: no-store` |
 | `GET /api/settings/transfer` | — | `TransferSettingsDto { configured: boolean, bankName, accountNumber, accountHolder }` | `transfer.*` 키만(계좌 정보 3개). 빈값은 `''`. `configured` = 은행 3값 모두 비어있지 않음. 비어 있으면 서버 `warn` 로그(F-44) |
 | `POST /api/orders` | `CreateOrderRequest { idempotencyKey: uuid, paymentMethod: 'cash'|'transfer' (transfer = 계좌이체), locale, items: [{ menuItemId: uuid, quantity: int 1..99, optionIds: uuid[] }] (1..20개) }` — 가격 필드 없음 — `totalAmount`, `price` 등 요청 규격에 없는 필드가 포함되면 Zod `strict()`로 400 `VALIDATION_ERROR`, 주문·항목 생성 및 재고 차감 없음(2026-09-26 팀장 결정, GitHub #45) | 201 신규 / 200 멱등 재요청: `CreateOrderResponse { orderId, pickupNumber, statusToken, status, totalAmount, createdAt, created: boolean }` | `paymentMethod` 누락·허용 외 값 → 400. 멱등키 기존 주문이면 속도 제한 미소비로 200. 신규면 `consume_rate_limit` → 초과 시 429 `RATE_LIMITED`(ADR-0009). 이후 ADR-0002 함수. 에러 409 OUT_OF_STOCK 등 |
-| `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 클라이언트 5초 폴링 |
+| `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 시각 4개는 ISO UTC `…Z`(밀리초)로 응답하고 대기 수 계산에는 DB 원본(µs)을 쓴다. 클라이언트 5초 폴링. 200 응답 `Cache-Control: private, no-store` |
 | `POST /api/orders/{token}/transfer-report` | 본문 없음 | `{ transferReportedAt }` | `status='pending' AND payment_method='transfer'`가 아니면(현금 주문 포함) 409 `INVALID_TRANSITION`. 이미 신고됨이면 기존 시각 그대로 200(멱등, F-43) |
 | `POST /api/orders/{token}/cancel-request` | 본문 없음 | `{ cancelRequestedAt }` | `status ∈ {pending,paid}` 아님 또는 `cancel_rejected_at` 있음 → 409 `CANCEL_REQUEST_NOT_ALLOWED`. 이미 요청됨이면 기존 시각 200(멱등, F-45) |
 
@@ -391,11 +393,11 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 | 화면 | 경로 | 상태 소유자(훅) | 데이터 원천·갱신 | 빈 값·로딩·에러 처리 위치 |
 |---|---|---|---|---|
-| 고객 메뉴판 | `/` | `useMenu(locale)` — `{ status: 'loading'|'ready'|'error', items, waitingCount, reload }` | `GET /api/menu` 마운트 시 + `GET /api/queue` 30초 | 로딩: `MenuSkeleton`; 에러: `ErrorRetry`(reload); 빈 값: `isAvailable` 메뉴 0개 → `EmptyState('menu.empty')`; 품절: `MenuCard disabled` + 라벨. 언어: `layout.tsx`가 쿠키/쿼리로 결정해 `LocaleProvider`로 하위 전달 |
-| 메뉴 상세(옵션·수량) | `/`의 `MenuDetailSheet`(모달, 라우트 없음) | `useCart`(zustand) `addItem` | 클라이언트 | 수량 상한 = `stock`(F-02) — `QuantityStepper max`. 옵션 min/max 미충족 시 담기 비활성 |
+| 고객 메뉴판 | `/` | `useMenu(locale)` — `{ status: 'loading'|'ready'|'error', items, waitingCount, reload }` | `GET /api/menu` 마운트 시 + `GET /api/queue` 30초 | 로딩: `MenuSkeleton`; 에러: `ErrorRetry`(reload); 빈 값: `isAvailable` 메뉴 0개 → `EmptyState('menu.empty')`; 품절: `MenuCard disabled` + 라벨. 검색(팀장 결정 2026-10-01): 이미 받은 목록을 이름·설명으로 거름(공백·대소문자 무시), 0건 → "검색 결과가 없습니다". 언어: `layout.tsx`가 쿠키/쿼리로 결정해 `LocaleProvider`로 하위 전달 |
+| 메뉴 상세(옵션·수량) | `/`의 `MenuDetailSheet`(모달, 라우트 없음) | `useCart`(zustand) `addItem` | 클라이언트 | 수량 상한 = `stock`(F-02) — `QuantityStepper max`. 옵션 min/max 미충족 시 담기 비활성. 필수 그룹(`minSelect ≥ 1`)의 선택지가 `minSelect`보다 적으면 담기 비활성 + 이유 문구(팀장 결정 7, 2026-10-01) |
 | 장바구니 | `/cart` | `useCart` — `items, total(=domain/pricing), update, remove, clear` + `useMenu`로 품절 재검사 | sessionStorage + 마운트 시 `GET /api/menu` | 빈 값: `EmptyCart` + 메뉴판 링크, 주문 버튼 비활성; 담은 메뉴가 품절/비활성 → 항목 경고 + 진행 차단 |
-| 결제수단 선택/확정 | `/checkout` | `useCheckout` — `{ paymentMethod, idempotencyKey, submitting, error, submit }` | `POST /api/orders` (재시도 DECISIONS #24) | 미선택 → 확정 비활성; `submitting` 중 버튼 잠금; `OUT_OF_STOCK` → `details`로 항목 표시 + `/cart` 복귀; 네트워크 실패 → 수동 재시도 버튼(장바구니 유지); `RATE_LIMITED`(429) → `errors.RATE_LIMITED` 문구("잠시 후 다시 시도") + 같은 수동 재시도 버튼 + 장바구니·멱등키 유지(F-47); 성공 → cart·key 폐기 후 `/orders/{token}` |
-| 주문 완료/상태 | `/orders/[token]` | `useOrderStatus(token)` — `{ status:'loading'|'ready'|'notFound'|'error', order, actions }` | `GET /api/orders/{token}` 5초 폴링 + `GET /api/settings/transfer`(계좌이체 주문만, 1회) | 404 → `NotFound('order.notFound')`; 로딩 표시; `TransferGuide`(계좌이체 안내 — 은행명·계좌번호·예금주·금액 + 복사 버튼 + 입금자명=픽업 번호 안내, 설정 빈값 → "준비 중"); `[송금했어요]`/`[취소 요청]` 버튼은 `canTransferReport`/`canCancelRequest`; 클릭 중 잠금, 실패 토스트; 거절됨 문구 `cancelRejectedAt` |
+| 결제수단 선택/확정 | `/checkout` | `useCheckout` — `{ paymentMethod, idempotencyKey, submitting, error, submit }` | `POST /api/orders` (재시도 DECISIONS #24) | 미선택 → 확정 비활성; P1은 현금만 — 계좌이체는 "(준비 중)"으로 비활성(`features/customer/paymentMethods.ts`, T-31 계좌 안내 때 다시 켬); `submitting` 중 버튼 잠금; `OUT_OF_STOCK` → `details`로 항목 표시 + `/cart` 복귀; 네트워크 실패 → 수동 재시도 버튼(장바구니 유지); `RATE_LIMITED`(429) → `errors.RATE_LIMITED` 문구("잠시 후 다시 시도") + 같은 수동 재시도 버튼 + 장바구니·멱등키 유지(F-47); 성공 → cart·key 폐기 후 `/orders/{token}?new=1` |
+| 주문 완료/상태 | `/orders/[token]` | `useOrderStatus(token)` — `{ status:'loading'|'ready'|'notFound'|'error', order, refreshFailed, retry }`(P2에서 `actions` 추가) | `GET /api/orders/{token}` 5초 폴링(완료·취소·환불·만료·404면 중지) + (P2) `GET /api/settings/transfer`(계좌이체 주문만, 1회) | `?new=1`이면 완료 보기(`OrderCompleteCard`) 먼저, "주문 현황 보기"로 전환; 404 → `NotFound('order.notFound')`; 로딩 표시; 주문을 받은 뒤 갱신 실패 → 픽업 번호 유지 + 안내(`refreshFailed`); (P2) `TransferGuide`(계좌이체 안내 — 은행명·계좌번호·예금주·금액 + 복사 버튼 + 입금자명=픽업 번호 안내, 설정 빈값 → "준비 중"); (P2) `[송금했어요]`/`[취소 요청]` 버튼은 `canTransferReport`/`canCancelRequest`; 클릭 중 잠금, 실패 토스트; 거절됨 문구 `cancelRejectedAt` |
 | 개인정보 고지 | `/privacy` | 없음(정적) | `messages` | 없음 — 정적. 고객 레이아웃 푸터 링크(1탭) |
 | 관리자 로그인 | `/admin/login` | 로컬 폼 상태 | `supabase.auth.signInWithPassword`(브라우저 클라이언트) → 성공 시 `/admin` | 빈칸 → 제출 비활성; 오류 메시지 표시. 회원가입 링크 없음 |
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
@@ -418,7 +420,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 재사용 컴포넌트 계약(요지): `components/*`는 props로만 데이터를 받고 fetch·전역 상태 접근을 하지 않는다(테스트·디자인 병렬을 위해). `OrderActionButtons`는 `availableActions`만 보고 버튼을 활성화한다 — 상태 머신 로직을 컴포넌트에 복제하지 않는다.
 
-관리자 라우트 보호: `src/app/admin/(protected)/layout.tsx`(서버 컴포넌트)에서 `@supabase/ssr` 세션 클라이언트로 `getUser()` → 없으면 `redirect('/admin/login')`. 추가로 `middleware.ts`에서 `/admin/(?!login)` 경로에 세션 쿠키 갱신(`@supabase/ssr` 권장 패턴). API는 각 핸들러의 `requireAdmin()`이 최종 판정(레이아웃 가드는 UX용).
+관리자 라우트 보호: `src/app/admin/(protected)/layout.tsx`(서버 컴포넌트)에서 `@supabase/ssr` 세션 클라이언트로 `getUser()` → 없으면 `redirect('/admin/login')`. 추가로 `src/proxy.ts`(Next.js 16 proxy — 옛 `middleware.ts`)가 matcher `/admin/:path*`(로그인 화면 포함)에서 세션 쿠키를 갱신하고(`@supabase/ssr` 권장 패턴), 비로그인 `/admin/*` → `/admin/login`, 로그인 상태 `/admin/login` → `/admin`으로 보낸다. 두 redirect 모두 `getUser()`가 갱신·삭제한 세션 쿠키를 redirect 응답에 옮겨 싣는다. 관리자 로그아웃은 `signOut({ scope: 'local' })`로 이 기기 세션만 끝낸다(DECISIONS #48). API는 각 핸들러의 `requireAdmin()`이 최종 판정(레이아웃 가드는 UX용).
 
 ### 계층 규칙 (DB·외부 API가 있는 프로젝트만 — 없으면 "해당 없음" 기재)
 
@@ -428,7 +430,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|
 | 의존성 방향 | `domain` ← `services` ← `infra/repositories`·`app/api`·`features` ← `app/(pages)`. `domain`은 어떤 것도 import하지 않는다(zod 포함 — 타입만). `services`는 `ports.ts`와 `domain`만 import. `next/*`·`@supabase/*`는 `infra`와 `app`에서만 |
 | Repository 포트 | `src/services/ports.ts`에 TS 인터페이스: `OrderRepository { createOrder(input): Promise<CreateOrderResult>; findByToken(token); findById(id); transition(...); setTransferReported(id); setCancelRequested(id); rejectCancelRequest(id, actorId, reason); acknowledge(id, actorId); list(filter); countWaitingBefore(createdAt?) }`, `MenuRepository`, `SettingsRepository`, `RateLimitRepository { consume(scope: string, key: string, limit: number, windowSeconds: number, now?: Date): Promise<boolean> }`(ADR-0009), `Clock { now(): Date }`. `OrderRepository`에 `findByIdempotencyKey(key)` 포함. 구현체는 `src/infra/repositories/supabase*.ts`. 주입은 함수 인자 기본값(`createOrder(dto, deps = defaultDeps())`) — DI 컨테이너 없음 |
-| DTO ↔ 도메인 변환 위치 | 요청: Route Handler에서 zod parse → 서비스에 DTO 타입 전달. 응답: `src/infra/repositories/mappers.ts`의 `toAdminOrderDto`, `toOrderStatusDto`, `toMenuItemDto` — DB 행을 API로 직접 반환 금지(스프레드 금지, 필드 명시 나열 — 2차 `phone_encrypted` 누출 방지) |
+| DTO ↔ 도메인 변환 위치 | 요청: Route Handler에서 zod parse → 서비스에 DTO 타입 전달. 응답: DB 행 → 포트 타입 변환은 `src/infra/repositories/mappers.ts`(`toAdminOrderDto`, `toOrderByTokenResult`, `toMenuItemRecord`), 폴백·거르기·시각 표기처럼 규칙이 있는 응답 DTO 조립은 서비스(`getOrderByToken`, `getMenu`) — DB 행을 API로 직접 반환 금지(스프레드 금지, 필드 명시 나열 — 2차 `phone_encrypted` 누출 방지) |
 | 순환 의존성 | 금지. `features` ↔ `components` 사이도 단방향(features가 components를 렌더, components는 features를 모른다). ESLint `import/no-cycle` + `no-restricted-imports`(`domain`·`services`에서 `next`, `@supabase` 금지)를 T-01에 설정 |
 
 ## 테스트 전략
@@ -440,7 +442,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 테스트 프레임워크 | 단위·통합: **Vitest** (+ `@testing-library/react`, `jsdom` 환경은 컴포넌트 테스트 파일에만 `// @vitest-environment jsdom`). E2E: **Playwright** (chromium, 고객 화면은 `devices['Pixel 7']`·`devices['iPhone 14']` 프로젝트 2개, 관리자는 데스크톱 chromium). 부하: k6 (2차 T-29, `tests/load/order-create.js`) |
 | 테스트 디렉토리 배치 | `tests/unit/**/*.test.ts(x)` (DB 불필요, ports mock) · `tests/integration/**/*.test.ts` (로컬 Supabase 필수, 파일 직렬) · `tests/e2e/**/*.spec.ts`. 소스 옆 co-location 금지(6명 병렬 시 위치 규칙 하나로) |
 | 커버 범위 기준 | N-13 목록을 최소 필수로: 가격 재계산·옵션 추가 가격·멱등키·재고 차감·연속 픽업 번호(통합), 재고 복구·환불(통합), 자동 만료 경계 + 송금 신고 제외(통합, `p_now` 주입), 송금 신고·취소 요청 멱등(통합), 대기 수(통합), 토큰 검증(통합), 상태 머신 표 전수(단위 — 7상태 × 8action 매트릭스, 불허가 409인지), 장바구니 합계·수량 경계(단위), 번역 폴백(단위), 피드 병합·연결 감시 타이머(단위, fake timers), CSV 헤더·합계 일치(단위). 속도 제한(F-47, T-51): `consume_rate_limit` 100회 `true`·101회째 `false`·`p_now`+60초 `true`(통합), 같은 멱등키 재요청 시 카운트 불변(통합), `getClientIp` 헤더 우선순위·없음→`'unknown'`(단위). 설정 패널(F-48, T-52): 키별 zod 범위(단위), `PUT` 부분 갱신·알 수 없는 키 400(통합). E2E 1개(T-24 시나리오). 수치 커버리지 임계값은 두지 않는다(요구 없음) |
-| Mock/Stub 대상 (외부 의존성) | 단위: `ports.ts` 인터페이스를 in-memory 구현(`tests/unit/fakes/*.ts`)으로 대체, `Clock`은 고정 시각. 시간은 `vi.useFakeTimers()`. 통합: mock 없음 — 로컬 Supabase 실물(ADR-0007). E2E: 로컬 Supabase + `next dev`, 관리자 계정은 셋업에서 로컬 Auth Admin API로 생성. 외부 은행 앱은 테스트하지 않음(간편결제는 2026-09-24 제외) |
+| Mock/Stub 대상 (외부 의존성) | 단위: `ports.ts` 인터페이스를 in-memory 구현(`tests/unit/fakes/*.ts`)으로 대체, `Clock`은 고정 시각. 시간은 `vi.useFakeTimers()`. 통합: mock 없음 — 로컬 Supabase 실물(ADR-0007). 동작을 바꾸는 mock(예: `requireAdmin`) 금지, import 차단 해제용 `server-only` 스텁만 허용 — Route Handler·인증 경계는 단위, 로그인 포함 흐름은 E2E(DECISIONS #46). E2E: 로컬 Supabase + `next dev`, 관리자 계정은 셋업에서 로컬 Auth Admin API로 생성. 외부 은행 앱은 테스트하지 않음(간편결제는 2026-09-24 제외) |
 | T-01 스모크 범위 | (1) `tests/unit/smoke.test.ts` — `domain/i18n/locales.ts`의 `DEFAULT_LOCALE === 'ko'` 단언(도메인 모듈 import 경로 검증) (2) `tests/e2e/smoke.spec.ts` — `/` 접속 시 `<html lang>` 존재 + 200. (3) `npm run build` 성공. (4) CodingRules "검증된 명령어"에 `npm run dev` / `npm run build` / `npm run test` / `npm run test:e2e` / `npx supabase start` 원문 등록. (5) `.github/workflows/ci.yml` 생성 + 첫 push에서 녹색 확인(아래 CI 행). 통합 테스트 명령(`npm run test:integration`)은 T-02(로컬 Supabase 연결)에서 등록 |
 | CI | **GitHub Actions 도입**(PRD Open Question #34 — 승인, DECISIONS #34). 파일 `.github/workflows/ci.yml`, 소유는 소스 코드(BE2). 트리거: 모든 브랜치 `push` + `dev`·`main` 대상 `pull_request`. 잡 ① `unit-build`(T-01): `ubuntu-latest`, `actions/setup-node` Node 20 + npm 캐시, `npm ci` → `npm run lint` → `npm run test` → `npm run build`(빌드용 `NEXT_PUBLIC_SUPABASE_URL`·`ANON_KEY`는 더미 값 — 빌드는 DB에 접속하지 않는다). 잡 ② `integration`(T-02에서 추가): `supabase/setup-cli` → `supabase start` → `npm run test:integration` → `supabase stop`. 로컬 스택 고정 키는 `supabase status -o env`로 잡 안에서 읽는다(GitHub Secrets 불필요 — 시크릿 0개). E2E는 CI 미포함 — Playwright 브라우저 설치·`next dev` 기동 비용 대비 E2E 1개(요구 없음, T-24 로컬 실행). 병합 게이트: DoD의 "테스트 통과"는 CI 녹색으로 증빙(수동 실행 출력 대체 가능) |
 | 통합·E2E 로컬 실행 지침 (Docker) | PRD Open Question #38 운영 지침: **팀원 전원 Docker Desktop 설치 불가 판정(2026-09-22 팀장 지시)**. 로컬에서는 단위 테스트 위주로 실행하고, 통합 테스트는 GitHub Actions CI 잡 ②(`supabase start` 기반)에 맡긴다(ADR-0007 규격 유지). 검증 전환 요청에 첨부하는 통합 테스트 근거는 CI 실행 링크로 갈음한다 |
@@ -455,7 +457,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 | 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`dev`를 프로덕션 배포 브랜치로 사용**한다. `dev`에 병합된 코드가 프로토타입 및 실제 운영 배포 대상으로 반영되도록 한다. feature 브랜치는 프리뷰 환경으로 확인한다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
 | 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`dev`). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 `dev` 외 배포·DB 마이그레이션을 금지한다(T-30 동결 규칙). |
 | 환경별 설정 | Cloudflare Workers 환경변수/Secrets에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`를 설정한다. `SUPABASE_SERVICE_ROLE_KEY`와 `PHONE_ENCRYPTION_KEY`는 서버 전용 Secret으로 관리한다. 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
-| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB 담당이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후. 예외(2026-09-24): T-53의 `orders.transfer_method` 삭제는 이 컬럼을 쓰는 앱 코드가 아직 배포 전(P0)이라 배포 전에 적용 — 이후 삭제는 원칙대로 앱 배포 후. 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36). |
+| DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB1(서동혁, DECISIONS #47)이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후. 예외(2026-09-24): T-53의 `orders.transfer_method` 삭제는 이 컬럼을 쓰는 앱 코드가 아직 배포 전(P0)이라 배포 전에 적용 — 이후 삭제는 원칙대로 앱 배포 후. 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36, DB1). seed의 계좌 3개(`transfer.*`)는 빈 값이므로 적용 후 팀장이 Table Editor로 입력한다 — 절차 [T-30](T-30-transfer-settings.md). seed 적용 후 DB1은 메뉴 데이터도 확인한다 — 활성 메뉴의 활성 필수 옵션 그룹 중 ko 이름이 없거나 공백인 것 0건: `SELECT g.id FROM option_groups g JOIN menu_items m ON m.id = g.menu_item_id LEFT JOIN option_group_translations t ON t.option_group_id = g.id AND t.locale = 'ko' WHERE m.is_active AND g.is_active AND g.min_select >= 1 AND (t.name IS NULL OR btrim(t.name) = '')` (메뉴 API는 ko 이름 없는 그룹을 숨기므로, 필수 그룹이 숨겨지면 그 메뉴는 보이지만 주문할 수 없다). |
 | 롤백 절차 | 앱: Cloudflare Workers Deployments에서 이전 배포 버전으로 Rollback한다. DB는 되돌리기 마이그레이션 없이 전진 수정(새 마이그레이션)을 원칙으로 한다. 데이터 손상 대비 축제 전 `supabase db dump`로 수동 백업 1회(T-25). |
 | 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 테스트 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 한다. |
 | 배포 전 필수 설정(Supabase 대시보드) | Auth → 이메일 회원가입 비활성화, 관리자 계정 2~3개 생성(F-20), pg_cron 가용 확인(ADR-0006). 절차는 T-30에 기록한다. |

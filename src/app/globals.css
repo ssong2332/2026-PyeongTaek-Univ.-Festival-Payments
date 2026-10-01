@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* 고객 화면 색(피그마 "대동제 호떡" 미리보기 캡처에서 추정한 값 — 정확한 hex가 아니다) */
+@theme {
+    --color-cream: #fdf8f3;
+    --color-brand: #e8703a;
+    --color-brand-deep: #8b3a1e;
+    --color-brand-amber: #d08a35;
+    --color-badge: #f5e08a;
+}
+
 body {
     margin: 0;
     background: #ffffff;
