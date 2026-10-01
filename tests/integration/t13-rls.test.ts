@@ -64,10 +64,14 @@ async function must<T>(label: string, promise: PromiseLike<{ data: T; error: unk
   return data as NonNullable<T>;
 }
 
-// 함수가 이 DB에 있는지는 service_role로 부작용 없는 호출을 해 보고 판단한다(없으면 PostgREST PGRST202).
-async function functionExists(fn: string, args: Record<string, unknown>): Promise<boolean> {
-  const { error } = await service.rpc(fn, args);
-  return error?.code !== "PGRST202";
+function expectFunctionExecutionDenied(
+  error: { code?: string; message?: string } | null,
+  functionName: "create_order" | "transition_order",
+): void {
+  expect(error).not.toBeNull();
+  expect(error?.code).toBe("42501");
+  expect(error?.message).toContain("permission denied for function");
+  expect(error?.message).toContain(functionName);
 }
 
 const createOrderArgs = {
@@ -176,16 +180,13 @@ describe("비로그인(anon) 클라이언트", () => {
     expect(setting).toEqual([{ value: "before" }]);
   });
 
-  test("DB 함수(create_order·transition_order)를 실행하지 못한다", async () => {
-    if (await functionExists("create_order", { ...createOrderArgs, p_idempotency_key: randomUUID() })) {
-      const { error } = await anon.rpc("create_order", createOrderArgs);
-      expect(error).not.toBeNull();
-    }
-    if (await functionExists("transition_order", { ...transitionArgs, p_order_id: randomUUID() })) {
-      const { error } = await anon.rpc("transition_order", transitionArgs);
-      expect(error).not.toBeNull();
-      expect((await orderRow()).status).toBe("pending");
-    }
+  test("DB 함수(create_order·transition_order)를 실제 EXECUTE 권한에서 거부한다", async () => {
+    const createOrder = await anon.rpc("create_order", createOrderArgs);
+    expectFunctionExecutionDenied(createOrder.error, "create_order");
+
+    const transitionOrder = await anon.rpc("transition_order", transitionArgs);
+    expectFunctionExecutionDenied(transitionOrder.error, "transition_order");
+    expect((await orderRow()).status).toBe("pending");
   });
 });
 
@@ -219,15 +220,12 @@ describe("로그인한 관리자(authenticated) 클라이언트", () => {
     expect(menu.stock).toBe(1);
   });
 
-  test("DB 함수도 직접 실행하지 못한다(Route Handler의 service_role만)", async () => {
-    if (await functionExists("create_order", { ...createOrderArgs, p_idempotency_key: randomUUID() })) {
-      const { error } = await admin.rpc("create_order", createOrderArgs);
-      expect(error).not.toBeNull();
-    }
-    if (await functionExists("transition_order", { ...transitionArgs, p_order_id: randomUUID() })) {
-      const { error } = await admin.rpc("transition_order", transitionArgs);
-      expect(error).not.toBeNull();
-      expect((await orderRow()).status).toBe("pending");
-    }
+  test("DB 함수도 실제 EXECUTE 권한에서 거부한다(Route Handler의 service_role만)", async () => {
+    const createOrder = await admin.rpc("create_order", createOrderArgs);
+    expectFunctionExecutionDenied(createOrder.error, "create_order");
+
+    const transitionOrder = await admin.rpc("transition_order", transitionArgs);
+    expectFunctionExecutionDenied(transitionOrder.error, "transition_order");
+    expect((await orderRow()).status).toBe("pending");
   });
 });
