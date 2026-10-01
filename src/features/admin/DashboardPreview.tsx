@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
+import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 
 export function makePreviewOrders(): AdminOrderDto[] {
     const menus = [["기본호떡", 2000], ["뿌링클 호떡", 2500], ["불닭 치즈 호떡", 3500], ["맛다시 호떡", 4000]] as const;
@@ -16,7 +17,10 @@ export function makePreviewOrders(): AdminOrderDto[] {
         transferReportedAt: i === 1 ? "2026-09-25T10:30:00.000Z" : null,
         cancelRequestedAt: null, cancelRejectedAt: null, paidAt: i > 1 ? "2026-09-25T10:30:00.000Z" : null,
         cookingStartedAt: null, completedAt: null, closedAt: null, refundChannel: null,
-        lastReason: null, availableActions: [],
+        lastReason: null, availableActions: availableActions({
+            status: (["pending", "pending", "cooking", "completed"] as const)[i],
+            paymentMethod: i % 2 ? "transfer" : "cash",
+        }),
     }));
 }
 export function DashboardPreview() {
@@ -28,5 +32,15 @@ export function DashboardPreview() {
         onSearch={async number => current.current.filter(order => order.pickupNumber === number)}
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {
             ...order, acknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-        } : order))} />;
+        } : order))}
+        onTransition={async (id, action) => {
+            const order = current.current.find(item => item.id === id);
+            if (!order) throw new Error("Order not found");
+            const result = resolveTransition(order, action, {});
+            if (!result.ok) throw new Error(result.code);
+            replace(current.current.map(item => item.id === id ? {
+                ...item, status: result.to, updatedAt: new Date().toISOString(),
+                availableActions: availableActions({ status: result.to, paymentMethod: item.paymentMethod }),
+            } : item));
+        }} />;
 }
