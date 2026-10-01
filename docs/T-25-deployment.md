@@ -56,6 +56,15 @@ Project structure:
 Overall: 91% compatible (10 supported, 0 partial, 1 issues)
 ```
 - **판정**: Next.js App Router 핵심 API 및 Route Handler, 라이브러리가 정상 호환됨을 확인.
+- **2026-10-01 재검사(팀장 인수)**: 현재 코드를 `vinext` 1.0.0으로 다시 검사한 결과 **100% compatible(13 supported, 0 partial, 0 issues)** — `src/proxy.ts`(Next.js 16)·라우트 핸들러 10개·페이지 8개·`lucide-react` 포함. 09-28의 "1 issue"는 당시 버전·코드 기준이라 지금은 재현되지 않는다.
+- **배포 경로 선택: OpenNext (DECISIONS #52)**. 이유:
+  | 항목 | vinext | OpenNext |
+  |---|---|---|
+  | 방식 | Next 빌드를 Vite로 대체("next CLI 대체") | `next build` 결과를 Worker로 변환 |
+  | CI와의 관계 | CI가 검증하는 `next build`와 다른 산출물이 배포됨 | CI가 검증하는 빌드가 배포됨(CI가 Worker 번들 생성도 확인) |
+  | 적용 범위 | `type: module`, vite 등 패키지 5개, `vite.config.ts`, 개발·빌드 명령 변경 | devDependencies 2개, `open-next.config.ts`, `wrangler.jsonc` |
+  | 성숙도(npm) | 2026-02 첫 공개, 1.0.0은 2026-09-28 | 2024-09 첫 공개, 158개 버전, 1.20.7은 2026-09-29 |
+  | 확인 | 정적 검사 100% | 실제 Worker 빌드 성공(2026-10-01 로컬 Windows, `.open-next/worker.js`·assets 생성, Node.js middleware 번들) |
 
 ### 2.2. 실제 Worker 산출물 생성: `@opennextjs/cloudflare`
 Cloudflare Workers에서 Next.js를 서빙하기 위한 Worker 엔트리포인트 및 정적 에셋 번들 산출물은 OpenNext 어댑터를 통해 생성합니다.
