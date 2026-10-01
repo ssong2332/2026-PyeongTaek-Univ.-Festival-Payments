@@ -33,6 +33,10 @@ venv/
 
 # Next.js
 .next/
+
+# Cloudflare Workers(OpenNext·wrangler) 빌드 산출물 — T-25
+.open-next/
+.wrangler/
 next-env.d.ts
 *.tsbuildinfo
 
