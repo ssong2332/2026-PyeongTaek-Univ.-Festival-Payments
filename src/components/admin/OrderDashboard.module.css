@@ -18,7 +18,7 @@
 .heading { display:flex; gap:12px; align-items:center; }
 .logo { background:linear-gradient(135deg,#92400e,#f59e0b); border-radius:14px; padding:12px; color:white; }
 .heading h1 { font-size:24px; font-weight:900; color:#451a03; }
-.heading p { font-size:13px; color:#a16207; margin-top:5px; }
+.heading p { font-size:13px; color:var(--brown); margin-top:5px; }
 .notice { color:#92400e; margin:14px 0!important; font-size:13px; min-height:20px; }
 .error { padding:14px; border:1px solid #fecaca; background:#fef2f2; color:#991b1b; border-radius:12px; margin-bottom:16px; }
 .stats { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; margin:20px 0; }
