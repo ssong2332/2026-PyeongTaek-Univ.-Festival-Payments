@@ -15,3 +15,14 @@
 .actions button { border:0; border-radius:10px; background:#92400e; color:white; padding:11px 20px; font:inherit; font-weight:700; cursor:pointer; }
 .actions button:disabled { opacity:.5; cursor:not-allowed; }
 @media (max-width:600px) { .panel { padding:20px; } .row { align-items:flex-start; flex-direction:column; justify-content:center; gap:12px; padding:16px 0; } }
+.groupHeading { padding:22px 0 8px; }
+.groupHeading:not(:first-child) { border-top:1px solid #e7e5e4; margin-top:20px; }
+.groupHeading h3 { margin:0; color:#451a03; font-size:17px; }
+.groupHeading p { margin:6px 0 0; color:#78716c; font-size:13px; }
+.inputWrap { width:min(100%,320px); }
+.textInput { box-sizing:border-box; width:100%; padding:10px; border:1px solid #d6d3d1; border-radius:10px; font:inherit; }
+.textInput:focus-visible { outline:3px solid #7c3aed; outline-offset:3px; }
+.fieldError { margin:6px 0 0; color:#991b1b; font-size:13px; }
+.missing { color:#9a3412 !important; }
+.warning { margin:16px 0; padding:12px; border-radius:10px; background:#fffbeb; color:#92400e; font-size:13px; line-height:1.5; }
+@media (max-width:600px) { .inputWrap { width:100%; } }
