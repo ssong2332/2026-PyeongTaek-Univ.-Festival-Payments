@@ -1,14 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { makePreviewOrders } from "@/features/admin/DashboardPreview";
 import { LiveOrderDashboard } from "@/features/admin/LiveOrderDashboard";
+import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const reloadOrders = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock("@/features/admin/useOrdersFeed", () => ({
-    useOrdersFeed: () => ({ orders: makePreviewOrders(), isLoading: false, error: null, reload: reloadOrders }),
-}));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+// reload()가 서버에서 다시 받아 올 주문 목록. null이면 목록을 바꾸지 않는다.
+const server = vi.hoisted(() => ({ orders: null as AdminOrderDto[] | null }));
+vi.mock("@/features/admin/useOrdersFeed", async () => {
+    const { useState } = await import("react");
+    return {
+        useOrdersFeed: () => {
+            const [orders, setOrders] = useState(makePreviewOrders);
+            return { orders, isLoading: false, error: null, reload: async () => {
+                await reloadOrders();
+                if (server.orders) setOrders(server.orders);
+            } };
+        },
+    };
+});
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null; });
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {
     const updated = { ...makePreviewOrders()[0], acknowledgedAt: "2026-09-25T11:00:00.000Z", updatedAt: "2026-09-25T11:00:00.000Z" };
@@ -53,5 +65,26 @@ it("reloads the order after a conflicting transition response", async () => {
     fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
     fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
+    expect(reloadOrders).toHaveBeenCalledTimes(1);
+});
+
+it("returns the card to the latest server state after a 409 and keeps the failure next to the buttons", async () => {
+    server.orders = makePreviewOrders().map(order => order.pickupNumber === 1 ? {
+        ...order, status: "cooking", updatedAt: "2026-09-25T11:00:00.000Z",
+        paidAt: "2026-09-25T11:00:00.000Z", cookingStartedAt: "2026-09-25T11:00:00.000Z",
+        availableActions: ["complete", "refund"],
+    } : order);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+        error: { code: "STATE_CHANGED", message: "Order state has changed." },
+    }), { status: 409 })));
+    render(<LiveOrderDashboard />);
+    fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+    fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+    await waitFor(() => expect(within(screen.getByRole("group", { name: "주문 상태 변경" }))
+        .getByRole("alert").textContent).toContain("상태 변경에 실패"));
+    const actions = screen.getByRole("group", { name: "주문 상태 변경" });
+    expect((within(actions).getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((within(actions).getByRole("button", { name: "현금 수령 확인" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(screen.getByRole("region", { name: "주문 상세" })).getByText("조리중")).toBeTruthy();
     expect(reloadOrders).toHaveBeenCalledTimes(1);
 });

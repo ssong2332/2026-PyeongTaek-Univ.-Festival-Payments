@@ -8,16 +8,19 @@ const ACTIONS = [
     { action: "complete", label: "조리 완료" },
 ] as const;
 
-export function OrderActionButtons({ availableActions, pendingAction, disabled, onAction }: {
+export function OrderActionButtons({ availableActions, pendingAction, disabled, error, onAction }: {
     availableActions: TransitionAction[];
     pendingAction: TransitionAction | null;
     disabled: boolean;
+    error?: string;
     onAction: (action: TransitionAction) => void;
 }) {
-    return <div className={styles.actions} aria-label="주문 상태 변경">
+    return <div className={styles.actions} role="group" aria-label="주문 상태 변경">
         <h2>상태 변경</h2>
         <div>{ACTIONS.map(({ action, label }) => <button key={action} type="button"
             disabled={disabled || !availableActions.includes(action)}
+            aria-busy={pendingAction === action || undefined}
             onClick={() => onAction(action)}>{pendingAction === action ? "처리 중…" : label}</button>)}</div>
+        {error && <p role="alert" className={styles.actionError}>{error}</p>}
     </div>;
 }
