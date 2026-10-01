@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { GET } from "@/app/api/settings/transfer/route";
 
 vi.mock("server-only", () => ({}));
 
@@ -22,7 +23,6 @@ vi.mock("@/infra/supabase/server", () => ({
 
 describe("GET /api/settings/transfer", () => {
     it("Route Handler가 정상적으로 계좌이체 TransferSettingsDto JSON(200)을 반환한다", async () => {
-        const { GET } = await import("@/app/api/settings/transfer/route");
         const response = await GET();
 
         expect(response.status).toBe(200);

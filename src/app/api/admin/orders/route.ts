@@ -5,11 +5,12 @@ import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRep
 import { requireAdmin } from "@/infra/supabase/session";
 import type { OrderStatus } from "@/domain/order/status";
 import { ORDER_STATUSES } from "@/domain/order/status";
+import { parseKstDateParam } from "@/lib/api/params";
 
 export const dynamic = "force-dynamic";
 
 export const GET = withHandler(
-    async (request: NextRequest) => {
+    async (request?: NextRequest) => {
         await requireAdmin();
         const repository = new SupabaseAdminOrderRepository();
 
@@ -19,7 +20,8 @@ export const GET = withHandler(
 
         if (request) {
             const url = new URL(request.url);
-            date = url.searchParams.get("date") ?? undefined;
+            // 없으면 서비스가 오늘(KST)로 채운다. 달력에 없는 날짜는 400.
+            date = parseKstDateParam(url.searchParams.get("date"));
             const statusParam = url.searchParams.get("status");
             if (statusParam) {
                 statusList = statusParam
