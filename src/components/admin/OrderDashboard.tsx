@@ -46,6 +46,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     const [pendingAction, setPendingAction] = useState<TransitionAction | null>(null);
     const [notice, setNotice] = useState("");
     const [actionError, setActionError] = useState("");
+    const [transitionError, setTransitionError] = useState<{ id: string; message: string } | null>(null);
     const searchVersion = useRef(0);
     const acknowledging = useRef(false);
     const transitioning = useRef(false);
@@ -91,7 +92,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     }
     async function acknowledge(order: AdminOrderDto) {
         if (acknowledging.current || transitioning.current) return;
-        acknowledging.current = true; setPendingId(order.id); setActionError(""); setNotice("");
+        acknowledging.current = true; setPendingId(order.id); setActionError(""); setTransitionError(null); setNotice("");
         try {
             await onAcknowledge(order.id);
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문을 확인했습니다.`);
@@ -111,16 +112,29 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     }
     async function transitionOrder(order: AdminOrderDto, action: TransitionAction, input?: CancelRefundInput) {
         if (transitioning.current || acknowledging.current || !order.availableActions.includes(action)) return;
-        transitioning.current = true; setPendingId(order.id); setPendingAction(action); setActionError(""); setNotice("");
+        transitioning.current = true; setPendingId(order.id); setPendingAction(action);
+        setActionError(""); setTransitionError(null); setNotice("");
         try {
             if (input) await onTransition(order.id, action, input);
             else await onTransition(order.id, action);
-            if (searchNumber !== null) setSearchResults(await onSearch(searchNumber));
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문 상태를 변경했습니다.`);
+            if (searchNumber !== null) {
+                const version = searchVersion.current;
+                try {
+                    const result = await onSearch(searchNumber);
+                    if (version === searchVersion.current) setSearchResults(result);
+                } catch {
+                    if (version === searchVersion.current) {
+                        setActionError("상태는 변경됐지만 검색 결과를 새로고침하지 못했습니다.");
+                    }
+                }
+            }
         } catch (error) {
-            setActionError(error instanceof TransitionRequestError
+            const message = error instanceof TransitionRequestError
                 ? error.message
-                : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.");
+                : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.";
+            if (action === "cancel" || action === "refund") setActionError(message);
+            else setTransitionError({ id: order.id, message });
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }
@@ -132,15 +146,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
 
     return <div className={styles.shell}>
         <aside className={styles.sidebar}>
-            <div className={styles.brand}><UtensilsCrossed size={30} /><div><strong>호떡 부스</strong><small>축제 현장 주문 관리</small></div></div>
-            <div className={styles.operator}>운영자 화면<small>{preview ? "목업 미리보기" : "주문 관리"}</small></div>
             <nav aria-label="관리자 메뉴">{([
                 ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
             ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
                 onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}</nav>
             <p className={styles.sideNote}><Bell size={16} /> 미확인 주문 {unacknowledged}건</p>
         </aside>
-        <main className={styles.main}>
+        <div className={styles.main}>
             <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : "주문 관리"}</strong>
                 <button onClick={reload} disabled={isLoading}>새로고침</button></header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
@@ -191,10 +203,11 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                             {selected.cancelRequestedAt && !selected.cancelRejectedAt && <p className={styles.reported}>취소 요청됨 · {time(selected.cancelRequestedAt)}</p>}
                             {selected.lastReason && <p>처리 사유: {selected.lastReason}</p>}
                             {isUnacknowledged(selected) ? <div className={styles.confirm}><strong>새 주문 · 미확인</strong><p>주문 확인은 입금 확인과 별개의 처리입니다.</p>
-                                <button onClick={() => acknowledge(selected)} disabled={pendingId !== null}>{pendingId === selected.id ? "확인 처리 중…" : "확인 처리"}</button></div> : <p className={styles.notice}>{selected.acknowledgedAt ? "확인한 주문입니다." : "처리가 종료된 주문입니다."}</p>}
+                                <button onClick={() => acknowledge(selected)} disabled={pendingId !== null}>{pendingId === selected.id && pendingAction === null ? "확인 처리 중…" : "확인 처리"}</button></div> : <p className={styles.notice}>{selected.acknowledgedAt ? "확인한 주문입니다." : "처리가 종료된 주문입니다."}</p>}
                             <OrderActionButtons availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
                                 disabled={pendingId !== null}
+                                error={transitionError?.id === selected.id ? transitionError.message : undefined}
                                 onAction={action => transitionOrder(selected, action)} />
                             <OrderCancelRefund key={selected.id} paymentMethod={selected.paymentMethod}
                                 availableActions={selected.availableActions}
@@ -205,6 +218,6 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     </section>
                 </section>
             </div>
-        </main>
+        </div>
     </div>;
 }

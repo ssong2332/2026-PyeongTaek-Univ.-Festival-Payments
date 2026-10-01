@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardPreview";
 
@@ -140,6 +140,65 @@ describe("T-16 order actions", () => {
         await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
         expect(screen.getAllByText("결제대기").length).toBeGreaterThan(0);
         expect(screen.queryByText("픽업 #001 주문 상태를 변경했습니다.")).toBeNull();
+    });
+
+    it("shows a failed transition next to the action buttons, only for that order", async () => {
+        const props = base(); props.onTransition.mockRejectedValue(new Error("409"));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        await waitFor(() => expect(within(screen.getByRole("group", { name: "주문 상태 변경" }))
+            .getByRole("alert").textContent).toContain("상태 변경에 실패"));
+        fireEvent.click(screen.getByRole("button", { name: "픽업 002 주문 상세" }));
+        expect(within(screen.getByRole("group", { name: "주문 상태 변경" })).queryByRole("alert")).toBeNull();
+        expect(screen.queryByText(/상태 변경에 실패/)).toBeNull();
+    });
+
+    it("clears an earlier failure when the next transition starts", async () => {
+        const props = base(); props.onTransition.mockRejectedValueOnce(new Error("500"));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        await waitFor(() => expect(screen.getByText(/상태 변경에 실패/)).toBeTruthy());
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        await waitFor(() => expect(screen.getByText("픽업 #001 주문 상태를 변경했습니다.")).toBeTruthy());
+        expect(screen.queryByText(/상태 변경에 실패/)).toBeNull();
+        expect(props.onTransition).toHaveBeenCalledTimes(2);
+    });
+
+    it("reports a search refresh failure separately after a transition succeeds", async () => {
+        const props = base();
+        const onSearch = vi.fn().mockResolvedValueOnce([props.orders[0]]).mockRejectedValueOnce(new Error("refresh failed"));
+        render(<OrderDashboard {...props} orders={[]} onSearch={onSearch} />);
+        fireEvent.change(screen.getByLabelText("픽업 번호"), { target: { value: "001" } });
+        fireEvent.click(screen.getByRole("button", { name: "검색" }));
+        await waitFor(() => expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy());
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledWith(props.orders[0].id, "confirm_cash"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("검색 결과를 새로고침하지 못했습니다"));
+        expect(screen.getByText("픽업 #001 주문 상태를 변경했습니다.")).toBeTruthy();
+        expect(screen.queryByText(/상태 변경에 실패/)).toBeNull();
+    });
+
+    it("marks only the pressed button busy and ignores repeated clicks until the server answers", async () => {
+        let finish!: () => void;
+        const props = base();
+        props.onTransition.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "현금 수령 확인" }));
+        const busy = screen.getByRole("button", { name: "처리 중…" });
+        expect(busy.getAttribute("aria-busy")).toBe("true");
+        expect(screen.getByRole("button", { name: "입금 확인" }).getAttribute("aria-busy")).toBeNull();
+        fireEvent.click(busy);
+        const acknowledge = screen.getByRole("button", { name: "확인 처리" }) as HTMLButtonElement;
+        expect(acknowledge.disabled).toBe(true);
+        fireEvent.click(acknowledge);
+        expect(props.onTransition).toHaveBeenCalledTimes(1);
+        expect(props.onAcknowledge).not.toHaveBeenCalled();
+        finish();
+        await waitFor(() => expect(screen.getByRole("button", { name: "현금 수령 확인" }).getAttribute("aria-busy")).toBeNull());
     });
 });
 
