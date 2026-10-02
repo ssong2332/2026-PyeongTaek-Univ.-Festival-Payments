@@ -53,7 +53,7 @@ test("실제 DB에서 겹치는 교대 등록·조회·수정·삭제", async ()
   await expect(deleteShift(repo, second.id)).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
 });
 test("서비스 검증과 DB 제약 모두 잘못된 시간·빈 이름을 차단한다", async () => {
-  await expect(saveShift(repo, { ...input, endsAt: "09:00" })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  expect(() => saveShift(repo, { ...input, endsAt: "09:00" })).toThrow("VALIDATION_ERROR");
   for (const change of [{ ends_at: "09:00" }, { person_name: " " }, { starts_at: "10:00:01" }]) {
     const { error } = await db.from("shifts").insert({
       person_name: prefix + "-invalid", date: input.date, starts_at: input.startsAt, ends_at: input.endsAt, role: input.role, ...change,
