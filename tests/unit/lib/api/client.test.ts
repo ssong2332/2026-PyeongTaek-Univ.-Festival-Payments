@@ -32,6 +32,12 @@ function hang(_url: string, init?: RequestInit) {
   });
 }
 
+// 헤더(상태 코드)는 왔지만 본문이 끝나지 않는 응답.
+const stalledBody = (status: number) => new Response(new ReadableStream({ start() {} }), { status });
+// 헤더는 왔지만 본문을 받다가 연결이 끊긴 응답.
+const brokenBody = (status: number) =>
+  new Response(new ReadableStream({ start(c) { c.error(new TypeError("terminated")); } }), { status });
+
 const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
 
 beforeEach(() => {
@@ -138,6 +144,34 @@ describe("postOrderWithRetry", () => {
     expect(error).toBeInstanceOf(AppError);
     expect(error).toMatchObject({ code, status, details });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("헤더를 받은 뒤 본문이 멈추면 8초 타임아웃으로 끊고 같은 멱등키로 재시도한다", async () => {
+    fetchMock.mockResolvedValueOnce(stalledBody(201)).mockResolvedValueOnce(json(200, { ...order, created: false }));
+    const promise = postOrderWithRetry(body).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(7_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.runAllTimersAsync();
+    expect(await promise).toEqual({ ...order, created: false });
+    expect(sentBodies()).toEqual([body, body]);
+  });
+
+  it("본문이 계속 멈추면 세 번 모두 끊고 INTERNAL_ERROR(상태 0 — 응답 없음)로 끝난다 → 화면은 수동 재시도", async () => {
+    fetchMock.mockImplementation(async () => stalledBody(201));
+    expect(await run()).toMatchObject({ code: "INTERNAL_ERROR", status: 0 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("본문을 받다가 연결이 끊기면 응답 없음과 같게 보고 재시도한다", async () => {
+    fetchMock.mockResolvedValueOnce(brokenBody(201)).mockResolvedValueOnce(json(201, order));
+    expect(await run()).toEqual(order);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("본문이 JSON이 아니면(예: 게이트웨이 HTML) 지금처럼 상태 코드로 판단한다", async () => {
+    fetchMock.mockImplementation(async () => new Response("<html>Bad Gateway</html>", { status: 502 }));
+    expect(await run()).toMatchObject({ code: "INTERNAL_ERROR", status: 502 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("성공 응답이 계약(CreateOrderResponseSchema)과 다르면 INTERNAL_ERROR, 재시도하지 않는다", async () => {
