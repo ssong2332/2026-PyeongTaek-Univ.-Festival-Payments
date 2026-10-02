@@ -12,7 +12,9 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "test:integration": "node --env-file-if-exists=.env.test.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts",
-    "test:connection": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.connection.config.mts"
+    "test:connection": "node --env-file=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.connection.config.mts",
+    "build:worker": "opennextjs-cloudflare build",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "@supabase/ssr": "0.9.0",
@@ -27,6 +29,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "1.20.7",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "10.4.2",
@@ -41,9 +44,10 @@
     "jsdom": "29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "wrangler": "4.145.0"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   }
 }

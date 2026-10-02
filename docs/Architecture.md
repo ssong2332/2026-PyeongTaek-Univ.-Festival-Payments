@@ -17,7 +17,7 @@
 | 차트 | recharts | F-30 메뉴별 판매율 (DECISIONS #28) |
 | 테스트 | Vitest(단위·통합), Playwright(E2E), Supabase CLI 로컬 스택 | ADR-0007 |
 | 배포 | Cloudflare Workers Free + Supabase Free, `*.workers.dev` | N-14. 한도는 "배포" 절 |
-| 패키지·런타임 | npm, Node 20 LTS | DECISIONS #28 |
+| 패키지·런타임 | npm, Node 22 LTS(`.nvmrc` 22.23.3 — 2026-10-01 Node 20에서 변경) | DECISIONS #28, #51 |
 
 ## 구조 개요
 
@@ -452,9 +452,9 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 
 | 항목 | 결정 |
 |---|---|
-| 호스팅 / 실행 대상 | **Cloudflare Workers Free + Supabase Free** 프로젝트 1개(프로덕션). T-50(2026-09-23) 검증 결과 비용 0원 방침에 따라 Vercel Hobby를 사용하지 않고 Cloudflare Workers Free로 전환 확정. 현재 프로젝트는 Next.js 16 계열이므로 Cloudflare 공식 권장 경로인 `vinext`를 T-25에서 우선 검증한다. `npx vinext check`로 호환성을 확인한 뒤 문제 없으면 `vinext init`을 적용하고, 호환 문제가 있으면 OpenNext 어댑터를 폴백으로 검토한다. 도메인은 구매하지 않고 `{worker}.{account-subdomain}.workers.dev` 사용(N-14). Worker 이름과 account subdomain은 T-25에서 확정한 후 QR 인쇄 전 변경 금지. Workers Free는 100,000 requests/day, CPU 10ms/request 한도이므로 요청량은 예상 200건/일에 충분하나 SSR/API CPU 사용량은 T-25 스모크·T-29 부하 검증에서 확인한다. |
-| 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`dev`를 프로덕션 배포 브랜치로 사용**한다. `dev`에 병합된 코드가 프로토타입 및 실제 운영 배포 대상으로 반영되도록 한다. feature 브랜치는 프리뷰 환경으로 확인한다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
-| 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`dev`). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 `dev` 외 배포·DB 마이그레이션을 금지한다(T-30 동결 규칙). |
+| 호스팅 / 실행 대상 | **Cloudflare Workers Free + Supabase Free** 프로젝트 1개(프로덕션). T-50(2026-09-23) 검증 결과 비용 0원 방침에 따라 Vercel Hobby를 사용하지 않고 Cloudflare Workers Free로 전환 확정. 배포 어댑터는 OpenNext(`@opennextjs/cloudflare`, devDependencies 고정)로 확정(DECISIONS #52, 2026-10-01 — 이전 판의 "vinext 우선 검증"을 개정). `next build` 결과를 Worker로 변환하며 CI unit-build가 Worker 번들 생성을 확인한다. 빌드 Node는 `.nvmrc`(22, DECISIONS #51). 도메인은 구매하지 않고 `{worker}.{account-subdomain}.workers.dev` 사용(N-14). Worker 이름과 account subdomain은 T-25에서 확정한 후 QR 인쇄 전 변경 금지. Workers Free는 100,000 requests/day, CPU 10ms/request 한도이므로 요청량은 예상 200건/일에 충분하나 SSR/API CPU 사용량은 T-25 스모크·T-29 부하 검증에서 확인한다. |
+| 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`main`을 프로덕션 배포 브랜치로 사용**한다(DECISIONS #53, 2026-10-01 — 이전 `dev`에서 변경). 작업은 `dev`에 병합해 통합·검증하고, `dev` → `main` PR을 병합할 때 운영 주소에 반영된다. 비프로덕션 브랜치 빌드(프리뷰)를 켜면 같은 운영 Supabase를 쓰므로 프리뷰에서 주문을 만들지 않는다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
+| 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`main`, DECISIONS #53). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 긴급 장애 수정 외의 `main` 병합(= 운영 배포)·DB 마이그레이션을 금지한다(T-30 동결 규칙 — 긴급 수정은 책임자 승인·최소 스모크 후). |
 | 환경별 설정 | Cloudflare Workers 환경변수/Secrets에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`를 설정한다. `SUPABASE_SERVICE_ROLE_KEY`와 `PHONE_ENCRYPTION_KEY`는 서버 전용 Secret으로 관리한다. 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
 | DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB1(서동혁, DECISIONS #47)이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후. 예외(2026-09-24): T-53의 `orders.transfer_method` 삭제는 이 컬럼을 쓰는 앱 코드가 아직 배포 전(P0)이라 배포 전에 적용 — 이후 삭제는 원칙대로 앱 배포 후. 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36, DB1). seed의 계좌 3개(`transfer.*`)는 빈 값이므로 적용 후 팀장이 Table Editor로 입력한다 — 절차 [T-30](T-30-transfer-settings.md). seed 적용 후 DB1은 메뉴 데이터도 확인한다 — 활성 메뉴의 활성 필수 옵션 그룹 중 ko 이름이 없거나 공백인 것 0건: `SELECT g.id FROM option_groups g JOIN menu_items m ON m.id = g.menu_item_id LEFT JOIN option_group_translations t ON t.option_group_id = g.id AND t.locale = 'ko' WHERE m.is_active AND g.is_active AND g.min_select >= 1 AND (t.name IS NULL OR btrim(t.name) = '')` (메뉴 API는 ko 이름 없는 그룹을 숨기므로, 필수 그룹이 숨겨지면 그 메뉴는 보이지만 주문할 수 없다). |
 | 롤백 절차 | 앱: Cloudflare Workers Deployments에서 이전 배포 버전으로 Rollback한다. DB는 되돌리기 마이그레이션 없이 전진 수정(새 마이그레이션)을 원칙으로 한다. 데이터 손상 대비 축제 전 `supabase db dump`로 수동 백업 1회(T-25). |
