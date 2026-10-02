@@ -55,6 +55,26 @@ export type TransitionCommand = {
     refundChannel: RefundChannel | null;
 };
 
+export interface OrderItemDetail {
+    name: string;
+    quantity: number;
+    options: string[];
+    lineTotal: number;
+}
+
+export interface OrderByTokenResult {
+    id: string;
+    pickupNumber: number;
+    status: OrderStatus;
+    paymentMethod: PaymentMethod;
+    totalAmount: number;
+    items: OrderItemDetail[];
+    createdAt: string;
+    transferReportedAt: string | null;
+    cancelRequestedAt: string | null;
+    cancelRejectedAt: string | null;
+}
+
 export interface OrderRepository {
     // rpc('create_order'). OUT_OF_STOCK·MENU_UNAVAILABLE·INVALID_OPTION은 AppError(409)로 바꿔 던진다.
     createOrder(input: CreateOrderRequest): Promise<CreateOrderResponse>;
@@ -63,4 +83,53 @@ export interface OrderRepository {
     findById(id: string): Promise<OrderForTransition | null>;
     // CAS 실패 시 AppError("STATE_CHANGED", 409)를 던진다.
     transition(command: TransitionCommand): Promise<OrderForTransition>;
+    // 상태 토큰으로 주문 및 항목 조회 (T-11 고객 상태 페이지, T-32 송금 신고 재사용). 없으면 null
+    findByToken(token: string): Promise<OrderByTokenResult | null>;
+    // 내 앞의 대기 주문 수(createdAt 제공 시) 또는 전체 대기 주문 수(미제공/null 시). status in ('pending','paid','cooking')
+    countWaitingBefore(createdAt?: string | null): Promise<number>;
+}
+
+// 메뉴 조회(GET /api/menu). 저장소는 거르지 않은 전체를 돌려주고, 비활성 제외·언어 폴백·품절 파생은 menuService가 한다.
+export interface MenuNameTranslation {
+    locale: string;
+    name: string;
+}
+
+export interface MenuItemTranslation extends MenuNameTranslation {
+    description: string | null;
+}
+
+export interface MenuOptionRecord {
+    id: string;
+    extraPrice: number;
+    sortOrder: number;
+    isActive: boolean;
+    translations: MenuNameTranslation[];
+}
+
+export interface MenuOptionGroupRecord {
+    id: string;
+    minSelect: number;
+    maxSelect: number;
+    sortOrder: number;
+    isActive: boolean;
+    translations: MenuNameTranslation[];
+    options: MenuOptionRecord[];
+}
+
+export interface MenuItemRecord {
+    id: string;
+    basePrice: number;
+    stock: number;
+    isSoldOutManual: boolean;
+    isActive: boolean;
+    sortOrder: number;
+    imageUrl: string | null;
+    translations: MenuItemTranslation[];
+    optionGroups: MenuOptionGroupRecord[];
+}
+
+export interface MenuRepository {
+    // 비활성 메뉴·그룹·옵션과 모든 언어의 번역을 포함한 전체.
+    listMenuItems(): Promise<MenuItemRecord[]>;
 }

@@ -3,7 +3,7 @@ import { withHandler } from "@/lib/api/handler";
 import { getAdminOrderById } from "@/services/adminOrderService";
 import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRepository";
 import { requireAdmin } from "@/infra/supabase/session";
-import { AppError } from "@/lib/api/errors";
+import { parseUuidParam } from "@/lib/api/params";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +14,7 @@ export const GET = withHandler(
     ) => {
         await requireAdmin();
         const params = await context?.params;
-        const id = params?.id;
-        if (!id) {
-            throw new AppError("NOT_FOUND", 404);
-        }
+        const id = parseUuidParam(params?.id);
 
         const repository = new SupabaseAdminOrderRepository();
         const order = await getAdminOrderById(repository, id);

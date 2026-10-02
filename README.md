@@ -56,7 +56,7 @@
 
 - **T-01(테스트 하네스 + CI)이 첫 작업** — 완료 전 다른 작업 착수 금지.
 - 새 기능은 실패하는 테스트부터(Red-Green-Refactor). 테스트 없는 기능은 미완료.
-- `main`·`dev` 직접 커밋 금지. 작업 브랜치는 `dev`로 PR — **`dev`가 배포 기준 브랜치**라 병합하면 바로 실제 서비스 주소에 반영된다(2026-09-23). 브랜치 `feat/T-xx-설명`, 커밋은 Conventional Commits, 병합 전 [DefinitionOfDone](docs/DefinitionOfDone.md) 통과.
+- `main`·`dev` 직접 커밋 금지. 작업 브랜치는 `dev`로 PR. **운영 배포 브랜치는 `main`** — `dev` → `main` PR을 병합하면 실제 서비스 주소(QR)에 반영된다(2026-10-01, DECISIONS #53). 브랜치 `feat/T-xx-설명`, 커밋은 Conventional Commits, 병합 전 [DefinitionOfDone](docs/DefinitionOfDone.md) 통과.
 - 실제 `.env`는 커밋하지 않는다. 계좌번호·송금 링크는 코드에 넣지 않고 설정 테이블로(ADR-0004).
 - 작업 상태(대기→진행→검증중→완료)는 팀장만 바꾼다. 팀원은 구현·테스트 근거를 첨부해 "검증 전환 요청".
 
@@ -78,7 +78,7 @@ messages/             # ko.json / en.json
 
 ## 실행·빌드·테스트
 
-Node 버전은 `.nvmrc`(20.20.2)를 사용한다. 먼저 `node --version`으로 확인한다.
+Node 버전은 `.nvmrc`(22.23.3)를 사용한다(2026-10-01 Node 20 → 22, DECISIONS #51). 먼저 `node --version`으로 확인한다.
 
 ```bash
 npm ci
@@ -105,7 +105,7 @@ Node 버전 선택 도구가 있다면 `.nvmrc`를 적용한다(예: nvm 사용�
 
 1. 팀 Supabase 프로젝트가 준비되면 루트의 `.env.example`을 `.env.local`로 복사한다.
 2. `.env.local`에 프로젝트 주소, 공개 키, 서버 전용 키를 입력한다. 이 파일은 Git에 올라가지 않는다. 실제 키를 채팅·PR·문서에 붙이지 않는다.
-3. Node 20.20.2에서 `npm ci`를 실행한 뒤 `npm run test:connection`으로 실제 연결을 확인한다.
+3. `.nvmrc`의 Node(22.23.3)에서 `npm ci`를 실행한 뒤 `npm run test:connection`으로 실제 연결을 확인한다.
 
 `test:connection`은 Auth 관리자 API로 사용자 목록 최대 1건을 읽어 연결을 확인하며, 사용자 정보나 키를 출력하지 않는다. 데이터 생성·수정·삭제는 하지 않는다. 테이블·주문 규칙 검증은 T-03 이후 작업이다.
 
@@ -125,6 +125,8 @@ Docker를 사용할 수 있는 환경에서만 Supabase CLI 2.117.0으로 `supab
 
 > 축제 운영 중 웹 서비스 또는 네트워크에 문제가 발생했을 때 주문을 중단하지 않기 위한 대응 절차다.
 > Cloudflare Workers 배포 URL 및 관리자 계정 관련 최종 정보는 T-25 완료 후 확정한다.
+
+**현장 상세 매뉴얼:** [T-30 현장 운영 폴백 매뉴얼](docs/T-30-operations-runbook.md) — 현금 수기 주문, QR 점검, 장애 대응·연락 체계 및 관리자 설정 장애 시 폴백 절차. (운영 전 검수·리허설 필요)
 
 ### 1. 장애 발생 시 기본 대응
 
@@ -219,7 +221,7 @@ QR을 직접 스캔하여 실제 `*.workers.dev` 서비스 주소로 연결되�
 특히 다음 작업은 운영 중 수행하지 않는다.
 
 * DB 스키마 변경
-* 불필요한 `dev` 브랜치 병합
+* 불필요한 `main` 병합(= 운영 배포, DECISIONS #53)
 * 송금 방식 구조 변경
 * 주문 상태 머신 변경
 * 검증하지 않은 환경변수 변경
