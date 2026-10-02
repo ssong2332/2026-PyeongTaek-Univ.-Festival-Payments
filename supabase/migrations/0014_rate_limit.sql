@@ -24,7 +24,7 @@ CREATE OR REPLACE FUNCTION public.consume_rate_limit(
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY INVOKER
-SET search_path = pg_catalog
+SET search_path = public
 AS $$
 DECLARE
     v_window_start timestamptz;

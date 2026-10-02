@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { AppError } from "@/lib/api/errors";
 import type { RateLimitRepository } from "@/services/ports";
 
 export function createSupabaseRateLimitRepository(
@@ -20,8 +19,7 @@ export function createSupabaseRateLimitRepository(
                 throw error;
             }
 
-      if (typeof data !== "boolean") throw new AppError("INTERNAL_ERROR", 500);
-      return data;
+            return Boolean(data);
         },
     };
 }
