@@ -17,7 +17,7 @@
   ```
   - `<계정 workers.dev 서브도메인>`은 Cloudflare 대시보드 **Workers & Pages** 화면의 "Your subdomain" 값이다(계정마다 다름). 2026-10-01 정정: 이전 판의 `https://ptu-festival-payments.workers.dev`는 계정 서브도메인이 빠진 잘못된 주소다.
   - 실제 주소는 첫 배포 뒤 대시보드에 표시된 값으로 확정하고, 이 문서와 QR에 그대로 옮긴다.
-  - **2026-10-01 첫 배포 주소**: `https://ptu-festival-payments.asg21274.workers.dev` — 계정 서브도메인 `asg21274`를 그대로 쓸지는 **QR 인쇄 전 팀장이 결정**한다(바꾸면 주소 전체가 바뀌므로 이 문서·QR·T-30 문서를 함께 고친다). 결정 전까지 이 주소를 인쇄물에 쓰지 않는다.
+  - **2026-10-01 첫 배포 주소**: `https://ptu-festival-payments.asg21274.workers.dev` — 계정 서브도메인 `asg21274`는 **바꿀 예정**(팀장 결정 2026-10-02). 바꾸면 주소 전체가 바뀌므로 이 문서·README·T-30 문서·QR을 함께 고친다. 새 주소가 정해지기 전에는 이 주소를 인쇄물에 쓰지 않는다.
   > [!IMPORTANT]
   > Worker 이름(`ptu-festival-payments`)과 계정 서브도메인은 **축제 포스터 및 QR 인쇄물 출력 이후에는 절대 변경하지 않습니다 (N-11, N-14)**. 계정 서브도메인을 바꾸면 주소 전체가 바뀐다.
 
@@ -151,7 +151,18 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 ## 6. 장애 대응 및 롤백 절차
 
 1. **애플리케이션 롤백**:
-   - Cloudflare Workers 대시보드의 **Deployments** 탭에서 직전 정상 동작 배포 버전의 **Rollback** 버튼을 클릭하여 30초 내 즉시 이전 상태로 복구합니다.
+   1. Cloudflare Dashboard → Workers & Pages로 이동한다.
+   2. `ptu-festival-payments` Worker를 선택한다.
+   3. Deployments 탭으로 이동한다.
+   4. 직전 정상 동작 버전을 확인한다.
+   5. 해당 버전 오른쪽 `...` 메뉴에서 Rollback을 실행한다.
+   6. 롤백 후 운영 URL 접속을 확인한다.
+   7. `GET /api/health`가 정상 응답하는지 확인한다.
+   8. 고객 메뉴 접속 → 테스트 주문 → 관리자 수신까지 최소 스모크 테스트를 수행한다.
+   9. DB 스키마 변경이 포함된 장애인 경우 앱 롤백만으로 복구 완료로 판단하지 않고 DB 담당자와 별도 확인한다.
+
+   > Worker 롤백은 Supabase 운영 데이터나 DB 스키마를 이전 상태로 되돌리지 않는다.
+   
 2. **데이터베이스 백업 및 복구**:
    - 축제 개막 전날(2026-10-06) 저녁, Supabase CLI로 스키마 및 설정 백업을 1회 수행합니다:
      ```bash
@@ -167,7 +178,7 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 |---|---|---|
 | 배포 커밋 | `main` `572a346` (릴리스 PR #84, `dev` `eabeed9`와 내용 같음 — #85 리뷰 수정 포함) | `git log origin/main` |
 | Worker | `ptu-festival-payments` — Workers Builds 연결, Production branch `main`, 미리보기 빌드 끔 | Cloudflare Settings → Builds |
-| 운영 URL | `https://ptu-festival-payments.asg21274.workers.dev` (계정 서브도메인 결정 전 — 1절) | 배포 로그 "Deployed … triggers" |
+| 운영 URL | `https://ptu-festival-payments.asg21274.workers.dev` (계정 서브도메인 변경 예정 — 1절) | 배포 로그 "Deployed … triggers" |
 | 빌드 환경 | Node 22.23.3(`.nvmrc`), Next 16.3.8, `@opennextjs/cloudflare` 1.20.7, wrangler 4.145.0 | 빌드 로그 |
 | 변수 | 빌드 변수 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_ANON_KEY`(publishable 키), 실행 Secret `SUPABASE_SERVICE_ROLE_KEY`(secret 키) — 값은 기록하지 않음 | Cloudflare Settings(이름·형식만 확인) |
 | 활성 버전 | `ec3548d8` (변수 추가 뒤 Retry build로 만든 버전) | Deployments → Active deployment |
