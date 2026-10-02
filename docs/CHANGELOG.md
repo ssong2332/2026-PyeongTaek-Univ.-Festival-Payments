@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Fixed
+- 2026-10-02 Architecture 보안 체크(인증·인가)의 `Referrer-Policy: no-referrer`가 설정돼 있지 않던 문제 — 주문 현황 URL(`/orders/{token}`)의 상태 토큰이 Referer로 넘어가지 않게 `next.config.ts` `headers()`로 페이지·API 전 경로에 적용(`tests/unit/nextConfig.test.ts`)
 - 2026-10-01 관리자 대시보드: 늦게·역순으로 도착한 상세 조회·목록 조회 응답이 실시간으로 받은 최신 상태(예: 조리중)를 이전 상태(결제대기)로 되돌리던 문제 — `updatedAt` 기준 병합(ADR-0003)을 상세 조회·초기 로드·새로고침에도 적용, 목록 조회 중 실시간으로 받은 주문은 유지(`useOrdersFeed`) — 릴리스 PR #84 리뷰
 - 2026-10-01 브라우저 API 호출의 8초 타임아웃이 응답 헤더까지만 걸리던 문제 — 본문 수신까지 유지, 본문 수신 중 끊김·지연은 응답 없음(자동 재시도 대상)으로 처리(`lib/api/client.ts`, DECISIONS #24) — 릴리스 PR #84 리뷰
 

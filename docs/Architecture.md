@@ -488,7 +488,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 |---|---|
 | 시크릿 | `SUPABASE_SERVICE_ROLE_KEY`·(2차)`PHONE_ENCRYPTION_KEY`는 서버 전용, `NEXT_PUBLIC_` 금지. ESLint `no-restricted-imports`로 `infra/supabase/server.ts`를 클라이언트 컴포넌트(`'use client'`)에서 import 금지(T-01 설정). 계좌 정보는 DB(ADR-0004), 리포지토리 0건 — 리뷰 시 `grep`로 확인 |
 | 주입 | SQL은 Postgres 함수 파라미터·supabase-js 빌더만(문자열 조립 금지). XSS: React 기본 이스케이프, `dangerouslySetInnerHTML` 금지. CSV: 셀이 `= + - @`로 시작하면 `'` 접두(스프레드시트 수식 주입 방지) |
-| 인증·인가 | 관리자 API 전부 `requireAdmin()`. 고객 API는 토큰(256비트) = 인가. 토큰은 URL에 있으므로 `Referrer-Policy: no-referrer`(외부 송금 링크 클릭 시 토큰 유출 방지)를 `next.config` 헤더로 설정, 송금 링크 `<a rel="noopener noreferrer" target="_blank">`. IDOR: 고객은 `id`가 아니라 토큰으로만 조회 |
+| 인증·인가 | 관리자 API 전부 `requireAdmin()`. 고객 API는 토큰(256비트) = 인가. 토큰은 URL에 있으므로 `Referrer-Policy: no-referrer`(외부 송금 링크 클릭 시 토큰 유출 방지)를 `next.config` 헤더로 설정(2026-10-02 적용 — `next.config.ts` `headers()` `/:path*`. 예외: proxy의 로그인 리다이렉트 307, Worker를 거치지 않는 `_next/static` 파일 — 둘 다 토큰 없는 URL), 송금 링크 `<a rel="noopener noreferrer" target="_blank">`. IDOR: 고객은 `id`가 아니라 토큰으로만 조회 |
 | 입력 검증 | 모든 핸들러 zod `strict()` — 모르는 필드(예: `price`) 거부(N-03). 수량 1..99, 항목 1..20, 사유 1..200자 |
 | 남용 | `POST /api/orders` IP당 분당 100건(초기값), 초과 429 `RATE_LIMITED`(F-47). 카운터는 Postgres `rate_limits` + `consume_rate_limit`(서버리스 인스턴스 무관), 키는 IP sha256(원문 미저장), 멱등 재요청 제외, 관리자 API 제외 — ADR-0009. NAT 공유 IP 오차단은 PRD Open Question #39(한도는 `domain/order/rateLimit.ts` 상수 한 곳) |
 
