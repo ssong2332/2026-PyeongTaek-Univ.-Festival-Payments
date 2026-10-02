@@ -134,6 +134,37 @@ export function mergeOrderUpdate(
     return merged;
 }
 
+/**
+ * ADR-0003 규칙을 주문 전체(상세 조회·목록 조회 결과)에도 적용한다.
+ * 받은 주문의 updatedAt이 지금 값보다 오래되면 지금 값을 유지한다 — 늦게 도착한 오래된 응답이 최신 상태를 되돌리지 않게.
+ */
+export function pickNewerOrder(current: AdminOrderDto | undefined, incoming: AdminOrderDto): AdminOrderDto {
+    if (!current) return incoming;
+    const currentMs = new Date(current.updatedAt).getTime();
+    const incomingMs = new Date(incoming.updatedAt).getTime();
+    return incomingMs < currentMs ? current : incoming;
+}
+
+/**
+ * 목록 조회 결과(snapshot)를 지금 Map과 합친다.
+ * - 둘 다 있는 주문: 더 최신(pickNewerOrder)
+ * - 지금 Map에만 있는 주문: 조회를 시작한 뒤 실시간으로 받은 것(keepMissing)만 남기고, 나머지는 목록 기준으로 뺀다.
+ */
+export function mergeOrdersSnapshot(
+    current: Map<string, AdminOrderDto>,
+    snapshot: Map<string, AdminOrderDto>,
+    keepMissing: (id: string) => boolean,
+): Map<string, AdminOrderDto> {
+    const next = new Map<string, AdminOrderDto>();
+    for (const [id, order] of snapshot) {
+        next.set(id, pickNewerOrder(current.get(id), order));
+    }
+    for (const [id, order] of current) {
+        if (!snapshot.has(id) && keepMissing(id)) next.set(id, order);
+    }
+    return next;
+}
+
 export interface UseOrdersFeedReturn {
     orders: AdminOrderDto[];
     ordersMap: Map<string, AdminOrderDto>;
@@ -152,6 +183,18 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
     useEffect(() => {
         dateRef.current = initialDate;
     }, [initialDate]);
+    // 실시간 이벤트·상세 조회로 바뀐 주문 id와 그때의 순번 — 목록 조회 중에 들어온 주문을 목록 결과가 지우지 않게 한다.
+    const liveSeqRef = useRef(0);
+    const liveChangedRef = useRef(new Map<string, number>());
+    const markLive = useCallback((id: string) => {
+        liveSeqRef.current += 1;
+        liveChangedRef.current.set(id, liveSeqRef.current);
+    }, []);
+    const applySnapshot = useCallback((snapshot: Map<string, AdminOrderDto>, loadStartSeq: number) => {
+        setOrdersMap((prev) =>
+            mergeOrdersSnapshot(prev, snapshot, (id) => (liveChangedRef.current.get(id) ?? 0) > loadStartSeq),
+        );
+    }, []);
 
     const loadOrders = useCallback(async () => {
         try {
@@ -179,16 +222,20 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
             const res = await fetch(`/api/admin/orders/${id}`);
             if (res.ok) {
                 const freshOrder: AdminOrderDto = await res.json();
+                markLive(freshOrder.id);
                 setOrdersMap((prev) => {
+                    const current = prev.get(freshOrder.id);
+                    const chosen = pickNewerOrder(current, freshOrder);
+                    if (chosen === current) return prev;
                     const next = new Map(prev);
-                    next.set(freshOrder.id, freshOrder);
+                    next.set(freshOrder.id, chosen);
                     return next;
                 });
             }
         } catch (err) {
             console.error("[useOrdersFeed] Failed to hydrate order:", id, err);
         }
-    }, []);
+    }, [markLive]);
 
     const acknowledge = useCallback(async (id: string) => {
         try {
@@ -211,10 +258,11 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
     // 1. 초기 마운트 시 주문 로드
     useEffect(() => {
         let isCancelled = false;
+        const loadStartSeq = liveSeqRef.current;
         loadOrders().then((result) => {
             if (isCancelled) return;
             if (result.map) {
-                setOrdersMap(result.map);
+                applySnapshot(result.map, loadStartSeq);
                 setError(null);
             } else {
                 setError(result.error);
@@ -224,7 +272,7 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
         return () => {
             isCancelled = true;
         };
-    }, [loadOrders]);
+    }, [loadOrders, applySnapshot]);
 
     // 2. Realtime 구독 설정 (ADR-0003)
     useEffect(() => {
@@ -244,6 +292,7 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
                         const updatedId = payload.new?.id as string;
                         if (!updatedId) return;
 
+                        markLive(updatedId);
                         setOrdersMap((prev) => {
                             const existing = prev.get(updatedId);
                             if (!existing) {
@@ -264,19 +313,20 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [hydrateOrder]);
+    }, [hydrateOrder, markLive]);
 
     const reload = useCallback(async () => {
         setIsLoading(true);
+        const loadStartSeq = liveSeqRef.current;
         const result = await loadOrders();
         if (result.map) {
-            setOrdersMap(result.map);
+            applySnapshot(result.map, loadStartSeq);
             setError(null);
         } else {
             setError(result.error);
         }
         setIsLoading(false);
-    }, [loadOrders]);
+    }, [loadOrders, applySnapshot]);
 
     const sortedOrders = Array.from(ordersMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
