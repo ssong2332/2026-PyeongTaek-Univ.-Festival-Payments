@@ -1,5 +1,14 @@
-import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
+import type {
+  CreateOrderRequest,
+  CreateOrderResponse,
+  OrderStatusDto,
+  QueueResponse,
+} from "@/lib/dto/order";
 import type { OrderRepository } from "./ports";
+import { AppError } from "@/lib/api/errors";
+import { toUtcIsoString } from "@/domain/time/utcIso";
+
+const STATUS_TOKEN_REGEX = /^[0-9a-f]{64}$/;
 
 // Architecture "고객 주문 생성" ③. 가격 재계산·재고 차감·픽업 번호는 전부 DB 함수 create_order 안에서 한다.
 // ② 속도 제한(T-51)은 ①과 ③ 사이에 추가된다 — 멱등 재요청은 한도를 쓰지 않는다(ADR-0009).
@@ -13,4 +22,57 @@ export async function createOrder(
 
   // ③ 주문 생성
   return deps.orderRepository.createOrder(dto);
+}
+
+// Architecture "고객 API" GET /api/orders/{token} (T-11)
+export async function getOrderByToken(
+  token: string,
+  deps: { orderRepository: Pick<OrderRepository, "findByToken" | "countWaitingBefore"> },
+): Promise<OrderStatusDto> {
+  // F-10: 토큰 형식 불일치·미존재 모두 404 (존재 여부를 구분하지 않음)
+  if (!STATUS_TOKEN_REGEX.test(token)) {
+    throw new AppError("NOT_FOUND", 404);
+  }
+
+  const order = await deps.orderRepository.findByToken(token);
+  if (!order) {
+    throw new AppError("NOT_FOUND", 404);
+  }
+
+  // DB 원본(µs) 그대로 넘긴다 — ms로 깎으면 같은 ms 안에 먼저 생성된 주문이 대기 수에서 빠진다.
+  const aheadCount = await deps.orderRepository.countWaitingBefore(order.createdAt);
+
+  const canTransferReport =
+    order.status === "pending" &&
+    order.paymentMethod === "transfer" &&
+    order.transferReportedAt === null;
+
+  const canCancelRequest =
+    (order.status === "pending" || order.status === "paid") &&
+    order.cancelRequestedAt === null &&
+    order.cancelRejectedAt === null;
+
+  return {
+    orderId: order.id,
+    pickupNumber: order.pickupNumber,
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    totalAmount: order.totalAmount,
+    items: order.items,
+    createdAt: toUtcIsoString(order.createdAt),
+    transferReportedAt: toUtcIsoString(order.transferReportedAt),
+    cancelRequestedAt: toUtcIsoString(order.cancelRequestedAt),
+    cancelRejectedAt: toUtcIsoString(order.cancelRejectedAt),
+    aheadCount,
+    canTransferReport,
+    canCancelRequest,
+  };
+}
+
+// Architecture "고객 API" GET /api/queue (T-11 메뉴판 주기 갱신용)
+export async function getQueueStatus(
+  deps: { orderRepository: Pick<OrderRepository, "countWaitingBefore"> },
+): Promise<QueueResponse> {
+  const waitingCount = await deps.orderRepository.countWaitingBefore(null);
+  return { waitingCount };
 }

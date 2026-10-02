@@ -20,7 +20,7 @@
 | 포맷터/린터 | ESLint + TypeScript ESLint. `src/domain` 및 `src/services`는 `next/*`나 `supabase/*` import 절대 금지 (순수 도메인 분리). 클라이언트 컴포넌트(`src/components`, `src/features`, `src/app/(customer)`)에서 `SUPABASE_SERVICE_ROLE_KEY` import 절대 금지. 순환 참조 금지(`import/no-cycle`). |
 | 에러 처리 | `domain/`은 실패를 반환값 유니온으로 표현한다. `services/`·`infra/`는 `AppError(code, httpStatus, details?)`를 던진다. `message`는 생성자 인자가 아니며 API 응답 변환 시 `code`에 대응하는 고정 영문 문구를 사용한다. 응답은 `{ error: { code: ErrorCode, message: string, details?: unknown } }` 형식을 따르고, HTTP 상태 코드는 Architecture.md의 ErrorCode 표를 따른다. |
 | 로깅 | `src/lib/logger.ts` 사용. 고객 개인정보(전화번호 등)나 계좌 정보는 로그 출력 전 `[redacted]`로 마스킹 처리하여 평문 노출 방지. |
-| 테스트 작성 기준 | 단위 테스트는 `tests/unit/`, 통합 테스트는 `tests/integration/`, E2E는 `tests/e2e/`. 단위 테스트는 Fake/Mock 객체 활용(순수 TS). Red-First(실패 먼저 확인) 원칙 준수, 정상 1 + 경계 2 + 예외 2 이상 케이스 작성. |
+| 테스트 작성 기준 | 단위 테스트는 `tests/unit/`, 통합 테스트는 `tests/integration/`, E2E는 `tests/e2e/`. 단위 테스트는 Fake/Mock 객체 활용(순수 TS). 통합 테스트는 mock 없이 로컬 Supabase 실물 — import 차단 해제용 `server-only` 스텁만 예외(DECISIONS #46). Red-First(실패 먼저 확인) 원칙 준수, 정상 1 + 경계 2 + 예외 2 이상 케이스 작성. |
 | 디렉토리 배치 | `domain/`(순수 도메인), `services/`(유즈케이스), `infra/`(Supabase 연동·SQL/RPC), `app/api/`(Route Handler), `components/`(표현 컴포넌트), `features/`(화면 훅). 모든 데이터 접근은 `app/api/` 경유 (ADR-0001). |
 | 설정 및 상수 | 수치·타이머·속도 제한 등 마이크로 요구사항은 코드 내 하드코딩하지 않고 상수 객체(예: `src/domain/order/rateLimit.ts`) 또는 `app_settings` 테이블(ADR-0004)로 단일 진실화(Single Source of Truth)한다. |
 
@@ -39,7 +39,7 @@
 ### T-01 로컬 검증 (2026-09-22)
 
 위의 미등록 행은 유지하며 실제 성공한 명령을 아래에 추가한다.
-Node 20.20.2 환경에서 검증했다. `.nvmrc`를 지원하는 도구로 버전을 맞춘 뒤 `npm ci`로 설치한다.
+2026-10-01부터 Node 22(`.nvmrc` 22.23.3, DECISIONS #51) 기준이다. 그 전 아래 기록은 Node 20.20.2에서 검증했다. `.nvmrc`를 지원하는 도구로 버전을 맞춘 뒤 `npm ci`로 설치한다.
 
 | 용도 | 명령 (원문) | 검증일 |
 |---|---|---|

@@ -25,15 +25,17 @@ export async function fetchJson<T>(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? TIMEOUT_MS);
   let response: Response;
+  let data: unknown;
   try {
     response = await fetch(url, { ...init, signal: controller.signal });
+    // 타임아웃은 본문을 다 받을 때까지 유지한다 — 헤더만 오고 본문이 멈춰도 8초 뒤 끊고 재시도 대상이 된다.
+    data = await readJson(response, controller.signal);
   } catch {
     throw new AppError("INTERNAL_ERROR", NO_RESPONSE);
   } finally {
     clearTimeout(timer);
   }
 
-  const data: unknown = await response.json().catch(() => undefined);
   if (!response.ok) {
     const error = (data as ErrorEnvelope | undefined)?.error;
     throw new AppError(error?.code ?? "INTERNAL_ERROR", response.status, error?.details);
@@ -62,6 +64,29 @@ export async function postOrderWithRetry(body: CreateOrderRequest): Promise<Crea
       await sleep(RETRY_DELAYS_MS[attempt]);
     }
   }
+}
+
+// 본문이 JSON이 아님(빈 본문 포함) → undefined. 본문을 받다가 끊김·타임아웃 → 던진다(응답 없음과 같게 처리).
+async function readJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  try {
+    return await untilAborted(response.json(), signal);
+  } catch (error) {
+    if (error instanceof SyntaxError) return undefined;
+    throw error;
+  }
+}
+
+// fetch 구현이 본문 읽기에 signal을 전하지 않아도 타임아웃이 걸리도록 끊김 신호와 경주시킨다.
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    promise.catch(() => {}); // 버려진 본문 읽기가 나중에 실패해도 처리되지 않은 거부로 남지 않게
+    return Promise.reject(signal.reason);
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
+  });
 }
 
 function isRetryable(error: unknown): boolean {
