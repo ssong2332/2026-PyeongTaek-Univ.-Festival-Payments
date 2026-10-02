@@ -178,6 +178,8 @@ export function createSupabaseOrderRepository(
         reason,
       });
       if (!historyError) return true;
+      // 응답은 500으로 숨기므로, 이력을 남기지 못한 원인을 여기서 기록한다.
+      logger.error("order.cancel_request_reject.history_failed", historyError, { orderId: id });
 
       // ③ DB 함수가 아니라 ①·②가 한 트랜잭션이 아니다. 이력 없는 거절이 남지 않게 거절 시각을 되돌린다.
       const { error: rollbackError } = await client.from("orders").update({ cancel_rejected_at: null }).eq("id", id);

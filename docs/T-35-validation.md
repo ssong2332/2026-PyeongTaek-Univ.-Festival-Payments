@@ -1,6 +1,6 @@
 # T-35 고객 취소 요청 — 검증 (BE1 API 부분)
 
-> **현황(2026-10-02): BE1 API 부분 구현·검증 완료.** 범위는 API 2개까지다 — 고객 화면 [취소 요청] 버튼·요청됨/거절됨 문구(FE1), 대시보드 "취소 요청됨 HH:MM" 강조와 [승인]/[거절] 버튼(FE2)은 각 화면 작업에서 연결한다. Tasks 상태는 바꾸지 않는다.
+> **현황(2026-10-02): BE1 API 부분 구현·검증 완료.** 범위는 API 2개까지다 — 고객 화면 [취소 요청] 버튼·요청됨/거절됨 문구(FE1), 대시보드 "취소 요청됨 HH:MM" 강조와 [승인]/[거절] 버튼(김희진 — FE2 예외)은 각 화면 작업에서 연결한다. Tasks 상태는 바꾸지 않는다.
 > 선행: T-11(완료) · T-15(완료) · T-17(PR #72 — 검토 중, 이 작업은 dev에 있는 공통 `transition()`만 쓴다).
 > 팀장 확인(2026-10-02)에 따라 진행: ① 거절 사유 필수 ② 거절 기록은 새 DB 함수 없이 코드에서(조건부 UPDATE → 이력 INSERT, 실패 시 되돌리기) ③ 이미 거절된 요청의 재승인·재거절은 409 ④ 사전 확인은 `getAdminOrderById` 재사용, 최종 판단은 조건부 UPDATE.
 
@@ -30,7 +30,7 @@
 - `supabaseOrderRepository.rejectCancelRequest(id, actorId, reason)` (DECISIONS #56)
   - ① 조건부 UPDATE(`status IN ('pending','paid') AND cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL` → `cancel_rejected_at`) — 0행이면 `false`
   - ② `order_status_history` INSERT(`action='cancel_request_reject'`, `actor_type='admin'`, `actor_id`, `reason`, `from_status = to_status`)
-  - ③ ②가 실패하면 `cancel_rejected_at`을 NULL로 되돌리고 `AppError("INTERNAL_ERROR", 500)`. 되돌리기도 실패하면 `logger.error("order.cancel_request_reject.rollback_failed", …, { orderId })`
+  - ③ ②가 실패하면 `cancel_rejected_at`을 NULL로 되돌리고 `AppError("INTERNAL_ERROR", 500)`. 이력 실패 원인은 `logger.error("order.cancel_request_reject.history_failed", …, { orderId })`로 남기고, 되돌리기도 실패하면 `logger.error("order.cancel_request_reject.rollback_failed", …, { orderId })`
 - 새 마이그레이션 없음(컬럼은 0001에 있음).
 
 ### 포트·공용 파일 변경 (팀장 확인 요청)
@@ -40,7 +40,7 @@
 | `src/services/ports.ts` | `OrderRepository.setCancelRequested(id): Promise<string \| null>` · `rejectCancelRequest(id, actorId, reason): Promise<boolean>` 추가 |
 | `src/lib/dto/adminOrder.ts` | `AdminCancelRequestDecisionSchema` 추가(기존 스키마 변경 없음) |
 | `src/services/adminOrderService.ts` | `resolveCancelRequest` 추가. `getAdminOrderById`의 인자 타입을 `Pick<AdminOrderRepository, "findById">`로 좁힘(동작·기존 호출부 변화 없음) |
-| `src/infra/repositories/supabaseOrderRepository.ts` | 위 두 메서드. infra에서 `logger`를 처음 사용(되돌리기 실패 로그 1종) |
+| `src/infra/repositories/supabaseOrderRepository.ts` | 위 두 메서드. infra에서 `logger`를 처음 사용(이력 추가 실패·되돌리기 실패 로그 2종) |
 | `docs/Architecture.md` | 상태 표 `cancel_request_reject` "사유 선택" → "사유 필수", 관리자 API 표에 "이미 거절된 요청도 409"·사유 오류 코드 추가 |
 | `docs/DECISIONS.md` | #56 한 줄(팀장 위임 — 번호는 병합 시점에 #54·#55 뒤로 조정 필요할 수 있음) |
 

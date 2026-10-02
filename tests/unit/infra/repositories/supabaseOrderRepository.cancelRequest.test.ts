@@ -89,7 +89,11 @@ describe("supabaseOrderRepository.rejectCancelRequest", () => {
       ["update", { cancel_rejected_at: null }],
       ["eq", "id", ORDER_ID],
     ]));
-    expect(logError).not.toHaveBeenCalled();
+    // 되돌리기가 성공해도 500의 원인(이력 추가 오류)은 로그로 남긴다.
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(logError.mock.calls[0][0]).toBe("order.cancel_request_reject.history_failed");
+    expect(logError.mock.calls[0][1]).toEqual(failed.error);
+    expect(logError.mock.calls[0][2]).toEqual({ orderId: ORDER_ID });
   });
 
   it("되돌리기까지 실패하면 주문 id와 함께 오류 로그를 남기고 500 INTERNAL_ERROR", async () => {
@@ -97,9 +101,11 @@ describe("supabaseOrderRepository.rejectCancelRequest", () => {
     const error = await createSupabaseOrderRepository(client).rejectCancelRequest(ORDER_ID, ADMIN_ID, "사유").catch((e: unknown) => e);
 
     expect(error).toMatchObject({ code: "INTERNAL_ERROR", status: 500 });
-    expect(logError).toHaveBeenCalledTimes(1);
-    expect(logError.mock.calls[0][0]).toBe("order.cancel_request_reject.rollback_failed");
-    expect(logError.mock.calls[0][2]).toEqual({ orderId: ORDER_ID });
+    expect(logError.mock.calls.map(([event]) => event)).toEqual([
+      "order.cancel_request_reject.history_failed",
+      "order.cancel_request_reject.rollback_failed",
+    ]);
+    expect(logError.mock.calls[1][2]).toEqual({ orderId: ORDER_ID });
   });
 
   it("거절 시각 갱신 자체가 실패하면 그대로 던지고 이력을 남기지 않는다", async () => {
