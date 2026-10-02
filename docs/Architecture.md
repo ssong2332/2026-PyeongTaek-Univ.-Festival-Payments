@@ -257,7 +257,7 @@ function availableActions(order): TransitionAction[];   // 대시보드 버튼 �
 | `order_item_options` | `id` uuid PK · `order_item_id` uuid FK CASCADE · `option_id` uuid FK→options ON DELETE RESTRICT · `option_group_name_ko` text NOT NULL · `option_name_ko` text NOT NULL · `option_name_en` text NULL · `extra_price` int NOT NULL | 스냅샷 |
 | `order_status_history` | `id` bigserial PK · `order_id` uuid FK CASCADE · `from_status` order_status NULL · `to_status` order_status NOT NULL · `action` text NOT NULL · `actor_type` actor_type NOT NULL · `actor_id` uuid NULL · `reason` text NULL · `created_at` timestamptz NOT NULL DEFAULT now() | F-14 이력. 인덱스 `(order_id, created_at)` |
 | `app_settings` | `key` text PK · `value` text NOT NULL · `updated_at` timestamptz NOT NULL DEFAULT now() · `updated_by` uuid NULL | 키 목록·기본값은 ADR-0004 |
-| `rate_limits` (`0014_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
+| `rate_limits` (`0018_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
 
 Enum: `order_status` (위 7개) · `payment_method ('cash','transfer')` — `transfer`는 계좌이체 · `refund_channel ('cash','bank')` (2026-09-24: 간편결제 제외로 `transfer_method` enum·컬럼 삭제, `refund_channel`에서 kakaopay·toss 삭제 — 후속 마이그레이션 T-53) · `actor_type ('admin','system','customer')`.
 
@@ -269,7 +269,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
-| `consume_rate_limit` (`0014_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
+| `consume_rate_limit` (`0018_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
 
 트리거: `orders`·`menu_items`에 `updated_at = now()` BEFORE UPDATE.
 
@@ -295,10 +295,10 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0011 | `0011_sweep_expire.sql` | `sweep_order_timeouts` — 만료 부분 | T-18 · DB2 | 0009 | 원격 브랜치 없음 |
 | 0012 | `0012_sweep_auto_complete.sql` | `sweep_order_timeouts` 자동 완료 부분(`CREATE OR REPLACE`) | T-19 · DB2 | 0011 | 원격 브랜치 없음 |
 | 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
-| 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
 | 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
 | 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | `dev` 병합, 운영 적용(DB1, 2026-10-01 확인 — DECISIONS #47) |
 | 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
+| 0018 | `0018_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | PR #62, 병합 대기. 기존 0014에서 재번호 부여(DECISIONS #45), 운영 적용은 병합 후 DB1이 수행 |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
