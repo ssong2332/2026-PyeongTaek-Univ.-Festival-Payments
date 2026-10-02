@@ -3,6 +3,15 @@ import { createSupabaseRateLimitRepository } from "@/infra/repositories/supabase
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 describe("supabaseRateLimitRepository", () => {
+  it.each([null, undefined, 0, 1, "", "false", [], {}].map((data) => ({ data })))(
+    "boolean이 아닌 RPC 결과 $data는 INTERNAL_ERROR로 처리한다",
+    async ({ data }) => {
+      const rpc = vi.fn().mockResolvedValue({ data, error: null });
+      const repo = createSupabaseRateLimitRepository({ rpc } as unknown as SupabaseClient);
+      await expect(repo.consume("order_create", "testkey", 100, 60))
+        .rejects.toMatchObject({ code: "INTERNAL_ERROR", status: 500 });
+    },
+  );
   it("consume_rate_limit RPC를 올바른 인자로 호출하고 boolean 결과를 반환한다", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
     const client = { rpc } as unknown as SupabaseClient;
