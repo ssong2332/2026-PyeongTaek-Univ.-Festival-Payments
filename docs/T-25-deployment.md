@@ -144,7 +144,18 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 ## 6. 장애 대응 및 롤백 절차
 
 1. **애플리케이션 롤백**:
-   - Cloudflare Workers 대시보드의 **Deployments** 탭에서 직전 정상 동작 배포 버전의 **Rollback** 버튼을 클릭하여 30초 내 즉시 이전 상태로 복구합니다.
+   1. Cloudflare Dashboard → Workers & Pages로 이동한다.
+   2. `ptu-festival-payments` Worker를 선택한다.
+   3. Deployments 탭으로 이동한다.
+   4. 직전 정상 동작 버전을 확인한다.
+   5. 해당 버전 오른쪽 `...` 메뉴에서 Rollback을 실행한다.
+   6. 롤백 후 운영 URL 접속을 확인한다.
+   7. `GET /api/health`가 정상 응답하는지 확인한다.
+   8. 고객 메뉴 접속 → 테스트 주문 → 관리자 수신까지 최소 스모크 테스트를 수행한다.
+   9. DB 스키마 변경이 포함된 장애인 경우 앱 롤백만으로 복구 완료로 판단하지 않고 DB 담당자와 별도 확인한다.
+
+   > Worker 롤백은 Supabase 운영 데이터나 DB 스키마를 이전 상태로 되돌리지 않는다.
+   
 2. **데이터베이스 백업 및 복구**:
    - 축제 개막 전날(2026-10-06) 저녁, Supabase CLI로 스키마 및 설정 백업을 1회 수행합니다:
      ```bash
