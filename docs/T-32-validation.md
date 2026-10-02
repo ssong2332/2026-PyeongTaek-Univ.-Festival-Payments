@@ -38,6 +38,11 @@
 - `npm run test` 651 통과 · `npm run test:integration` 84 통과(송금 신고 11개 포함) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders/[token]/transfer-report`)
 - 실제 호출(로컬 DB에 연결한 `next dev` — 운영 DB 미사용): 신고 전 상태 조회 canTransferReport true → 계좌이체 첫 신고 200 → 1초 뒤 다시 200(같은 시각) · 현금 409 · 없는 토큰 404 · 형식 틀린 토큰 404 → 신고 후 상태 조회 status pending, transferReportedAt이 신고 응답과 같은 값, canTransferReport false
 
+## 재검증 (2026-10-02, 리뷰 반영 — 최신 dev d51e54d 병합, Node 22.23.3)
+
+- QA 요청(#80, 10-02)대로 최신 dev(P1 배포·Node 22·OpenNext·T-13·T-15·T-16 등 66커밋)를 브랜치에 병합 — 충돌 없음
+- `npm run test` 697 통과 · `npm run test:integration` 95 통과(송금 신고 11개 포함) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders/[token]/transfer-report`)
+
 ## 이력
 
 - 09-26: T-11 전이라 임시로 `reportTransfer(token, at)` 저장소 함수 하나로 구현(브랜치 `feat/T-32-transfer-report`)
