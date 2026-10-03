@@ -3,6 +3,8 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import type { StaffCallDto } from "@/lib/dto/staffCall";
+import { StaffCallAlert } from "./StaffCallAlert";
 import { OrderActionButtons } from "./OrderActionButtons";
 import styles from "./OrderDashboard.module.css";
 
@@ -25,14 +27,16 @@ export interface OrderDashboardProps {
     isLoading?: boolean;
     error?: string | null;
     preview?: boolean;
+    staffCalls?: StaffCallDto[];
     onReload: () => Promise<void>;
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onTransition: (id: string, action: TransitionAction) => Promise<void>;
+    onAcknowledgeStaffCall?: (id: string) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
+    staffCalls = [], onReload, onAcknowledge, onSearch, onTransition, onAcknowledgeStaffCall }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -150,6 +154,9 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                 <button onClick={reload} disabled={isLoading}>새로고침</button></header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
             <div className={styles.content}>
+                {staffCalls.length > 0 && onAcknowledgeStaffCall && (
+                    <StaffCallAlert calls={staffCalls} onAcknowledge={onAcknowledgeStaffCall} />
+                )}
                 <div className={styles.heading}><span className={styles.logo}><UtensilsCrossed size={26} /></span><div>
                     <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>

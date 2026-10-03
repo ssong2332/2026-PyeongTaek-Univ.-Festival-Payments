@@ -11,6 +11,7 @@ export type ErrorCode =
     | "STATE_CHANGED"
     | "CANCEL_REQUEST_NOT_ALLOWED"
     | "RATE_LIMITED"
+    | "CALL_COOLDOWN"
     | "INTERNAL_ERROR";
 
 export interface ErrorResponseEnvelope {
@@ -34,6 +35,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     STATE_CHANGED: "Order state has changed.",
     CANCEL_REQUEST_NOT_ALLOWED: "Cancel request is not allowed.",
     RATE_LIMITED: "Rate limit exceeded.",
+    CALL_COOLDOWN: "Please wait before calling staff again.",
     INTERNAL_ERROR: "An internal server error occurred.",
 };
 
