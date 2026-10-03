@@ -302,6 +302,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 | 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
 | 0101 | `0101_menu_recommendation.sql` | 메뉴별 추천 여부 `is_recommended` | T-38 · DB1 | 0100(운영 적용 순서) | 신규 배정. 기본값 false, NOT NULL; 기존 메뉴 RLS 유지 |
+| 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. API 토큰 검증·고객 폼 연결은 후속 |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -330,7 +331,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | F-35 추천 | `menu_items.is_recommended boolean NOT NULL DEFAULT false` — `0101_menu_recommendation.sql`. 기존·신규 메뉴 기본 OFF, 복수 추천 허용. 기존 메뉴 RLS 유지: authenticated SELECT만, 쓰기는 관리자 API의 service_role | T-38 · Open Question #25(a)(c) 확정. 관리자 UI #97·T-20 API·FE1 고객 노출 연결은 각 담당 후속 |
 | F-35 템플릿 | `option_templates(id, menu_item_id, name, option_ids uuid[])` | T-39 · Open Question #25(b) 확정 |
 | F-36 재고 임박 | `app_settings 'stock.low_threshold'`, `stock_alerts(id, menu_item_id, kind, created_at, acknowledged_at)` | #26 확인 후 T-40 |
-| F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
+| F-37 후기 | `reviews(order_id uuid PK/FK→orders ON DELETE CASCADE, rating int NOT NULL CHECK 1..5, text NULL CHECK char_length≤200, created_at timestamptz NOT NULL DEFAULT now())` — `0102_reviews.sql`. 완료 주문 검사 트리거, authenticated SELECT만·쓰기 service_role | T-41 DB1 · #27 확정. API는 주문 토큰 검증 후 INSERT, 고객 폼·관리자 목록 연결은 후속 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
 | F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 팀장 재검토 |
 | F-40 스케줄 | `shifts(id uuid PK, person_name text, date date, starts_at time(0), ends_at time(0), role text)` — `0100_shifts.sql`. 이름 1~80자, 역할 1~100자, 공백만 입력 금지. KST 날짜·분 단위 자유 시간대, 종료 > 시작, 같은 날짜 안의 구간, 겹침 허용 | T-46 · Open Question #30 확정. anon 접근 거부, authenticated SELECT만(RLS), 쓰기는 관리자 API의 service_role |
