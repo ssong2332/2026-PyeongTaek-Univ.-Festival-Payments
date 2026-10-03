@@ -6,6 +6,8 @@ import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adm
 import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
+import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
 
 const LABELS: Record<OrderStatus, string> = {
@@ -31,7 +33,7 @@ export interface OrderDashboardProps {
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onLoadStats: (date: string) => Promise<StatsDto>;
-    onTransition: (id: string, action: TransitionAction) => Promise<void>;
+    onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
@@ -111,12 +113,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         } catch { setActionError("확인 처리에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요."); }
         finally { acknowledging.current = false; setPendingId(null); }
     }
-    async function transitionOrder(order: AdminOrderDto, action: TransitionAction) {
+    async function transitionOrder(order: AdminOrderDto, action: TransitionAction, input?: CancelRefundInput) {
         if (transitioning.current || acknowledging.current || !order.availableActions.includes(action)) return;
         transitioning.current = true; setPendingId(order.id); setPendingAction(action);
         setActionError(""); setTransitionError(null); setNotice("");
         try {
-            await onTransition(order.id, action);
+            if (input) await onTransition(order.id, action, input);
+            else await onTransition(order.id, action);
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문 상태를 변경했습니다.`);
             if (searchNumber !== null) {
                 const version = searchVersion.current;
@@ -129,8 +132,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     }
                 }
             }
-        } catch {
-            setTransitionError({ id: order.id, message: "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요." });
+        } catch (error) {
+            const message = error instanceof TransitionRequestError
+                ? error.message
+                : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.";
+            if (action === "cancel" || action === "refund") setActionError(message);
+            else setTransitionError({ id: order.id, message });
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }
@@ -207,6 +214,11 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                                 disabled={pendingId !== null}
                                 error={transitionError?.id === selected.id ? transitionError.message : undefined}
                                 onAction={action => transitionOrder(selected, action)} />
+                            <OrderCancelRefund key={selected.id} paymentMethod={selected.paymentMethod}
+                                availableActions={selected.availableActions}
+                                pendingAction={pendingId === selected.id ? pendingAction : null}
+                                disabled={pendingId !== null}
+                                onAction={(action, input) => transitionOrder(selected, action, input)} />
                         </> : <div className={styles.empty}><ClipboardList size={36} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
                     </section>
                 </section>
