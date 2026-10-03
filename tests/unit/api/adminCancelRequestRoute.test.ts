@@ -98,6 +98,7 @@ describe("POST /api/admin/orders/[id]/cancel-request", () => {
         ["reason 빈 문자열(승인)", { decision: "approve", reason: "" }],
         ["reason 빈 문자열(거절)", { decision: "reject", reason: "" }],
         ["reason 201자", { decision: "reject", reason: "가".repeat(201) }],
+        ["규격에 없는 필드(strict)", { decision: "reject", reason: "사유", price: 0 }],
     ])("%s → 400 VALIDATION_ERROR, 서비스를 부르지 않는다", async (_name, body) => {
         const { status, json } = await post(body);
         expect(status).toBe(400);

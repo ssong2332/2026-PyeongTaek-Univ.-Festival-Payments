@@ -63,7 +63,8 @@ export const AdminTransitionRequestSchema = z.object({
 export type AdminTransitionRequest = z.infer<typeof AdminTransitionRequestSchema>;
 
 // POST /api/admin/orders/[id]/cancel-request — 고객 취소 요청의 승인·거절(T-35). 사유는 어느 쪽이든 필수.
-export const AdminCancelRequestDecisionSchema = z.object({
+// strict: 규격에 없는 필드가 들어오면 400(Architecture 보안 규칙 — 모든 핸들러 zod strict()).
+export const AdminCancelRequestDecisionSchema = z.strictObject({
     decision: z.enum(["approve", "reject"]),
     reason: z.string().min(1).max(200),
 });

@@ -73,7 +73,7 @@
 | `tests/unit/services/resolveCancelRequestService.test.ts` | 14 | `resolveCancelRequest` 승인·거절·거부 |
 | `tests/unit/infra/repositories/supabaseOrderRepository.cancelRequest.test.ts` | 5 | 거절 기록 호출 내용·되돌리기·로그 |
 | `tests/unit/api/cancelRequestRoute.test.ts` | 4 | 고객 라우트 |
-| `tests/unit/api/adminCancelRequestRoute.test.ts` | 17 | 관리자 라우트(인증·검증·전달·오류 봉투) |
+| `tests/unit/api/adminCancelRequestRoute.test.ts` | 18 | 관리자 라우트(인증·검증·전달·오류 봉투) |
 | `tests/integration/t35-cancel-request.test.ts` | 29 | 실제 DB — mock 없음(DECISIONS #46), 서비스를 실제 저장소로 직접 호출 |
 
 - 가짜 저장소는 `tests/unit/fakes/`(Architecture 테스트 규칙): `fakeTokenOrderRepository.ts`에 `setCancelRequested` 추가, `fakeCancelRequestRepositories.ts` 새로 작성(끼어드는 다른 관리자 요청을 흉내 낼 수 있음).
@@ -83,6 +83,7 @@
 
 - `npm run test` 754 통과 · `npm run test:integration` 124 통과(T-35 29개 포함) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders/[token]/cancel-request`, `ƒ /api/admin/orders/[id]/cancel-request`)
 - 운영 DB는 사용하지 않았다(로컬 DB만).
+- (2026-10-03, QA 리뷰 반영) `AdminCancelRequestDecisionSchema`를 `z.strictObject`로 변경 — 규격에 없는 필드는 400 `VALIDATION_ERROR`·서비스 미호출(라우트 단위 테스트 1건 추가, 구현 전 실패 확인). `npm run test` 755 통과 · `typecheck` 0 · `lint` 0 · `build` 통과. 통합 테스트는 서비스를 직접 호출해 이 변경의 영향이 없으며 CI에서 다시 확인한다.
 
 ## 한계·남은 것
 
