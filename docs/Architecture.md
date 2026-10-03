@@ -329,7 +329,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | F-33 직원 호출 | `staff_calls(id, order_id FK, called_at, acknowledged_at, acknowledged_by)`; 2분 중복 방지는 서비스에서 `max(called_at)` 비교 | T-27 |
 | F-35 추천·템플릿 | `menu_items.is_recommended bool`, `option_templates(id, menu_item_id, name, option_ids uuid[])` | #25 확인 후 T-38/T-39 |
 | F-36 재고 임박 | `app_settings 'stock.low_threshold'`, `stock_alerts(id, menu_item_id, kind, created_at, acknowledged_at)` | #26 확인 후 T-40 |
-| F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
+| F-37 후기 | `reviews(order_id uuid PK/FK→orders ON DELETE CASCADE, rating int NOT NULL CHECK 1..5, text NULL CHECK char_length≤200, created_at timestamptz NOT NULL DEFAULT now())` — `0102_reviews.sql`. 완료 주문 검사 트리거, authenticated SELECT만·쓰기 service_role | T-41 DB1 · #27 확정. API는 주문 토큰 검증 후 INSERT, 고객 폼·관리자 목록 연결은 후속 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
 | F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 팀장 재검토 |
 | F-40 스케줄 | `shifts(id uuid PK, person_name text, date date, starts_at time(0), ends_at time(0), role text)` — `0100_shifts.sql`. 이름 1~80자, 역할 1~100자, 공백만 입력 금지. KST 날짜·분 단위 자유 시간대, 종료 > 시작, 같은 날짜 안의 구간, 겹침 허용 | T-46 · Open Question #30 확정. anon 접근 거부, authenticated SELECT만(RLS), 쓰기는 관리자 API의 service_role |
