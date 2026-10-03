@@ -45,6 +45,9 @@ export function StatsPanel({ loadStats, initialDate }: {
                     <option value="all">전체</option>
                 </select>
                 <button type="button" onClick={() => { setSummary(null); setLoading(true); setError(false); setVersion(value => value + 1); }}>새로고침</button>
+                <a className={styles.download} href={`/api/admin/stats/csv?${new URLSearchParams({ from: date, to: date })}`} download>
+                    CSV 다운로드
+                </a>
             </div>
         </div>
         {loading ? <p role="status" className={styles.message}>통계를 불러오는 중입니다…</p> :
