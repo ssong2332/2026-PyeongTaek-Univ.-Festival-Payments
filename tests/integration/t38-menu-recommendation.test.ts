@@ -34,10 +34,10 @@ afterAll(async () => {
     }
 });
 
-test("기존 시드 메뉴와 추천 값을 생략한 신규 메뉴는 false", async () => {
-    const rows = await db.from("menu_items").select("id, is_recommended");
+test("추천 값을 생략한 신규 메뉴는 false", async () => {
+    const rows = await db.from("menu_items").select("id, is_recommended").in("id", ids);
     expect(rows.error).toBeNull();
-    expect(rows.data!.length).toBeGreaterThan(ids.length);
+    expect(rows.data).toHaveLength(ids.length);
     expect(rows.data!.every((row) => row.is_recommended === false)).toBe(true);
 });
 

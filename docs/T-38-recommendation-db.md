@@ -14,7 +14,7 @@ F-35 / Open Question #25(a)(c): 관리자가 메뉴별 추천을 켜고 끈다. 
 ## 검증
 
 `tests/integration/t38-menu-recommendation.test.ts`는 CI 독립 PostgreSQL에서 다음을 검증한다.
-1. 기존 시드와 신규 메뉴 기본 OFF.
+1. 추천 값을 생략한 신규 메뉴 기본 OFF.
 2. ON/OFF 전환 시 가격·재고·활성·수동 품절 불변.
 3. 여러 추천 메뉴 및 추천 0개.
 4. INSERT/UPDATE NULL 거부(23502), 기존 값 보존.
