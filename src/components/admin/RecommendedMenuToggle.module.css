@@ -1,0 +1,7 @@
+.control { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 0; }
+.name { flex:1; min-width:120px; font-weight:600; }
+.control button { min-width:100px; min-height:44px; padding:8px 12px; border:1px solid #92400e; border-radius:10px; background:#fff7ed; color:#78350f; font:inherit; cursor:pointer; }
+.control button[aria-checked="true"] { background:#92400e; color:white; }
+.control button:disabled { opacity:.6; cursor:wait; }
+.control button:focus-visible { outline:3px solid #7c3aed; outline-offset:2px; }
+.error { width:100%; margin:0; color:#991b1b; font-size:13px; }
