@@ -1,4 +1,5 @@
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import Link from "next/link";
 
 export function AdminShell({ email, children }: { email?: string | null; children: React.ReactNode }) {
     return (
@@ -25,6 +26,10 @@ export function AdminShell({ email, children }: { email?: string | null; childre
                 </div>
             </header>
 
+            <nav aria-label="운영 화면 이동" className="flex gap-5 border-b bg-white px-4 py-3 text-sm font-medium sm:px-6">
+                <Link href="/admin" className="text-brand-deep hover:underline">주문 관리</Link>
+                <Link href="/admin/shifts" className="text-brand-deep hover:underline">교대 스케줄</Link>
+            </nav>
             <main className="flex-1 flex flex-col w-full">
                 {children}
             </main>
