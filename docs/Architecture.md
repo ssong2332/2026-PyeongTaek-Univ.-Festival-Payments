@@ -327,7 +327,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|
 | F-34 수기 입력 | `orders.source text NOT NULL DEFAULT 'customer'` (`'customer'|'manual'`), `orders.manual_ordered_at` | T-28 |
 | F-33 직원 호출 | `staff_calls(id, order_id FK, called_at, acknowledged_at, acknowledged_by)`; 2분 중복 방지는 서비스에서 `max(called_at)` 비교 | T-27 |
-| F-35 추천·템플릿 | `menu_items.is_recommended bool`, `option_templates(id, menu_item_id, name, option_ids uuid[])` | #25 확인 후 T-38/T-39 |
+| F-35 추천 | `menu_items.is_recommended boolean NOT NULL DEFAULT false` — `0101_menu_recommendation.sql`. 기존·신규 메뉴 기본 OFF, 복수 추천 허용. 기존 메뉴 RLS 유지: authenticated SELECT만, 쓰기는 관리자 API의 service_role | T-38 · Open Question #25(a)(c) 확정. 관리자 UI #97·T-20 API·FE1 고객 노출 연결은 각 담당 후속 |
+| F-35 템플릿 | `option_templates(id, menu_item_id, name, option_ids uuid[])` | T-39 · Open Question #25(b) 확정 |
 | F-36 재고 임박 | `app_settings 'stock.low_threshold'`, `stock_alerts(id, menu_item_id, kind, created_at, acknowledged_at)` | #26 확인 후 T-40 |
 | F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
