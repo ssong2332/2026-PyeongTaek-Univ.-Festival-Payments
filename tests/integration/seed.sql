@@ -26,36 +26,44 @@ BEGIN
         '콘치즈 호떡', '고구마 치즈 호떡', '흑임자 콩가루 호떡',
         '불닭 콘치즈 호떡', '말차 화이트초코 호떡'
     ] THEN RAISE EXCEPTION 'confirmed Korean menu names or order mismatch'; END IF;
-    IF (SELECT count(*) FROM public.option_groups) <> 20
-        OR (SELECT count(*) FROM public.option_group_translations) <> 40
-        OR (SELECT count(*) FROM public.options) <> 100
-        OR (SELECT count(*) FROM public.option_translations) <> 200
+    IF (SELECT count(*) FROM public.option_groups) <> 30
+        OR (SELECT count(*) FROM public.option_group_translations) <> 60
+        OR (SELECT count(*) FROM public.options) <> 90
+        OR (SELECT count(*) FROM public.option_translations) <> 180
         OR EXISTS (
             SELECT 1 FROM public.options o
             JOIN public.option_translations t ON t.option_id = o.id AND t.locale = 'ko'
-            WHERE o.extra_price <> CASE t.name
-                WHEN '마요' THEN 300 WHEN '불닭 마요' THEN 700 ELSE 500 END
+            WHERE o.extra_price <> 500
         )
         OR EXISTS (
             SELECT 1 FROM public.option_groups g
             JOIN public.option_group_translations t
               ON t.option_group_id = g.id AND t.locale = 'ko'
-            WHERE g.min_select <> 0
-               OR g.max_select <> CASE t.name
-                   WHEN '시즈닝 추가' THEN 7 WHEN '소스 추가' THEN 3 ELSE -1 END
+            WHERE g.min_select <> 0 OR g.max_select <> 1
+               OR t.name NOT IN ('시즈닝 추가', '불닭 소스 추가', '불닭 마요 추가')
         )
         OR EXISTS (
             SELECT 1 FROM public.menu_items m
             LEFT JOIN public.option_groups g ON g.menu_item_id = m.id
             LEFT JOIN public.option_group_translations gt ON gt.option_group_id = g.id AND gt.locale = 'ko'
             GROUP BY m.id
-            HAVING count(DISTINCT g.id) <> 2
-                OR count(DISTINCT gt.name) <> 2
+            HAVING count(DISTINCT g.id) <> 3
+                OR count(DISTINCT gt.name) <> 3
         ) OR EXISTS (
             SELECT 1 FROM public.menu_items m
             LEFT JOIN public.option_groups g ON g.menu_item_id = m.id
             LEFT JOIN public.options o ON o.option_group_id = g.id
-            GROUP BY m.id HAVING count(o.id) <> 10
+            GROUP BY m.id HAVING count(o.id) <> 9
+        ) OR EXISTS (
+            SELECT 1 FROM public.option_groups g
+            JOIN public.option_group_translations t
+              ON t.option_group_id = g.id AND t.locale = 'ko'
+            LEFT JOIN public.options o ON o.option_group_id = g.id
+            GROUP BY g.id, t.name
+            HAVING count(o.id) <> CASE t.name
+                WHEN '시즈닝 추가' THEN 7
+                WHEN '불닭 소스 추가' THEN 1
+                WHEN '불닭 마요 추가' THEN 1 ELSE -1 END
         ) THEN RAISE EXCEPTION 'add-on group, option count or price mismatch'; END IF;
     IF (SELECT array_agg(t.name ORDER BY g.sort_order, o.sort_order)
         FROM public.option_groups g
@@ -63,7 +71,7 @@ BEGIN
         JOIN public.option_translations t ON t.option_id = o.id AND t.locale = 'ko'
         WHERE g.menu_item_id = '11111111-1111-1111-1111-111111111111')
         <> ARRAY['허니버터', '체다치즈', '콘소메', '뿌링클', '말차', '콩가루',
-                 '흑임자가루', '마요', '불닭 소스', '불닭 마요']
+                 '흑임자가루', '불닭 소스', '불닭 마요']
     THEN RAISE EXCEPTION 'add-on labels or order mismatch'; END IF;
     IF EXISTS (
         SELECT 1 FROM public.menu_items m CROSS JOIN (VALUES ('ko'), ('en')) l(locale)
@@ -91,10 +99,10 @@ UPDATE public.counters SET value = 150 WHERE key = 'pickup_number';
 DO $$ BEGIN
     IF (SELECT count(*) FROM public.menu_items) <> 10
         OR (SELECT count(*) FROM public.menu_item_translations) <> 20
-        OR (SELECT count(*) FROM public.option_groups) <> 20
-        OR (SELECT count(*) FROM public.option_group_translations) <> 40
-        OR (SELECT count(*) FROM public.options) <> 100
-        OR (SELECT count(*) FROM public.option_translations) <> 200
+        OR (SELECT count(*) FROM public.option_groups) <> 30
+        OR (SELECT count(*) FROM public.option_group_translations) <> 60
+        OR (SELECT count(*) FROM public.options) <> 90
+        OR (SELECT count(*) FROM public.option_translations) <> 180
     THEN RAISE EXCEPTION 'repeated seed created duplicate or missing records'; END IF;
     IF EXISTS (SELECT 1 FROM public.menu_items WHERE stock <> 37 OR NOT is_sold_out_manual OR is_active)
        OR EXISTS (SELECT 1 FROM public.option_groups WHERE is_active)
@@ -137,4 +145,21 @@ DO $$ BEGIN
     IF NOT (SELECT is_active FROM public.menu_items
             WHERE id = '33333333-3333-3333-3333-333333333333')
     THEN RAISE EXCEPTION 'seed repeated legacy retirement'; END IF;
+END $$;
+
+-- 이전 초안 시드의 일반 마요·구 불닭 마요는 주문 참조를 위해 남기되 판매에서 제외한다.
+INSERT INTO public.options (id, option_group_id, extra_price, is_active)
+SELECT md5(m.id::text || ':sauce:' || old.option_key)::uuid,
+       md5(m.id::text || ':sauce')::uuid, old.price, true
+FROM (SELECT id FROM public.menu_items
+      WHERE id = '11111111-1111-1111-1111-111111111111') AS m
+CROSS JOIN (VALUES ('mayo', 300), ('buldak_mayo', 700)) AS old(option_key, price);
+\ir ../../supabase/seed.sql
+DO $$ BEGIN
+    IF (SELECT count(*) FROM public.options
+        WHERE id IN (
+            md5('11111111-1111-1111-1111-111111111111:sauce:mayo')::uuid,
+            md5('11111111-1111-1111-1111-111111111111:sauce:buldak_mayo')::uuid
+        ) AND NOT is_active) <> 2
+    THEN RAISE EXCEPTION 'obsolete draft add-ons remained active'; END IF;
 END $$;
