@@ -168,6 +168,29 @@ describe("POST /api/admin/orders/[id]/transition", () => {
                 expect(transition).not.toHaveBeenCalled();
             },
         );
+
+        // 요청 규격은 reason: string(1..200). 빈 문자열은 서비스(→ 400 REASON_REQUIRED)까지 가지 않고
+        // 요청 검증에서 거부돼야 한다(T-17).
+        it.each(["cancel", "refund"])(
+            "%s의 사유가 빈 문자열이면 400 VALIDATION_ERROR를 반환하고 서비스를 호출하지 않는다",
+            async (action) => {
+                const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID_1}/transition`, {
+                    method: "POST",
+                    body: JSON.stringify({ action, reason: "", refundChannel: "cash" }),
+                });
+                const res = await postTransition(req, {
+                    params: Promise.resolve({ id: ORDER_ID_1 }),
+                });
+
+                expect(res.status).toBe(400);
+                const data = await res.json();
+                expect(data.error.code).toBe("VALIDATION_ERROR");
+                expect(data.error.details).toEqual(
+                    expect.arrayContaining([expect.objectContaining({ path: ["reason"] })]),
+                );
+                expect(transition).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe("성공 시나리오 (200 OK)", () => {

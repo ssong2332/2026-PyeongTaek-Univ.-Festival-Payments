@@ -48,6 +48,7 @@
 | 단위 테스트 | `npm run test` | 2026-09-22 |
 | 브라우저 기본 동작 검사(E2E) | `npm run test:e2e` | 2026-09-22 |
 | 코드 규칙 검사 | `npm run lint` | 2026-09-22 |
+| 타입 검사 | `npm run typecheck` | 2026-10-02 |
 
 개발 서버는 Playwright가 위 명령으로 시작하고 종료한다. 일반 개발용 `npm run dev`(기본 포트 3000)는 별도 실행 가능하다.
 E2E 최초 실행 전 `npx playwright install chromium`이 필요하다. 현재 스모크는 DB 없이 실행된다.
