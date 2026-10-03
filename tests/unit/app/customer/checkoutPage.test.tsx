@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CheckoutPage from "@/app/(customer)/checkout/page";
+import { MY_ORDERS_STORAGE_KEY } from "@/features/customer/myOrders";
 import { useCart } from "@/features/customer/useCart";
 import type { CreateOrderResponse } from "@/lib/dto/order";
 
@@ -41,6 +42,7 @@ beforeEach(() => {
     Object.values(router).forEach((fn) => fn.mockReset());
     vi.stubGlobal("fetch", fetchMock);
     sessionStorage.clear();
+    localStorage.clear();
     useCart.setState({ items: [] });
 });
 
@@ -87,6 +89,37 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         expect(screen.queryByText("장바구니가 비어 있습니다")).toBeNull();
         const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
         expect(body.paymentMethod).toBe("cash");
+    });
+
+    it("#89: 성공하면 이동하기 전에 주문 링크(토큰)·픽업 번호를 이 기기(localStorage)에 남긴다", async () => {
+        fillCart();
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        let storedWhenNavigating = null as string | null;
+        router.replace.mockImplementation(() => {
+            storedWhenNavigating = localStorage.getItem(MY_ORDERS_STORAGE_KEY);
+        });
+        render(<CheckoutPage />);
+        fireEvent.click(screen.getByRole("radio", { name: "현금" }));
+        fireEvent.click(confirmButton());
+
+        expect(await screen.findByText("주문이 접수됐어요. 주문 화면으로 이동하고 있어요.")).toBeTruthy();
+        expect(router.replace).toHaveBeenCalledWith(`/orders/${order.statusToken}?new=1`);
+        const saved = JSON.parse(storedWhenNavigating ?? "[]") as { statusToken: string; pickupNumber: number; savedAt: string }[];
+        expect(saved.map(({ statusToken, pickupNumber }) => ({ statusToken, pickupNumber }))).toEqual([
+            { statusToken: order.statusToken, pickupNumber: 5 },
+        ]);
+        expect(Number.isNaN(Date.parse(saved[0].savedAt))).toBe(false);
+    });
+
+    it("#89: 실패하면(재고 부족) 이 기기에 아무것도 남기지 않는다", async () => {
+        fillCart();
+        fetchMock.mockResolvedValueOnce(json(409, envelope("OUT_OF_STOCK", [{ menuItemId: CHEESE, requested: 2, available: 1 }])));
+        render(<CheckoutPage />);
+        fireEvent.click(screen.getByRole("radio", { name: "현금" }));
+        fireEvent.click(confirmButton());
+
+        await screen.findByRole("alert");
+        expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
     });
 
     it("P1은 현금만: 계좌이체는 '준비 중'으로 비활성, 눌러도 선택되지 않고 주문 버튼도 열리지 않는다(Tasks T-31 P2)", () => {

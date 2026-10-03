@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MY_ORDERS_STORAGE_KEY, readMyOrders } from "@/features/customer/myOrders";
 import { IDEMPOTENCY_STORAGE_KEY, useCheckout } from "@/features/customer/useCheckout";
 import { useCart } from "@/features/customer/useCart";
 import type { CreateOrderResponse } from "@/lib/dto/order";
@@ -263,5 +264,55 @@ describe("useCheckout.submit — 실패", () => {
         await submitAndSettle(result);
         expect(fetchMock).not.toHaveBeenCalled();
         expect(result.current.error).toEqual({ kind: "invalidOrder" });
+    });
+});
+
+describe("useCheckout.submit — 이 기기에 주문 링크 저장 (#89)", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it("성공하면 이동(onSuccess) 전에 상태 토큰·픽업 번호를 localStorage에 남긴다", async () => {
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        let savedWhenNavigating: unknown = "onSuccess 미호출";
+        const onSuccess = vi.fn(() => {
+            savedWhenNavigating = readMyOrders();
+        });
+        const { result } = renderHook(() => useCheckout({ onSuccess }));
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(onSuccess).toHaveBeenCalledTimes(1);
+        expect(savedWhenNavigating).toEqual([{ statusToken: order.statusToken, pickupNumber: 5, savedAt: new Date().toISOString() }]);
+    });
+
+    it("멱등 재요청(200, 같은 토큰)으로 다시 성공해도 한 건만 남는다", async () => {
+        fetchMock.mockResolvedValueOnce(json(200, { ...order, created: false }));
+        localStorage.setItem(
+            MY_ORDERS_STORAGE_KEY,
+            JSON.stringify([{ statusToken: order.statusToken, pickupNumber: 5, savedAt: new Date(Date.now() - 60_000).toISOString() }]),
+        );
+        const { result } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(readMyOrders().map((saved) => saved.statusToken)).toEqual([order.statusToken]);
+    });
+
+    it.each([
+        ["네트워크(자동 재시도 3회 실패)", () => fetchMock.mockRejectedValue(new TypeError("fetch failed"))],
+        ["429 RATE_LIMITED", () => fetchMock.mockResolvedValueOnce(json(429, envelope("RATE_LIMITED", { retryAfterSeconds: 30 })))],
+        ["409 OUT_OF_STOCK", () => fetchMock.mockResolvedValueOnce(json(409, envelope("OUT_OF_STOCK", [{ menuItemId: MENU_A, requested: 2, available: 1 }])))],
+    ])("실패하면(%s) 아무것도 저장하지 않는다", async (_label, arrange) => {
+        arrange();
+        const { result, onSuccess } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(onSuccess).not.toHaveBeenCalled();
+        expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
     });
 });

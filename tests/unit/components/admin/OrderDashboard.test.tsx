@@ -201,3 +201,61 @@ describe("T-16 order actions", () => {
         await waitFor(() => expect(screen.getByRole("button", { name: "현금 수령 확인" }).getAttribute("aria-busy")).toBeNull());
     });
 });
+
+describe("T-17 cancel and refund controls", () => {
+    it("requires a reason and sends a trimmed cancellation reason", async () => {
+        const props = base();
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "주문 취소" }));
+        const submit = screen.getByRole("button", { name: "취소 확정" }) as HTMLButtonElement;
+        expect(submit.disabled).toBe(true);
+        fireEvent.change(screen.getByLabelText("취소 사유 (필수, 최대 200자)"), { target: { value: "  고객 요청  " } });
+        expect(submit.disabled).toBe(false);
+        fireEvent.click(submit);
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledExactlyOnceWith(
+            props.orders[0].id, "cancel", { reason: "고객 요청" },
+        ));
+    });
+
+    it("records the payment-specific refund path and blocks completed orders", async () => {
+        const props = base();
+        const bankRefund = { ...props.orders[2], paymentMethod: "transfer" as const };
+        props.orders = [bankRefund, props.orders[3]];
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "환불 처리" }));
+        expect(screen.getByText(/고객 계좌로 역송금/)).toBeTruthy();
+        fireEvent.change(screen.getByLabelText("환불 사유 (필수, 최대 200자)"), { target: { value: "주문 오류" } });
+        fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledExactlyOnceWith(
+            bankRefund.id, "refund", { reason: "주문 오류", refundChannel: "bank" },
+        ));
+        fireEvent.click(screen.getByRole("button", { name: "픽업 004 주문 상세" }));
+        expect((screen.getByRole("button", { name: "주문 취소" }) as HTMLButtonElement).disabled).toBe(true);
+        expect((screen.getByRole("button", { name: "환불 처리" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it("keeps the reason for retry and blocks duplicate submissions during a request", async () => {
+        let reject!: (error: Error) => void;
+        const props = base();
+        props.onTransition.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        fireEvent.click(screen.getByRole("button", { name: "환불 처리" }));
+        fireEvent.change(screen.getByLabelText("환불 사유 (필수, 최대 200자)"), { target: { value: "현장 반환" } });
+        fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+        expect((screen.getByRole("button", { name: "처리 중…" }) as HTMLButtonElement).disabled).toBe(true);
+        expect(props.onTransition).toHaveBeenCalledTimes(1);
+        reject(new Error("500"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("상태 변경에 실패"));
+        expect((screen.getByLabelText("환불 사유 (필수, 최대 200자)") as HTMLTextAreaElement).value).toBe("현장 반환");
+        fireEvent.click(screen.getByRole("button", { name: "환불 기록" }));
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledTimes(2));
+        expect(props.onTransition).toHaveBeenNthCalledWith(2, props.orders[2].id, "refund", {
+            reason: "현장 반환", refundChannel: "cash",
+        });
+        await waitFor(() => expect(screen.getByText("픽업 #003 주문 상태를 변경했습니다.")).toBeTruthy());
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+});

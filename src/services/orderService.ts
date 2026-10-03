@@ -106,6 +106,68 @@ export async function getOrderByToken(
   };
 }
 
+// Architecture "POST /api/orders/{token}/transfer-report" · PRD F-43 (T-32).
+// 주문 상태는 바꾸지 않고(결제대기 유지) 송금 신고 시각만 최초 1회 기록한다.
+export async function reportTransfer(
+  token: string,
+  deps: { orderRepository: Pick<OrderRepository, "findByToken" | "setTransferReported"> },
+): Promise<{ transferReportedAt: string }> {
+  // 토큰 형식 불일치·미존재는 같은 404 (존재 여부를 구분하지 않음 — F-10)
+  if (!STATUS_TOKEN_REGEX.test(token)) throw new AppError("NOT_FOUND", 404);
+
+  const order = await deps.orderRepository.findByToken(token);
+  if (!order) throw new AppError("NOT_FOUND", 404);
+  if (!canReportTransfer(order)) throw new AppError("INVALID_TRANSITION", 409);
+  // 이미 신고됨이면 처음 시각 그대로(멱등)
+  if (order.transferReportedAt) return { transferReportedAt: toUtcIsoString(order.transferReportedAt) };
+
+  const reportedAt = await deps.orderRepository.setTransferReported(order.id);
+  if (reportedAt) return { transferReportedAt: toUtcIsoString(reportedAt) };
+
+  // 기록되지 않음 = 조회 뒤에 다른 요청이 먼저 신고했거나 상태가 바뀜. 다시 읽어 판단한다.
+  const latest = await deps.orderRepository.findByToken(token);
+  if (latest && canReportTransfer(latest) && latest.transferReportedAt) {
+    return { transferReportedAt: toUtcIsoString(latest.transferReportedAt) };
+  }
+  throw new AppError("INVALID_TRANSITION", 409);
+}
+
+// 현금 주문이거나 결제대기가 아니면 신고할 수 없다.
+function canReportTransfer(order: { status: string; paymentMethod: string }): boolean {
+  return order.status === "pending" && order.paymentMethod === "transfer";
+}
+
+// Architecture "POST /api/orders/{token}/cancel-request" · PRD F-45 (T-35).
+// 주문 상태는 바꾸지 않고(결제대기·결제확인 유지) 취소 요청 시각만 최초 1회 기록한다. 승인·거절은 관리자가 한다.
+export async function requestCancel(
+  token: string,
+  deps: { orderRepository: Pick<OrderRepository, "findByToken" | "setCancelRequested"> },
+): Promise<{ cancelRequestedAt: string }> {
+  // 토큰 형식 불일치·미존재는 같은 404 (존재 여부를 구분하지 않음 — F-10)
+  if (!STATUS_TOKEN_REGEX.test(token)) throw new AppError("NOT_FOUND", 404);
+
+  const order = await deps.orderRepository.findByToken(token);
+  if (!order) throw new AppError("NOT_FOUND", 404);
+  if (!canRequestCancel(order)) throw new AppError("CANCEL_REQUEST_NOT_ALLOWED", 409);
+  // 이미 요청됨이면 처음 시각 그대로(멱등)
+  if (order.cancelRequestedAt) return { cancelRequestedAt: toUtcIsoString(order.cancelRequestedAt) };
+
+  const requestedAt = await deps.orderRepository.setCancelRequested(order.id);
+  if (requestedAt) return { cancelRequestedAt: toUtcIsoString(requestedAt) };
+
+  // 기록되지 않음 = 조회 뒤에 다른 요청이 먼저 기록했거나 상태가 바뀜. 다시 읽어 판단한다.
+  const latest = await deps.orderRepository.findByToken(token);
+  if (latest && canRequestCancel(latest) && latest.cancelRequestedAt) {
+    return { cancelRequestedAt: toUtcIsoString(latest.cancelRequestedAt) };
+  }
+  throw new AppError("CANCEL_REQUEST_NOT_ALLOWED", 409);
+}
+
+// 조리중 이후이거나 이미 거절된 주문은 요청할 수 없다.
+function canRequestCancel(order: { status: string; cancelRejectedAt: string | null }): boolean {
+  return (order.status === "pending" || order.status === "paid") && order.cancelRejectedAt === null;
+}
+
 // Architecture "고객 API" GET /api/queue (T-11 메뉴판 주기 갱신용)
 export async function getQueueStatus(
   deps: { orderRepository: Pick<OrderRepository, "countWaitingBefore"> },
