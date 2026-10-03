@@ -3,18 +3,30 @@
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { useConnectionMonitor } from "@/features/admin/useConnectionMonitor";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
     const feed = useOrdersFeed();
+    const monitor = useConnectionMonitor({
+        channelStatus: feed.channelStatus,
+        onRecover: async () => {
+            await feed.reload().catch(() => undefined);
+        },
+        onDisconnectedTick: async () => {
+            await feed.reload().catch(() => undefined);
+        },
+    });
+
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map(order => {
         const response = confirmed[order.id];
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
+        disconnected={monitor.isDisconnected}
         onReload={feed.reload}
         onSearch={async pickupNumber => {
             const response = await fetch(`/api/admin/orders?pickupNumber=${pickupNumber}`, { cache: "no-store" });

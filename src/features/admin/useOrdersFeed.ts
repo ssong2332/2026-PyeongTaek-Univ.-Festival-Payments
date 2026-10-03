@@ -165,20 +165,34 @@ export function mergeOrdersSnapshot(
     return next;
 }
 
+export interface UseOrdersFeedOptions {
+    initialDate?: string;
+    isDisconnected?: boolean;
+    pollingIntervalMs?: number;
+}
+
 export interface UseOrdersFeedReturn {
     orders: AdminOrderDto[];
     ordersMap: Map<string, AdminOrderDto>;
     unacknowledgedCount: number;
     isLoading: boolean;
     error: string | null;
+    channelStatus: string | null;
     acknowledge: (id: string) => Promise<void>;
     reload: () => Promise<void>;
 }
 
-export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
+export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): UseOrdersFeedReturn {
+    const options: UseOrdersFeedOptions = typeof optionsOrDate === "string"
+        ? { initialDate: optionsOrDate }
+        : optionsOrDate ?? {};
+
+    const { initialDate, isDisconnected = false, pollingIntervalMs = 5000 } = options;
+
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [channelStatus, setChannelStatus] = useState<string | null>(null);
     const dateRef = useRef(initialDate);
     useEffect(() => {
         dateRef.current = initialDate;
@@ -308,12 +322,36 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
                     }
                 },
             )
-            .subscribe();
+            .subscribe((status) => {
+                setChannelStatus(status);
+            });
 
         return () => {
             supabase.removeChannel(channel);
         };
     }, [hydrateOrder, markLive]);
+
+    // 3. ADR-0003: 연결 끊김 동안 5초 폴링 폴백으로 강등
+    useEffect(() => {
+        if (!isDisconnected) return;
+
+        let isCancelled = false;
+        const interval = setInterval(() => {
+            const loadStartSeq = liveSeqRef.current;
+            loadOrders().then((result) => {
+                if (isCancelled) return;
+                if (result.map) {
+                    applySnapshot(result.map, loadStartSeq);
+                    setError(null);
+                }
+            });
+        }, pollingIntervalMs);
+
+        return () => {
+            isCancelled = true;
+            clearInterval(interval);
+        };
+    }, [isDisconnected, pollingIntervalMs, loadOrders, applySnapshot]);
 
     const reload = useCallback(async () => {
         setIsLoading(true);
@@ -340,6 +378,7 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
         unacknowledgedCount,
         isLoading,
         error,
+        channelStatus,
         acknowledge,
         reload,
     };

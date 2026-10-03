@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import { ConnectionBanner } from "./ConnectionBanner";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
 import { TransitionRequestError } from "@/features/admin/transitionError";
@@ -27,13 +28,14 @@ export interface OrderDashboardProps {
     isLoading?: boolean;
     error?: string | null;
     preview?: boolean;
+    disconnected?: boolean;
     onReload: () => Promise<void>;
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
 }
 
-export function OrderDashboard({ orders, isLoading = false, error, preview = false,
+export function OrderDashboard({ orders, isLoading = false, error, preview = false, disconnected = false,
     onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
@@ -156,6 +158,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : "주문 관리"}</strong>
                 <button onClick={reload} disabled={isLoading}>새로고침</button></header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
+            <ConnectionBanner disconnected={disconnected} onRetry={reload} retrying={isLoading} />
             <div className={styles.content}>
                 <div className={styles.heading}><span className={styles.logo}><UtensilsCrossed size={26} /></span><div>
                     <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
