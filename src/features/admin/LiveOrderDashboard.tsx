@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
+import { SettingsPanel } from "@/components/admin/SettingsPanel";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
@@ -14,6 +15,7 @@ export function LiveOrderDashboard() {
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
+        settingsPanel={<SettingsPanel />}
         onReload={feed.reload}
         onSearch={async pickupNumber => {
             const response = await fetch(`/api/admin/orders?pickupNumber=${pickupNumber}`, { cache: "no-store" });

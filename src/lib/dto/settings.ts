@@ -14,3 +14,17 @@ export const TransferSettingsDtoSchema = z.object({
 });
 
 export type TransferSettingsDto = z.infer<typeof TransferSettingsDtoSchema>;
+
+export const AUTO_COMPLETE_SETTING_KEYS = {
+    ENABLED: "auto_complete.enabled",
+    MINUTES: "auto_complete.minutes",
+} as const;
+
+export const AutoCompleteEnabledSchema = z.enum(["true", "false"]);
+export const AutoCompleteMinutesSchema = z.string().regex(/^\d+$/).refine(
+    value => Number(value) >= 1 && Number(value) <= 120,
+);
+
+export const AdminSettingsResponseSchema = z.object({
+    settings: z.record(z.string(), z.string()),
+});
