@@ -119,13 +119,13 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
     </header>
     {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
     {notice && <div role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
-    <section aria-labelledby="shift-current" className="rounded-xl border border-orange-200 bg-orange-50 p-5">
+    <section aria-labelledby="shift-current" className="rounded-xl border border-badge bg-peach p-5">
       <div className="flex flex-wrap justify-between gap-2"><h2 id="shift-current" className="font-semibold text-gray-900">현재 담당자</h2>
         <time className="text-sm text-gray-600" dateTime={now.toISOString()}>{now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</time></div>
       {loading ? <p role="status" className="mt-3 text-sm text-gray-600">스케줄 불러오는 중…</p>
         : !loaded ? <p className="mt-3 text-sm text-gray-600">스케줄 조회가 필요합니다.</p>
         : active.length ? <ul className="mt-3 flex flex-wrap gap-3">{active.map((shift) =>
-          <li key={shift.id} className="rounded-lg border border-orange-200 bg-white px-4 py-3">
+          <li key={shift.id} className="rounded-lg border border-badge bg-white px-4 py-3">
             <span className="font-semibold">{shift.personName}</span><span className="ml-2 text-sm text-gray-600">{shift.role}</span>
             <p className="mt-1 text-xs text-gray-500">{shift.startsAt}–{shift.endsAt}</p></li>)}</ul>
         : <p className="mt-3 text-sm text-gray-600">현재 담당자 없음</p>}
@@ -152,7 +152,7 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
         : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">
           <caption className="sr-only">운영진 교대 스케줄, 한국 시간 기준</caption>
           <thead className="bg-gray-50 text-gray-600"><tr>{["날짜", "시간대", "이름", "역할", "관리"].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}</tr></thead>
-          <tbody className="divide-y">{shifts.map((shift) => <tr key={shift.id} className={active.some((item) => item.id === shift.id) ? "bg-orange-50/50" : ""}>
+          <tbody className="divide-y">{shifts.map((shift) => <tr key={shift.id} className={active.some((item) => item.id === shift.id) ? "bg-peach/50" : ""}>
             <td className="px-5 py-4">{shift.date}</td><td className="px-5 py-4 whitespace-nowrap">{shift.startsAt}–{shift.endsAt}</td>
             <td className="px-5 py-4 font-medium">{shift.personName}{active.some((item) => item.id === shift.id) && <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-900">현재</span>}</td>
             <td className="px-5 py-4">{shift.role}</td><td className="px-5 py-4">

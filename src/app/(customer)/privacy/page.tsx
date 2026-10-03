@@ -5,7 +5,7 @@ export default function PrivacyPage() {
       <div className="mx-auto flex max-w-md flex-col gap-4">
         <h1 className="text-2xl font-bold text-neutral-900">개인정보 고지</h1>
 
-        <section aria-labelledby="privacy-collected" className="rounded-2xl border border-[#F3E7DA] bg-white p-5">
+        <section aria-labelledby="privacy-collected" className="rounded-2xl border border-line bg-white p-5">
           <h2 id="privacy-collected" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
             수집하는 개인정보
           </h2>
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
           </p>
         </section>
 
-        <section aria-labelledby="privacy-disposal" className="rounded-2xl border border-[#F3E7DA] bg-white p-5">
+        <section aria-labelledby="privacy-disposal" className="rounded-2xl border border-line bg-white p-5">
           <h2 id="privacy-disposal" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
             주문 데이터 파기
           </h2>
