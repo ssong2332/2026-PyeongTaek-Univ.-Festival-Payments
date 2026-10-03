@@ -33,13 +33,16 @@ export function DashboardPreview() {
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {
             ...order, acknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         } : order))}
-        onTransition={async (id, action) => {
+        onTransition={async (id, action, input) => {
             const order = current.current.find(item => item.id === id);
             if (!order) throw new Error("Order not found");
-            const result = resolveTransition(order, action, {});
+            const result = resolveTransition(order, action, input ?? {});
             if (!result.ok) throw new Error(result.code);
             replace(current.current.map(item => item.id === id ? {
                 ...item, status: result.to, updatedAt: new Date().toISOString(),
+                lastReason: input?.reason ?? item.lastReason,
+                refundChannel: input?.refundChannel ?? item.refundChannel,
+                closedAt: result.restoreStock ? new Date().toISOString() : item.closedAt,
                 availableActions: availableActions({ status: result.to, paymentMethod: item.paymentMethod }),
             } : item));
         }} />;
