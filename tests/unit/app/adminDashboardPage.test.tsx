@@ -113,6 +113,7 @@ describe("/admin 대시보드 페이지", () => {
         const { container } = await renderAdminPage();
 
         expect(await screen.findByRole("navigation", { name: "관리자 메뉴" })).toBeTruthy();
+        expect(screen.getByRole("link", { name: "교대 스케줄" }).getAttribute("href")).toBe("/admin/shifts");
         const [logout] = logoutButtons();
         expect(logoutButtons()).toHaveLength(1);
         for (let node: HTMLElement | null = logout; node; node = node.parentElement) {
