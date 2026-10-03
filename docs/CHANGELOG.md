@@ -10,6 +10,7 @@
 - 2026-10-01 브라우저 API 호출의 8초 타임아웃이 응답 헤더까지만 걸리던 문제 — 본문 수신까지 유지, 본문 수신 중 끊김·지연은 응답 없음(자동 재시도 대상)으로 처리(`lib/api/client.ts`, DECISIONS #24) — PR #85(릴리스 PR #84 리뷰)
 
 ### Changed
+- 2026-10-02 운영 계좌 3개 입력 담당 변경: 팀장 → DB1(서동혁). 팀장은 실제 값 1:1 전달·입력 값 대조, DB1은 입력·채움 확인(DECISIONS #55, #47 개정) — `T-30-transfer-settings.md` 순서·4단계 값 대조 추가, `T-30-operations-runbook.md` 4절
 - 2026-10-01 **첫 운영 배포** — 릴리스 PR #84(`dev` → `main`, `572a346`)를 Cloudflare Workers Builds(Production branch `main`, 미리보기 빌드 끔)로 배포. `/api/health` 200 `db:true`, 스모크 5단계 통과(현금 주문 → 현금 수령 확인 → 조리 완료). 주소·결과는 `T-25-deployment.md` 7절 — 계정 서브도메인은 바꿀 예정(팀장 결정 10-02) — 새 주소로 다시 확정. 팀장 진행
 - 2026-10-01 Cloudflare 변수 규칙 정정(`T-25-deployment.md` 3절, Architecture 배포 절): `NEXT_PUBLIC_*`는 빌드 변수에만, 서버 키는 실행 Secret으로 — 대시보드 일반 실행 변수는 배포(`wrangler deploy`) 때 덮어써짐
 - 2026-10-01 배포 기준 변경(PR #50, 유은조 작성·팀장 인수): Node 20 → 22(`.nvmrc` 22.23.3, DECISIONS #51), 배포 어댑터 OpenNext 확정(DECISIONS #52), 운영 배포 브랜치 `dev` → `main`(DECISIONS #53, GitWorkflow·README)
