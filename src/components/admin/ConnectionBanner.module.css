@@ -1,0 +1,8 @@
+.banner { display:flex; align-items:center; gap:14px; padding:16px 32px; background:#991b1b; color:#fff; border-bottom:2px solid #7f1d1d; }
+.message { display:flex; flex:1; min-width:0; flex-direction:column; gap:3px; line-height:1.4; }
+.message strong { font-size:15px; }
+.message span { font-size:13px; }
+.banner button { border:1px solid #fecaca; border-radius:10px; padding:9px 14px; background:#fff; color:#7f1d1d; font-weight:700; white-space:nowrap; }
+.banner button:disabled { opacity:.7; cursor:wait; }
+.banner button:focus-visible { outline:3px solid #fde68a; outline-offset:3px; }
+@media(max-width:640px) { .banner { flex-wrap:wrap; padding:14px 16px; } .message { flex-basis:calc(100% - 42px); } .banner button { margin-left:36px; } }
