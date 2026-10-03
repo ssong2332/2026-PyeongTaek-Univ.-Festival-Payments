@@ -84,6 +84,7 @@
 - `npm run test` 754 통과 · `npm run test:integration` 124 통과(T-35 29개 포함) · `typecheck` 0 · `lint` 0 · `build` 통과(`ƒ /api/orders/[token]/cancel-request`, `ƒ /api/admin/orders/[id]/cancel-request`)
 - 운영 DB는 사용하지 않았다(로컬 DB만).
 - (2026-10-03, QA 리뷰 반영) `AdminCancelRequestDecisionSchema`를 `z.strictObject`로 변경 — 규격에 없는 필드는 400 `VALIDATION_ERROR`·서비스 미호출(라우트 단위 테스트 1건 추가, 구현 전 실패 확인). `npm run test` 755 통과 · `typecheck` 0 · `lint` 0 · `build` 통과. 통합 테스트는 서비스를 직접 호출해 이 변경의 영향이 없으며 CI에서 다시 확인한다.
+- (2026-10-03, #80 병합 후) 최신 dev(730c4ef — T-32 #80·T-17 #72·#58·T-46 포함)를 브랜치에 병합. 충돌은 `docs/DECISIONS.md` 1건(#54·#56 두 줄 모두 유지). 병합 후 `npm run test` 859 통과 · `npm run test:integration` 143 통과(T-35 29개 포함) · `typecheck` 0 · `lint` 0 · `build` 통과.
 
 ## 한계·남은 것
 

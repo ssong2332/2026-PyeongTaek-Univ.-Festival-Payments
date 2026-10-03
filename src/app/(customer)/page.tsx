@@ -5,6 +5,7 @@ import { useState } from "react";
 import { MenuCard } from "@/components/customer/MenuCard";
 import { MenuDetailSheet } from "@/components/customer/MenuDetailSheet";
 import { MenuSkeleton } from "@/components/customer/MenuSkeleton";
+import { MyOrderLinks } from "@/components/customer/MyOrderLinks";
 import { QueueCount } from "@/components/customer/QueueCount";
 import { SearchBox } from "@/components/customer/SearchBox";
 import { BottomBar } from "@/components/ui/BottomBar";
@@ -14,6 +15,7 @@ import { ErrorRetry } from "@/components/ui/ErrorRetry";
 import { CartIcon } from "@/components/ui/icons";
 import { filterMenuItems } from "@/features/customer/menuSearch";
 import { selectionHint } from "@/features/customer/messages";
+import { useMyOrders } from "@/features/customer/myOrders";
 import { selectCartCount, selectCartTotal, useCart, useCartHydrated } from "@/features/customer/useCart";
 import { useMenu } from "@/features/customer/useMenu";
 import { useMenuSelection } from "@/features/customer/useMenuSelection";
@@ -26,6 +28,7 @@ export default function MenuPage() {
     const hydrated = useCartHydrated();
     const count = useCart(selectCartCount);
     const total = useCart(selectCartTotal);
+    const myOrders = useMyOrders();
     const [query, setQuery] = useState("");
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -58,6 +61,7 @@ export default function MenuPage() {
             <div className="-mt-6 flex flex-col gap-4 px-4">
                 <SearchBox value={query} onChange={setQuery} />
                 <QueueCount waitingCount={menu.waitingCount} />
+                <MyOrderLinks orders={myOrders} />
                 <section aria-labelledby="menu-list-title" className="flex flex-col gap-3">
                     <h2 id="menu-list-title" className="pt-2 text-lg font-extrabold">
                         전체 메뉴

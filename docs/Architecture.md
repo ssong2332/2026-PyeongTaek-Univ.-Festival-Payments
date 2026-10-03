@@ -300,6 +300,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | `dev` 병합, 운영 적용(DB1, 2026-10-01 확인 — DECISIONS #47) |
 | 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
+| 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -330,7 +331,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
 | F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 팀장 재검토 |
-| F-40 스케줄 | `shifts(id, person_name, date, starts_at, ends_at, role)` | #30 확인 후 T-46 |
+| F-40 스케줄 | `shifts(id uuid PK, person_name text, date date, starts_at time(0), ends_at time(0), role text)` — `0100_shifts.sql`. 이름 1~80자, 역할 1~100자, 공백만 입력 금지. KST 날짜·분 단위 자유 시간대, 종료 > 시작, 같은 날짜 안의 구간, 겹침 허용 | T-46 · Open Question #30 확정. anon 접근 거부, authenticated SELECT만(RLS), 쓰기는 관리자 API의 service_role |
 | F-46 메뉴 등록·삭제 | 스키마 변경 없음(`is_active` 사용, DECISIONS #22) | T-37 |
 
 ### 5. API 규격 — 공통
@@ -370,6 +371,10 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 ### 7. 관리자 API (전부 `requireAdmin()` — 세션 없으면 401)
 
+T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜·시작·이름·id 오름차순 전체 목록).
+`POST /api/admin/shifts` → 201, `PATCH /api/admin/shifts/{id}` → 200: 전체 `ShiftInput { personName, date: YYYY-MM-DD, startsAt: HH:mm, endsAt: HH:mm, role }` 본문, 응답은 `Shift { id, ...ShiftInput }`.
+`DELETE /api/admin/shifts/{id}` → 204. 잘못된 날짜·시간·빈 이름/역할·추가 필드·UUID는 400 `VALIDATION_ERROR`, 미존재 수정/삭제는 404. 인증은 모든 검증·저장소 접근보다 먼저 수행한다.
+
 | 메서드·경로 | 요청 | 응답 | 규칙 |
 |---|---|---|---|
 | `GET /api/admin/orders?date=YYYY-MM-DD&status=&pickupNumber=` | `date` 기본 오늘(KST — 서버 시각 기준). 달력에 없는 날짜면 400 `VALIDATION_ERROR`. `status` 콤마 목록 선택. `pickupNumber` 정수(있으면 date 무시) | `{ orders: AdminOrderDto[], unacknowledgedCount }` — `created_at DESC` | `AdminOrderDto { id, pickupNumber, status, paymentMethod, totalAmount, items: [{ menuNameKo, quantity, options: [{ nameKo, extraPrice }], lineTotal }], createdAt, updatedAt, acknowledgedAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, paidAt, cookingStartedAt, completedAt, closedAt, refundChannel, lastReason, availableActions: TransitionAction[] }`. F-22: `pickupNumber` 결과 0건이면 `orders: []` |
@@ -403,7 +408,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
 | 통계 | `/admin/stats` | `useStats(date)` | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도 |
-| (2차) 수기 입력·스케줄·프로모션 | `/admin/manual-orders`, `/admin/shifts`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
+| 교대 스케줄 (T-46, F-40) | `/admin/shifts` (`admin/(protected)/shifts/page.tsx`) | `features/admin/ShiftManagement` — CRUD 폼·목록·현재 담당자. 현재 시각은 30초마다 갱신, KST 구간 [시작, 종료)로 복수 담당자 산출 | `lib/api/client` → 관리자 shifts API | 0건·현재 담당자 없음·조회 로딩/오류 재시도·저장 잠금/실패 안내·삭제 확인. 오류 상태를 0건으로 표시하지 않음. 세션 없음/만료 → 로그인 |
+| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
 
 설정 패널(F-48, `/admin` 안의 `SettingsPanel` — 별도 라우트 없음, 접힘/펼침 UI는 디자인 재량):
 

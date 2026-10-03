@@ -1,6 +1,14 @@
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "@/domain/order/status";
 import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
+import type { Shift, ShiftInput } from "@/domain/shift/schedule";
+
+export interface ShiftRepository {
+    list(): Promise<Shift[]>;
+    create(input: ShiftInput): Promise<Shift>;
+    update(id: string, input: ShiftInput): Promise<Shift>;
+    remove(id: string): Promise<void>;
+}
 
 export interface OrderListFilter {
     date?: string;
