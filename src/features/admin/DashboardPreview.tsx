@@ -6,7 +6,7 @@ import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 
 export function makePreviewOrders(): AdminOrderDto[] {
-    const menus = [["기본호떡", 2000], ["뿌링클 호떡", 2500], ["불닭 치즈 호떡", 3500], ["맛다시 호떡", 4000]] as const;
+    const menus = [["기본 호떡", 2000], ["뿌링클 호떡", 2500], ["불닭 콘치즈 호떡", 3500], ["말차 화이트초코 호떡", 3500]] as const;
     return menus.map(([name, price], i) => ({
         id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
         pickupNumber: i + 1, status: (["pending", "pending", "cooking", "completed"] as const)[i],
