@@ -3,17 +3,21 @@
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { useStaffCallsFeed } from "@/features/admin/useStaffCallsFeed";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
     const feed = useOrdersFeed();
+    const staffFeed = useStaffCallsFeed();
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map(order => {
         const response = confirmed[order.id];
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
+        staffCalls={staffFeed.calls}
+        onAcknowledgeStaffCall={staffFeed.acknowledge}
         onReload={feed.reload}
         onSearch={async pickupNumber => {
             const response = await fetch(`/api/admin/orders?pickupNumber=${pickupNumber}`, { cache: "no-store" });
