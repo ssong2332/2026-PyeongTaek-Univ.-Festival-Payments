@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { Suspense } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrderStatusPage from "@/app/(customer)/orders/[token]/page";
+import { readMyOrders, saveMyOrder } from "@/features/customer/myOrders";
 import type { OrderStatusDto } from "@/lib/dto/order";
 
 const TOKEN = "0123456789abcdef".repeat(4);
@@ -254,5 +255,53 @@ describe("/orders/[token] — 로딩·없음·오류 (PRD 화면 표)", () => {
     await flush(5_000);
     expect(screen.queryByText(/최신 상태를 불러오지 못했어요/)).toBeNull();
     expect(screen.getByText("완료")).toBeTruthy();
+  });
+});
+
+describe("/orders/[token] — 메뉴판 '내 주문' 정리 (#89)", () => {
+  const OTHER = "f".repeat(64);
+  const savedTokens = () => readMyOrders().map((order) => order.statusToken);
+
+  beforeEach(() => {
+    localStorage.clear();
+    saveMyOrder({ statusToken: OTHER, pickupNumber: 7 });
+    saveMyOrder({ statusToken: TOKEN, pickupNumber: 5 });
+  });
+
+  it("404면 '주문을 찾을 수 없습니다'와 함께 이 기기에서 그 주문을 지운다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: { code: "NOT_FOUND", message: "Resource not found." } }, 404));
+    await renderPage();
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문을 찾을 수 없습니다");
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it.each([
+    ["cancelled", "주문이 취소됐어요"],
+    ["refunded", "주문이 환불됐어요"],
+    ["expired", "주문이 만료됐어요"],
+  ] as const)("%s 안내를 보여 주고 이 기기에서 그 주문을 지운다", async (status, title) => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status, canCancelRequest: false })));
+    await renderPage();
+
+    expect(screen.getByRole("heading", { name: title })).toBeTruthy();
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it("완료(completed)는 수령해야 하므로 남긴다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "completed", aheadCount: 0 })));
+    await renderPage();
+
+    expect(screen.getByText("완료")).toBeTruthy();
+    expect(savedTokens()).toEqual([TOKEN, OTHER]);
+  });
+
+  it("저장되지 않은 주문을 완료 보기(?new=1)로 열어도 이 화면은 새로 저장하지 않는다", async () => {
+    localStorage.clear();
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "pending" })));
+    await renderPage({ new: "1" });
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문이 접수됐어요!");
+    expect(savedTokens()).toEqual([]);
   });
 });
