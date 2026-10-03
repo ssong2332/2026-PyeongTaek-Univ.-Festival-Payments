@@ -12,6 +12,7 @@
 
 ### Changed
 - 2026-10-04 고객·관리자 화면 디자인 업그레이드(프론트 담당 Figma Make 시각 요소만, 팀장 예외 결정): 크림·피치·코랄·코코아 팔레트 토큰, Pretendard Variable 동적 서브셋(npm `pretendard` 1.3.9, OFL-1.1), 호떡 마스코트 SVG 5종(`public/mascot/`), 메뉴판 헤더 호떡 이미지(Codex 생성, `public/images/hotteok-hero.webp`). 로직·API 변경 없음. 코랄 위 흰 글씨는 대비 기준에 맞게 진한 값으로 조정 — `docs/Design-Changes.md` #58~#65
+- 2026-10-04 Tasks·노션 동기화: T-17·T-46 완료(팀장 결정: PR 모두 병합 → 완료), T-19·21·22·32·35·38·41 대기 → 진행, 근거 열 갱신 12행(PR 없는 마감 경과 4행 포함), T-35 담당 열을 FE2 예외(김희진)에 맞춤. T-36은 노션만 진행중으로 다시 엶 — 이 문서는 "완료 행 되돌리지 않음" 규칙과 충돌해 팀장 판단 대기(Tasks 10-04 변경 이력)
 - 2026-10-02 운영 계좌 3개 입력 담당 변경: 팀장 → DB1(서동혁). 팀장은 실제 값 1:1 전달·입력 값 대조, DB1은 입력·채움 확인(DECISIONS #55, #47 개정) — `T-30-transfer-settings.md` 순서·4단계 값 대조 추가, `T-30-operations-runbook.md` 4절
 - 2026-10-01 **첫 운영 배포** — 릴리스 PR #84(`dev` → `main`, `572a346`)를 Cloudflare Workers Builds(Production branch `main`, 미리보기 빌드 끔)로 배포. `/api/health` 200 `db:true`, 스모크 5단계 통과(현금 주문 → 현금 수령 확인 → 조리 완료). 주소·결과는 `T-25-deployment.md` 7절 — 계정 서브도메인은 바꿀 예정(팀장 결정 10-02) — 새 주소로 다시 확정. 팀장 진행
 - 2026-10-01 Cloudflare 변수 규칙 정정(`T-25-deployment.md` 3절, Architecture 배포 절): `NEXT_PUBLIC_*`는 빌드 변수에만, 서버 키는 실행 Secret으로 — 대시보드 일반 실행 변수는 배포(`wrangler deploy`) 때 덮어써짐
