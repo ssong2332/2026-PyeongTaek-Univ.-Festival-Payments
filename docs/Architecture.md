@@ -301,6 +301,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 | 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
+| 0101 | `0101_menu_recommendation.sql` | 메뉴별 추천 여부 `is_recommended` | T-38 · DB1 | 0100(운영 적용 순서) | 신규 배정. 기본값 false, NOT NULL; 기존 메뉴 RLS 유지 |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
