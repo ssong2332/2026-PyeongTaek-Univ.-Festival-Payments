@@ -1,6 +1,14 @@
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "@/domain/order/status";
 import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
+import type { Shift, ShiftInput } from "@/domain/shift/schedule";
+
+export interface ShiftRepository {
+    list(): Promise<Shift[]>;
+    create(input: ShiftInput): Promise<Shift>;
+    update(id: string, input: ShiftInput): Promise<Shift>;
+    remove(id: string): Promise<void>;
+}
 
 export interface OrderListFilter {
     date?: string;
@@ -77,6 +85,13 @@ export interface OrderRepository {
     findByToken(token: string): Promise<OrderByTokenResult | null>;
     // 내 앞의 대기 주문 수(createdAt 제공 시) 또는 전체 대기 주문 수(미제공/null 시). status in ('pending','paid','cooking')
     countWaitingBefore(createdAt?: string | null): Promise<number>;
+    // 송금 신고 시각 최초 1회 기록(T-32, F-43). 결제대기·계좌이체·미신고일 때만 기록해 그 시각(DB 문자열)을, 아니면 null.
+    setTransferReported(id: string): Promise<string | null>;
+    // 고객 취소 요청 시각 최초 1회 기록(T-35, F-45). 결제대기·결제확인이고 요청·거절 기록이 없을 때만 기록해 그 시각(DB 문자열)을, 아니면 null.
+    setCancelRequested(id: string): Promise<string | null>;
+    // 취소 요청 거절(T-35, F-18): 결제대기·결제확인이고 요청됨·미거절일 때만 거절 시각을 기록하고 이력 1행(cancel_request_reject)을 남긴다.
+    // 조건에 맞는 주문이 없으면 false. 이력을 남기지 못하면 거절 시각을 되돌리고 AppError("INTERNAL_ERROR", 500)를 던진다.
+    rejectCancelRequest(id: string, actorId: string, reason: string): Promise<boolean>;
 }
 
 // 메뉴 조회(GET /api/menu). 저장소는 거르지 않은 전체를 돌려주고, 비활성 제외·언어 폴백·품절 파생은 menuService가 한다.

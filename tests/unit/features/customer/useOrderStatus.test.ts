@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readMyOrders, saveMyOrder } from "@/features/customer/myOrders";
 import { useOrderStatus } from "@/features/customer/useOrderStatus";
 import type { OrderStatusDto } from "@/lib/dto/order";
 
@@ -274,5 +275,82 @@ describe("useOrderStatus — 5초 폴링", () => {
     expect(result.current.order?.status).toBe("cooking");
     expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+});
+
+describe("useOrderStatus — 이 기기에 저장된 주문 정리 (#89)", () => {
+  const OTHER = "f".repeat(64);
+  const savedTokens = () => readMyOrders().map((order) => order.statusToken);
+
+  beforeEach(() => {
+    localStorage.clear();
+    saveMyOrder({ statusToken: OTHER, pickupNumber: 7 });
+    saveMyOrder({ statusToken: TOKEN, pickupNumber: 42 });
+  });
+
+  it("404(찾을 수 없음)면 이 토큰만 지우고 다른 주문은 남긴다", async () => {
+    fetchMock.mockResolvedValue(notFoundResponse());
+
+    renderHook(() => useOrderStatus(TOKEN));
+    await advance(0);
+
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it.each(["cancelled", "refunded", "expired"] as const)("%s면 이 토큰을 지운다", async (status) => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status })));
+
+    renderHook(() => useOrderStatus(TOKEN));
+    await advance(0);
+
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it.each(["completed", "pending", "paid", "cooking"] as const)(
+    "%s면 남긴다(완료는 수령해야 하므로 24시간 규칙으로만 사라짐)",
+    async (status) => {
+      fetchMock.mockResolvedValue(jsonResponse(orderDto({ status })));
+
+      renderHook(() => useOrderStatus(TOKEN));
+      await advance(0);
+
+      expect(savedTokens()).toEqual([TOKEN, OTHER]);
+    },
+  );
+
+  it("폴링 중 조리중 → 취소로 바뀌면 그때 지운다", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(orderDto({ status: "cooking" })))
+      .mockResolvedValueOnce(jsonResponse(orderDto({ status: "cancelled" })));
+
+    renderHook(() => useOrderStatus(TOKEN));
+    await advance(0);
+    expect(savedTokens()).toEqual([TOKEN, OTHER]);
+
+    await advance(5_000);
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it("조회 실패(500·네트워크)는 주문이 끝났다는 뜻이 아니므로 지우지 않는다", async () => {
+    fetchMock
+      .mockResolvedValueOnce(internalErrorResponse())
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    renderHook(() => useOrderStatus(TOKEN));
+    await advance(0);
+    await advance(5_000);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(savedTokens()).toEqual([TOKEN, OTHER]);
+  });
+
+  it("저장되지 않은 주문을 열면 새로 저장하지 않는다", async () => {
+    localStorage.clear();
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "pending" })));
+
+    renderHook(() => useOrderStatus(TOKEN));
+    await advance(0);
+
+    expect(savedTokens()).toEqual([]);
   });
 });
