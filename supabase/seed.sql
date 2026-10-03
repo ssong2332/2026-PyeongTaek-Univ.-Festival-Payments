@@ -46,25 +46,27 @@ SELECT id, 'ko', name_ko, description_ko FROM t36_menu_seed
 UNION ALL SELECT id, 'en', name_en, description_en FROM t36_menu_seed
 ON CONFLICT (menu_item_id, locale) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description;
 
--- 전 메뉴에서 시즈닝 한 종류와 두 소스를 각각 선택 가능하게 둔다.
+-- 서로 다른 추가 옵션은 모두 선택 가능하되 동일 옵션을 두 번 고를 수 없다.
 CREATE TEMP TABLE t36_option_seed (
  group_key text, group_order integer, group_ko text, group_en text,
- option_key text, option_order integer, option_ko text, option_en text
+ option_key text, option_order integer, option_ko text, option_en text, price integer
 ) ON COMMIT DROP;
 INSERT INTO t36_option_seed VALUES
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'honey_butter', 1, '허니버터', 'Honey Butter'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'cheddar', 2, '체다치즈', 'Cheddar Cheese'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'consomme', 3, '콘소메', 'Consomme'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'bburinkle', 4, '뿌링클', 'Bburinkle'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'matcha', 5, '말차', 'Matcha'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'soybean', 6, '콩가루', 'Soybean Powder'),
-('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'black_sesame', 7, '흑임자가루', 'Black Sesame Powder'),
-('buldak_sauce', 2, '불닭 소스 추가', 'Extra Buldak Sauce', 'buldak_sauce', 1, '불닭 소스', 'Buldak Sauce'),
-('buldak_mayo', 3, '불닭 마요 추가', 'Extra Buldak Mayo', 'buldak_mayo', 1, '불닭 마요', 'Buldak Mayo');
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'honey_butter', 1, '허니버터', 'Honey Butter', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'cheddar', 2, '체다치즈', 'Cheddar Cheese', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'consomme', 3, '콘소메', 'Consomme', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'bburinkle', 4, '뿌링클', 'Bburinkle', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'matcha', 5, '말차', 'Matcha', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'soybean', 6, '콩가루', 'Soybean Powder', 500),
+('seasoning', 1, '시즈닝 추가', 'Extra Seasoning', 'black_sesame', 7, '흑임자가루', 'Black Sesame Powder', 500),
+('sauce', 2, '소스 추가', 'Extra Sauce', 'mayo', 1, '마요', 'Mayo', 300),
+('sauce', 2, '소스 추가', 'Extra Sauce', 'buldak_sauce', 2, '불닭 소스', 'Buldak Sauce', 500),
+('sauce', 2, '소스 추가', 'Extra Sauce', 'buldak_mayo', 3, '불닭 마요', 'Buldak Mayo', 700);
 
 -- 결정적인 UUID로 재실행해도 그룹·옵션이 중복되지 않는다.
 INSERT INTO public.option_groups (id, menu_item_id, min_select, max_select, sort_order, is_active)
-SELECT DISTINCT md5(m.id::text || ':' || o.group_key)::uuid, m.id, 0, 1, o.group_order, true
+SELECT DISTINCT md5(m.id::text || ':' || o.group_key)::uuid, m.id, 0,
+ CASE WHEN o.group_key = 'seasoning' THEN 7 ELSE 3 END, o.group_order, true
 FROM t36_menu_seed m CROSS JOIN t36_option_seed o
 ON CONFLICT (id) DO UPDATE SET min_select = EXCLUDED.min_select,
  max_select = EXCLUDED.max_select, sort_order = EXCLUDED.sort_order;
@@ -77,7 +79,7 @@ FROM t36_menu_seed m CROSS JOIN t36_option_seed o
 ON CONFLICT (option_group_id, locale) DO UPDATE SET name = EXCLUDED.name;
 INSERT INTO public.options (id, option_group_id, extra_price, sort_order, is_active)
 SELECT md5(m.id::text || ':' || o.group_key || ':' || o.option_key)::uuid,
- md5(m.id::text || ':' || o.group_key)::uuid, 500, o.option_order, true
+ md5(m.id::text || ':' || o.group_key)::uuid, o.price, o.option_order, true
 FROM t36_menu_seed m CROSS JOIN t36_option_seed o
 ON CONFLICT (id) DO UPDATE SET extra_price = EXCLUDED.extra_price,
  sort_order = EXCLUDED.sort_order;
