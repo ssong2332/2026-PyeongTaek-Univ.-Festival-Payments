@@ -119,5 +119,20 @@ export function createSupabaseOrderRepository(
       if (error) throw toError("count_waiting_before", error);
       return typeof data === "number" ? data : 0;
     },
+
+    async setTransferReported(id) {
+      // 조건이 맞는 행만 갱신한다(결제대기·계좌이체·미신고). 동시 요청이어도 한 건만 갱신된다.
+      const { data, error } = await client
+        .from("orders")
+        .update({ transfer_reported_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("status", "pending")
+        .eq("payment_method", "transfer")
+        .is("transfer_reported_at", null)
+        .select("transfer_reported_at");
+      if (error) throw toError("orders.setTransferReported", error);
+      // findByToken처럼 DB 시각 문자열 그대로 돌려준다 — 응답 표기(UTC ISO)는 서비스가 맞춘다.
+      return data.length > 0 ? (data[0].transfer_reported_at as string) : null;
+    },
   };
 }

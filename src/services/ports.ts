@@ -85,6 +85,8 @@ export interface OrderRepository {
     findByToken(token: string): Promise<OrderByTokenResult | null>;
     // 내 앞의 대기 주문 수(createdAt 제공 시) 또는 전체 대기 주문 수(미제공/null 시). status in ('pending','paid','cooking')
     countWaitingBefore(createdAt?: string | null): Promise<number>;
+    // 송금 신고 시각 최초 1회 기록(T-32, F-43). 결제대기·계좌이체·미신고일 때만 기록해 그 시각(DB 문자열)을, 아니면 null.
+    setTransferReported(id: string): Promise<string | null>;
 }
 
 // 메뉴 조회(GET /api/menu). 저장소는 거르지 않은 전체를 돌려주고, 비활성 제외·언어 폴백·품절 파생은 menuService가 한다.
