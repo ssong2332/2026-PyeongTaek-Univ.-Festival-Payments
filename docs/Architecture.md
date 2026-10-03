@@ -221,7 +221,7 @@ POST /api/orders (Route Handler)
 | `acknowledge` | pending/paid/cooking | admin | `acknowledged_at`, `acknowledged_by` 설정 (F-21). 이력 없음 |
 | `transfer_report` | pending AND transfer | customer | `transfer_reported_at` 최초 1회만 (F-43). 이력 없음 |
 | `cancel_request` | pending/paid | customer | `cancel_requested_at` 최초 1회만, `cancel_rejected_at IS NULL`일 때만 (F-45). 이력 없음 |
-| `cancel_request_reject` | pending/paid AND `cancel_requested_at IS NOT NULL` | admin | `cancel_rejected_at = now()`, 이력 행(사유 선택) (F-18) |
+| `cancel_request_reject` | pending/paid AND `cancel_requested_at IS NOT NULL` | admin | `cancel_rejected_at = now()`, 이력 행(사유 필수) (F-18) |
 
 DB 함수 `transition_order`가 추가로 강제하는 무결성: (1) 현재 상태가 `p_from`과 같을 때만 갱신(CAS, 아니면 `STATE_CHANGED`), (2) `p_from`이 터미널이면 무조건 거부, (3) `p_to ∈ {cancelled, refunded, expired}`면 재고 복구, (4) 이력 1행 INSERT. 정책(어떤 pair가 허용인지)은 TS에만 있다 — DB 함수에 pair 표를 복제하지 않는다 (DECISIONS #8).
 
@@ -381,7 +381,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | `GET /api/admin/orders/{id}` | — | `AdminOrderDto` | Realtime INSERT 하이드레이션용 |
 | `POST /api/admin/orders/{id}/acknowledge` | — | `AdminOrderDto` | 이미 확인됨이면 그대로 200 |
 | `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id` |
-| `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` |
+| `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` — 이미 거절된 요청(`cancel_rejected_at` 있음)·결제대기/결제확인이 아닌 주문도 409. `reason` 빈 문자열 400 `VALIDATION_ERROR`, 공백만 400 `REASON_REQUIRED`(승인·거절 모두 사유 필수) |
 | `GET /api/admin/menus` | — | `{ menus: AdminMenuDto[] }` · `AdminMenuDto { id, translations: { [locale]: { name, description } }, basePrice, stock, isSoldOutManual, isActive, sortOrder, imageUrl, optionGroups: [{ id, translations, minSelect, maxSelect, isActive, options: [{ id, translations, extraPrice, isActive }] }] }` | 비활성 포함(1차 UI는 수정만) |
 | `PATCH /api/admin/menus/{id}` | `{ basePrice?: int≥0, stock?: int≥0, isSoldOutManual?: bool, translations?: { [locale]: { name: string≥1, description?: string } } }` | `AdminMenuDto` | ko `name` 빈값 → 400. 재고 0이면 `isSoldOut` 파생(F-25) — 별도 플래그 저장 없음 |
 | `PATCH /api/admin/option-groups/{id}` | `{ translations?, minSelect?, maxSelect?, isActive? }` | `AdminMenuDto`(소속 메뉴) | max ≥ min 아니면 400 |
