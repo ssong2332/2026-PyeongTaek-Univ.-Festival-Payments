@@ -93,6 +93,22 @@ describe("POST /api/orders", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("시드 메뉴 ID(11111111-…)로도 주문이 만들어진다 — z.uuid()였다면 400", async () => {
+    const seedBody = { ...body, items: [{ menuItemId: "11111111-1111-1111-1111-111111111111", quantity: 1, optionIds: [] }] };
+    const { status } = await post(seedBody);
+    expect(status).toBe(201);
+    expect(rpc).toHaveBeenCalledWith("create_order", expect.objectContaining({
+      p_items: [expect.objectContaining({ menuItemId: "11111111-1111-1111-1111-111111111111" })],
+    }));
+  });
+
+  it("uuid 모양이 아닌 메뉴 ID면 400 VALIDATION_ERROR, DB는 호출하지 않는다", async () => {
+    const { status, json } = await post({ ...body, items: [{ menuItemId: "abc", quantity: 1, optionIds: [] }] });
+    expect(status).toBe(400);
+    expect(json.error.code).toBe("VALIDATION_ERROR");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("허용 외 결제수단이면 400 VALIDATION_ERROR", async () => {
     const { status, json } = await post({ ...body, paymentMethod: "kakaopay" });
     expect(status).toBe(400);
