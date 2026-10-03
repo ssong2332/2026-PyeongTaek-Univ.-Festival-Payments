@@ -20,17 +20,20 @@
             "service": "ptu-festival-payments"
         }
     ],
-    // Workers Logs: 운영 중 오류 원인 확인용(Free 200,000건/일·3일 보관). 대시보드 값과 같게 둔다 —
-    // 설정 파일에 없으면 배포가 대시보드 값과 어긋날 수 있다(Cloudflare 대시보드 안내 "Update your Wrangler configuration … to keep deployments in sync").
+    // Workers Logs: 대시보드에 저장하지 않는다 — 상태 토큰이 든 URL이 저장 로그에 남지 않게(PR #91 리뷰, 팀장 결정 2026-10-04).
+    // 실시간 로그(`npx wrangler tail`)는 이 저장 설정과 별개로 저장 없이 본다(Cloudflare 문서 "Real-time logs").
+    // 대시보드 값과 같게 둔다 — 설정 파일에 없으면 배포가 대시보드 값과 어긋날 수 있다
+    // (Cloudflare 대시보드 안내 "Update your Wrangler configuration … to keep deployments in sync").
     "observability": {
         "logs": {
             "enabled": true,
             "head_sampling_rate": 1,
-            // 끈다: invocation log는 요청 경로를 저장하므로 /orders/{token}·/api/orders/{token}의 상태 토큰이 로그에 남는다.
-            // 앱 로그(src/lib/logger.ts)는 허용 필드만 남기고 route는 "/api/orders/[token]" 형식이라 토큰이 없다.
-            // redact_query_string은 query string만 지워서 경로의 토큰은 막지 못한다(PR #91 리뷰).
+            // 끈다: invocation log는 요청 URL을 남기므로 /orders/{token}·/api/orders/{token}의 상태 토큰이 기록된다.
             "invocation_logs": false,
-            "persist": true
+            // 끈다: invocation log를 꺼도 Cloudflare가 앱 console 로그마다 요청 URL·경로($workers.event.request.url/path,
+            // $metadata.trigger)를 붙인다(2026-10-04 운영에서 확인). 로그 본문(src/lib/logger.ts)에는 토큰이 없어도
+            // 저장 로그에 토큰이 남으므로 대시보드 저장 자체를 끈다. redact_query_string은 query string만 지워 대안이 아니다.
+            "persist": false
         },
         "traces": {
             "enabled": false,
