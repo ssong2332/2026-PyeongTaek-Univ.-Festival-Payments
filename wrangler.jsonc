@@ -20,13 +20,16 @@
             "service": "ptu-festival-payments"
         }
     ],
-    // Workers Logs: 운영 중 오류 원인 확인용(Free 200,000건/일·3일 보관). 2026-10-02 대시보드에서 켠 값과 같게 둔다 —
+    // Workers Logs: 운영 중 오류 원인 확인용(Free 200,000건/일·3일 보관). 대시보드 값과 같게 둔다 —
     // 설정 파일에 없으면 배포가 대시보드 값과 어긋날 수 있다(Cloudflare 대시보드 안내 "Update your Wrangler configuration … to keep deployments in sync").
     "observability": {
         "logs": {
             "enabled": true,
             "head_sampling_rate": 1,
-            "invocation_logs": true,
+            // 끈다: invocation log는 요청 경로를 저장하므로 /orders/{token}·/api/orders/{token}의 상태 토큰이 로그에 남는다.
+            // 앱 로그(src/lib/logger.ts)는 허용 필드만 남기고 route는 "/api/orders/[token]" 형식이라 토큰이 없다.
+            // redact_query_string은 query string만 지워서 경로의 토큰은 막지 못한다(PR #91 리뷰).
+            "invocation_logs": false,
             "persist": true
         },
         "traces": {
