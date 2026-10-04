@@ -17,8 +17,8 @@ export interface PaymentMethodPickerProps {
 // F-06: 현금 / 계좌이체 중 하나. 계좌이체 안내 블록(T-31)은 주문 완료 화면 몫이다.
 export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled = false }: PaymentMethodPickerProps) {
     return (
-        <section className="rounded-[20px] border border-orange-100 bg-white p-4">
-            <h2 id="payment-method-title" className="mb-3 text-xs font-bold tracking-widest text-amber-700">
+        <section className="rounded-[20px] border border-line bg-white p-4">
+            <h2 id="payment-method-title" className="mb-3 text-xs font-bold tracking-widest text-orange-700">
                 결제 방법
             </h2>
             <div role="radiogroup" aria-labelledby="payment-method-title" className="grid grid-cols-2 gap-3">
@@ -30,7 +30,7 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                         <label
                             key={method}
                             className={`flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 text-base font-bold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand ${
-                                checked ? "border-brand-amber bg-orange-50 text-brand-deep" : "border-stone-200 bg-white text-stone-600"
+                                checked ? "border-brand-amber bg-peach text-brand-deep" : "border-stone-200 bg-white text-stone-600"
                             } ${inactive ? "cursor-not-allowed opacity-60" : ""}`}
                         >
                             <input
@@ -57,7 +57,7 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                 })}
             </div>
             {value === "cash" && (
-                <p className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-brand-deep">
+                <p className="mt-3 rounded-2xl border border-badge bg-peach px-4 py-3 text-sm font-bold text-brand-deep">
                     부스에서 현금으로 결제해 주세요.
                 </p>
             )}

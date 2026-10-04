@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { HotteokMascot } from "@/components/ui/HotteokMascot";
 import { createAdminBrowserClient } from "@/infra/supabase/browser";
 
 export default function AdminLoginPage() {
@@ -44,13 +45,14 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-            <div className="w-full max-w-md bg-white rounded-xl shadow-md border border-gray-200 p-8 space-y-6">
+        <main className="min-h-screen flex items-center justify-center bg-cream bg-[radial-gradient(circle_at_85%_8%,#ffe9dc,transparent_45%)] px-4 py-16">
+            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_18px_45px_rgba(91,55,39,0.1)] border border-line px-8 pt-14 pb-8 space-y-6">
+                <HotteokMascot variant="chef" size={84} motion="bob" className="absolute -top-11 left-1/2 -ml-[42px]" />
                 <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                    <h1 className="text-2xl font-extrabold text-brand-deep tracking-tight">
                         관리자 로그인
                     </h1>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-stone-500">
                         평택대 축제 부스 주문·결제 관리 시스템
                     </p>
                 </div>
@@ -69,7 +71,7 @@ export default function AdminLoginPage() {
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-email"
-                            className="block text-sm font-medium text-gray-700"
+                            className="block text-sm font-semibold text-brand-deep"
                         >
                             이메일
                         </label>
@@ -83,14 +85,14 @@ export default function AdminLoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="admin@ptu.ac.kr"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2.5 border border-line rounded-xl bg-[#fffaf7] focus:outline-hidden focus:ring-2 focus:ring-brand focus:border-brand text-sm disabled:bg-stone-100 disabled:cursor-not-allowed"
                         />
                     </div>
 
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-password"
-                            className="block text-sm font-medium text-gray-700"
+                            className="block text-sm font-semibold text-brand-deep"
                         >
                             비밀번호
                         </label>
@@ -104,14 +106,14 @@ export default function AdminLoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-full px-3 py-2.5 border border-line rounded-xl bg-[#fffaf7] focus:outline-hidden focus:ring-2 focus:ring-brand focus:border-brand text-sm disabled:bg-stone-100 disabled:cursor-not-allowed"
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={!isFormValid || submitting}
-                        className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-xs text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-bold text-white bg-linear-to-r from-[#b4432a] to-orange-700 shadow-[0_12px_26px_rgba(180,67,42,0.22)] hover:brightness-105 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                         {submitting ? (
                             <span className="inline-flex items-center gap-2">
@@ -143,7 +145,7 @@ export default function AdminLoginPage() {
                     </button>
                 </form>
 
-                <div className="pt-2 text-center text-xs text-gray-400">
+                <div className="pt-2 text-center text-xs text-stone-500">
                     관리자 계정 발급 및 비밀번호 재설정은 총관리자에게 문의하세요.
                 </div>
             </div>

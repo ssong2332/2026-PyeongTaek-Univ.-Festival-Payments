@@ -32,7 +32,7 @@ export async function listAdminOrders(
 }
 
 export async function getAdminOrderById(
-    repository: AdminOrderRepository,
+    repository: Pick<AdminOrderRepository, "findById">,
     id: string,
 ): Promise<AdminOrderDto> {
     const order = await repository.findById(id);
@@ -99,4 +99,46 @@ export async function transition(
         reason: result.needsReason ? input.reason!.trim() : null,
         refundChannel: result.needsRefundChannel ? input.refundChannel! : null,
     });
+}
+
+export type CancelRequestDecisionInput = {
+    orderId: string;
+    decision: "approve" | "reject";
+    reason: string;
+    adminId: string;
+};
+
+// Architecture "POST /api/admin/orders/{id}/cancel-request" · PRD F-18 (T-35). 관리자 인증은 Route Handler가 먼저 한다.
+// 승인 = 관리자 취소(transition의 cancel)와 같은 처리, 거절 = 상태를 그대로 두고 거절 시각 + 이력.
+export async function resolveCancelRequest(
+    input: CancelRequestDecisionInput,
+    deps: {
+        adminOrderRepository: Pick<AdminOrderRepository, "findById">;
+        orderRepository: Pick<OrderRepository, "findById" | "transition" | "rejectCancelRequest">;
+    },
+): Promise<AdminOrderDto> {
+    const order = await getAdminOrderById(deps.adminOrderRepository, input.orderId);
+
+    // 요청이 없거나, 이미 거절됐거나, 조리가 시작된 주문은 승인·거절 대상이 아니다.
+    const resolvable =
+        (order.status === "pending" || order.status === "paid") &&
+        order.cancelRequestedAt !== null &&
+        order.cancelRejectedAt === null;
+    if (!resolvable) throw new AppError("INVALID_TRANSITION", 409);
+
+    const reason = input.reason.trim();
+    if (!reason) throw new AppError("REASON_REQUIRED", 400);
+
+    if (input.decision === "approve") {
+        await transition(
+            { orderId: order.id, action: "cancel", adminId: input.adminId, reason },
+            { orderRepository: deps.orderRepository },
+        );
+    } else {
+        // 위 조회는 사전 확인일 뿐이고, 최종 판단은 저장소의 조건부 갱신이 한다(동시에 처리한 다른 관리자).
+        const rejected = await deps.orderRepository.rejectCancelRequest(order.id, input.adminId, reason);
+        if (!rejected) throw new AppError("INVALID_TRANSITION", 409);
+    }
+
+    return getAdminOrderById(deps.adminOrderRepository, order.id);
 }
