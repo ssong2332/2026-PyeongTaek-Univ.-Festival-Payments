@@ -25,6 +25,8 @@ it("shows the aggregate and accessible menu quantities and ratios", async () => 
     const table = screen.getByRole("table", { name: "메뉴별 판매 수량과 비율" });
     expect(within(table).getByText("25.0%")).toBeTruthy();
     expect(within(table).getByText("75.0%")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "CSV 다운로드" }).getAttribute("href"))
+        .toBe("/api/admin/stats/csv?from=all&to=all");
 });
 
 it("shows an empty chart state when no menus sold", async () => {
@@ -39,5 +41,7 @@ it("loads the selected day and offers retry after an error", async () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("통계를 불러오지 못했습니다"));
     fireEvent.change(screen.getByLabelText("조회 날짜"), { target: { value: "2026-10-07" } });
     await waitFor(() => expect(loadStats).toHaveBeenCalledWith("2026-10-07"));
+    expect(screen.getByRole("link", { name: "CSV 다운로드" }).getAttribute("href"))
+        .toBe("/api/admin/stats/csv?from=2026-10-07&to=2026-10-07");
     await waitFor(() => expect(screen.getByText("25,000원")).toBeTruthy());
 });
