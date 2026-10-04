@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
+import { SettingsPanel } from "@/components/admin/SettingsPanel";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
@@ -24,6 +25,7 @@ export function LiveOrderDashboard() {
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
+        settingsPanel={<SettingsPanel />}
         onReload={feed.reload}
         onLoadStats={fetchStats}
         onSearch={async pickupNumber => {
