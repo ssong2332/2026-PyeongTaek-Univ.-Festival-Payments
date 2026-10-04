@@ -6,6 +6,13 @@ import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
+import { StatsDtoSchema } from "@/lib/dto/stats";
+
+async function fetchStats(date: string) {
+    const response = await fetch(`/api/admin/stats?date=${encodeURIComponent(date)}`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Stats request failed");
+    return StatsDtoSchema.parse(await response.json());
+}
 
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
@@ -18,6 +25,7 @@ export function LiveOrderDashboard() {
     });
     return <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
         onReload={feed.reload}
+        onLoadStats={fetchStats}
         onSearch={async pickupNumber => {
             const response = await fetch(`/api/admin/orders?pickupNumber=${pickupNumber}`, { cache: "no-store" });
             if (!response.ok) throw new Error("Order search failed");
