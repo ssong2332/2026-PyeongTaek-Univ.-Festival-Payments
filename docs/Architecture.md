@@ -37,9 +37,8 @@
 │  │  │  ├─ login/page.tsx          #   /admin/login
 │  │  │  └─ (protected)/            #   layout.tsx에서 세션 없으면 /admin/login 리다이렉트
 │  │  │     ├─ layout.tsx
-│  │  │     ├─ page.tsx             #   /admin        실시간 주문 대시보드 (+설정 패널)
-│  │  │     ├─ menus/page.tsx       #   /admin/menus  메뉴·재고 관리
-│  │  │     └─ stats/page.tsx       #   /admin/stats  통계 + CSV
+│  │  │     ├─ page.tsx             #   /admin        주문 대시보드 + 설정·매출 통계 탭(CSV 포함)
+│  │  │     └─ menus/page.tsx       #   /admin/menus  메뉴·재고 관리
 │  │  └─ api/                       # Route Handlers — "데이터 모델과 인터페이스" 절의 표와 1:1
 │  │     ├─ health/route.ts
 │  │     ├─ menu/route.ts
@@ -410,7 +409,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | 관리자 로그인 | `/admin/login` | 로컬 폼 상태 | `supabase.auth.signInWithPassword`(브라우저 클라이언트) → 성공 시 `/admin` | 빈칸 → 제출 비활성; 오류 메시지 표시. 회원가입 링크 없음 |
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
-| 통계 | `/admin/stats` | `useStats(date)` | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도 |
+| 통계 | `/admin` 내부 매출 통계 탭 | `StatsPanel`의 날짜·조회 상태 | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도. `/admin/stats` 별도 페이지는 두지 않음 |
 | 교대 스케줄 (T-46, F-40) | `/admin/shifts` (`admin/(protected)/shifts/page.tsx`) | `features/admin/ShiftManagement` — CRUD 폼·목록·현재 담당자. 현재 시각은 30초마다 갱신, KST 구간 [시작, 종료)로 복수 담당자 산출 | `lib/api/client` → 관리자 shifts API | 0건·현재 담당자 없음·조회 로딩/오류 재시도·저장 잠금/실패 안내·삭제 확인. 오류 상태를 0건으로 표시하지 않음. 세션 없음/만료 → 로그인 |
 | (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
 
