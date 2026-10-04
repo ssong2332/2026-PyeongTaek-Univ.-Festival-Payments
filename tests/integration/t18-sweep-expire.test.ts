@@ -234,6 +234,17 @@ describe("T-18 × 관리자 전환(T-16·T-17)", () => {
     expect(await history(order.id)).toHaveLength(1);
   });
 
+  test("관리자가 취소한 주문은 스윕이 다시 건드리지 않는다 — 재고는 취소 때 한 번만 복구", async () => {
+    const order = await createOrder("pending", "transfer", expireMinutes + 1);
+    await transition({ orderId: order.id, action: "cancel", adminId, reason: "고객 요청" }, { orderRepository });
+    expect(await stock(order.menuId)).toBe(10);
+
+    expect(await sweep()).toEqual({ expired: 0, completed: 0 });
+    expect((await stored(order.id)).status).toBe("cancelled");
+    expect(await stock(order.menuId)).toBe(10);
+    expect(await history(order.id)).toHaveLength(1);
+  });
+
   test("만료된 주문은 입금 확인·취소할 수 없다(409)", async () => {
     const order = await createOrder("pending", "transfer", expireMinutes + 1);
     await sweep();
@@ -246,6 +257,57 @@ describe("T-18 × 관리자 전환(T-16·T-17)", () => {
     expect(await stock(order.menuId)).toBe(10);
     expect(await history(order.id)).toEqual([EXPIRE_HISTORY]);
   });
+
+  // 관리자 버튼과 스윕이 같은 순간에 같은 주문을 바꾸려는 경우. 관리자 쪽은 전환의 마지막 단계(DB 함수 호출 한 번)를
+  // 스윕과 동시에 보낸다 — 주문마다 어느 쪽이 이길지는 정해져 있지 않다.
+  test.each([
+    { name: "입금 확인(계좌이체)", paymentMethod: "transfer", to: "paid", action: "confirm_payment", reason: null, stockIfAdminWins: 8 },
+    { name: "현금 수령 확인", paymentMethod: "cash", to: "cooking", action: "confirm_cash", reason: null, stockIfAdminWins: 8 },
+    { name: "취소", paymentMethod: "transfer", to: "cancelled", action: "cancel", reason: "고객 요청", stockIfAdminWins: 10 },
+  ] as const)(
+    "스윕과 $name 이 동시에 와도 주문은 한 번만 전환되고 재고는 한 번만 복구된다",
+    async ({ paymentMethod, to, action, reason, stockIfAdminWins }) => {
+      const orders = await Promise.all(
+        Array.from({ length: 8 }, () => createOrder("pending", paymentMethod, expireMinutes + 1)),
+      );
+
+      const [swept, ...admin] = await Promise.allSettled([
+        sweep(),
+        ...orders.map((order) => orderRepository.transition({
+          orderId: order.id, from: "pending", to, action,
+          actorType: "admin", actorId: adminId, reason, refundChannel: null,
+        })),
+      ]);
+
+      expect(swept.status).toBe("fulfilled");
+      let expired = 0;
+      for (const [index, order] of orders.entries()) {
+        const after = await stored(order.id);
+        const rows = await history(order.id);
+        // 어느 쪽이 이기든 이력은 정확히 1행 — 이중 전환이 없다.
+        expect(rows).toHaveLength(1);
+        if (after.status === "expired") {
+          // 스윕이 이김: 관리자 요청은 409로 거부된다.
+          expired += 1;
+          expect(rows).toEqual([EXPIRE_HISTORY]);
+          expect(admin[index].status).toBe("rejected");
+          expect((admin[index] as PromiseRejectedResult).reason).toMatchObject({ code: "STATE_CHANGED", status: 409 });
+          expect(await stock(order.menuId)).toBe(10);
+        } else {
+          // 관리자가 이김: 스윕은 이 주문을 건너뛴다.
+          expect(after.status).toBe(to);
+          expect(rows[0]).toMatchObject({ from_status: "pending", to_status: to, action, actor_type: "admin", actor_id: adminId });
+          expect(admin[index].status).toBe("fulfilled");
+          expect(await stock(order.menuId)).toBe(stockIfAdminWins);
+        }
+      }
+      expect((swept as PromiseFulfilledResult<{ expired: number }>).value.expired).toBe(expired);
+
+      // 진 쪽이 뒤늦게 반영되지 않는다.
+      expect(await sweep()).toEqual({ expired: 0, completed: 0 });
+      for (const order of orders) expect(await history(order.id)).toHaveLength(1);
+    },
+  );
 });
 
 describe("T-18 × 고객 화면(T-11·T-35)", () => {
@@ -258,5 +320,52 @@ describe("T-18 × 고객 화면(T-11·T-35)", () => {
     });
     expect(await rejection(requestCancel(order.token, { orderRepository })))
       .toEqual({ code: "CANCEL_REQUEST_NOT_ALLOWED", status: 409 });
+  });
+});
+
+describe("T-18 만료 시간은 설정값(payment.expire_minutes)", () => {
+  // 스윕은 호출할 때마다 설정을 읽는다(서버 캐시 없음 — ADR-0004). 테스트가 끝나면 원래 값으로 되돌린다.
+  async function withExpireMinutes(minutes: number, run: () => Promise<void>) {
+    const before = await db.from("app_settings").select("value").eq("key", "payment.expire_minutes").maybeSingle();
+    if (before.error) throw before.error;
+    const set = await db.from("app_settings").upsert({ key: "payment.expire_minutes", value: String(minutes) });
+    if (set.error) throw set.error;
+    try {
+      await run();
+    } finally {
+      const restore = before.data
+        ? await db.from("app_settings").update({ value: before.data.value }).eq("key", "payment.expire_minutes")
+        : await db.from("app_settings").delete().eq("key", "payment.expire_minutes");
+      if (restore.error) throw restore.error;
+    }
+  }
+
+  test("설정을 5분으로 줄이면 6분 된 주문이 만료되고 4분 된 주문은 그대로", async () => {
+    const old = await createOrder("pending", "transfer", 6);
+    const fresh = await createOrder("pending", "cash", 4);
+
+    await withExpireMinutes(5, async () => {
+      expect(await sweep()).toEqual({ expired: 1, completed: 0 });
+    });
+
+    expect((await stored(old.id)).status).toBe("expired");
+    expect(await stock(old.menuId)).toBe(10);
+    expect((await stored(fresh.id)).status).toBe("pending");
+    expect(await stock(fresh.menuId)).toBe(8);
+  });
+
+  test("설정을 30분으로 늘리면 29분 된 주문은 만료되지 않고, 되돌린 뒤 스윕하면 만료된다", async () => {
+    const order = await createOrder("pending", "transfer", 29);
+
+    await withExpireMinutes(30, async () => {
+      expect(await sweep()).toEqual({ expired: 0, completed: 0 });
+      expect((await stored(order.id)).status).toBe("pending");
+    });
+
+    // 설정이 원래 값(기본 10분)으로 돌아왔는지: 29분 된 주문이 이제 만료 대상이다.
+    if (expireMinutes < 29) {
+      expect(await sweep()).toEqual({ expired: 1, completed: 0 });
+      expect((await stored(order.id)).status).toBe("expired");
+    }
   });
 });
