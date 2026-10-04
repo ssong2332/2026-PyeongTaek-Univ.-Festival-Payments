@@ -53,10 +53,25 @@ export class AppError extends Error {
     }
 }
 
-export function toErrorResponse(error: unknown): { status: number; envelope: ErrorResponseEnvelope } {
+export function toErrorResponse(error: unknown): {
+    status: number;
+    envelope: ErrorResponseEnvelope;
+    headers?: Record<string, string>;
+} {
     if (error instanceof AppError) {
         const isInternal = error.status >= 500 || error.code === "INTERNAL_ERROR";
         const message = ERROR_MESSAGES[error.code] ?? "An error occurred.";
+
+        const headers: Record<string, string> = {};
+        if (
+            error.code === "RATE_LIMITED" &&
+            error.details &&
+            typeof error.details === "object" &&
+            "retryAfterSeconds" in error.details &&
+            typeof (error.details as { retryAfterSeconds: unknown }).retryAfterSeconds === "number"
+        ) {
+            headers["Retry-After"] = String((error.details as { retryAfterSeconds: number }).retryAfterSeconds);
+        }
 
         return {
             status: error.status,
@@ -67,6 +82,7 @@ export function toErrorResponse(error: unknown): { status: number; envelope: Err
                     ...(!isInternal && error.details !== undefined ? { details: error.details } : {}),
                 },
             },
+            ...(Object.keys(headers).length > 0 ? { headers } : {}),
         };
     }
 

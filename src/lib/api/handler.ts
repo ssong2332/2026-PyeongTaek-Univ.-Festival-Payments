@@ -10,12 +10,12 @@ export function withHandler<Args extends unknown[] = unknown[]>(
         try {
             return await handler(...args);
         } catch (error) {
-            const { status, envelope } = toErrorResponse(error);
+            const { status, envelope, headers } = toErrorResponse(error);
             logger.error("api.error", error, {
                 route: routeInfo?.route,
                 code: envelope.error.code,
             });
-            return NextResponse.json(envelope, { status });
+            return NextResponse.json(envelope, { status, headers });
         }
     };
 }
