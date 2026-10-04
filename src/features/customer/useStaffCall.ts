@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CallStaffResponseSchema } from "@/lib/dto/staffCall";
 
 export interface UseStaffCallReturn {
@@ -16,13 +16,14 @@ export function useStaffCall(token: string): UseStaffCallReturn {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (cooldownRemaining <= 0) return;
-    timerRef.current = setInterval(() => setCooldownRemaining((previous) => Math.max(0, previous - 1)), 1000);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; };
-  }, [cooldownRemaining > 0]);
+    const timeoutId = setTimeout(() => {
+      setCooldownRemaining((previous) => Math.max(0, previous - 1));
+    }, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [cooldownRemaining]);
 
   const callStaff = useCallback(async (): Promise<boolean> => {
     if (cooldownRemaining > 0 || isCalling) return false;
@@ -30,7 +31,10 @@ export function useStaffCall(token: string): UseStaffCallReturn {
     setMessage(null);
     setErrorMessage(null);
     try {
-      const response = await fetch(`/api/orders/${encodeURIComponent(token)}/call-staff`, { method: "POST", headers: { "Content-Type": "application/json" } });
+      const response = await fetch(`/api/orders/${encodeURIComponent(token)}/call-staff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       if (response.status === 429) {
         const errorData = await response.json().catch(() => null);
         const retryAfterSeconds = errorData?.error?.details?.retryAfterSeconds ?? 120;

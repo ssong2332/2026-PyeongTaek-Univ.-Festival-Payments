@@ -17,6 +17,7 @@ async function fetchStats(date: string) {
     return StatsDtoSchema.parse(await response.json());
 }
 
+/** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
     const feed = useOrdersFeed();
     const staffFeed = useStaffCallsFeed();
@@ -38,6 +39,7 @@ export function LiveOrderDashboard() {
                 return AdminOrdersResponseSchema.parse(await response.json()).orders;
             }}
             onAcknowledge={async id => {
+                // 기존 피드의 acknowledge는 비-2xx 오류를 반환하지 않으므로 UI에서 응답을 검증한다.
                 const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/acknowledge`, { method: "POST" });
                 if (!response.ok) throw new Error("Acknowledge failed");
                 const updated = AdminOrderDtoSchema.parse(await response.json());
@@ -45,16 +47,23 @@ export function LiveOrderDashboard() {
             }}
             onTransition={async (id, action, input) => {
                 const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/transition`, {
-                    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...input }),
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action, ...input }),
                 });
                 if (!response.ok) {
                     const body: unknown = await response.json().catch(() => null);
                     const code = parseTransitionErrorCode(body);
                     if (response.status === 409) {
-                        setConfirmed(previous => { const next = { ...previous }; delete next[id]; return next; });
+                        setConfirmed(previous => {
+                            const next = { ...previous };
+                            delete next[id];
+                            return next;
+                        });
                         await feed.reload().catch(() => undefined);
                     }
-                    if (code && ((response.status === 400 && (code === "REASON_REQUIRED" || code === "REFUND_CHANNEL_REQUIRED")) || (response.status === 409 && (code === "INVALID_TRANSITION" || code === "STATE_CHANGED")))) {
+                    if (code && ((response.status === 400 && (code === "REASON_REQUIRED" || code === "REFUND_CHANNEL_REQUIRED"))
+                        || (response.status === 409 && (code === "INVALID_TRANSITION" || code === "STATE_CHANGED")))) {
                         throw new TransitionRequestError(code);
                     }
                     throw new Error("Order transition failed");
