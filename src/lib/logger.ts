@@ -11,6 +11,8 @@ export interface LogContext {
     message?: string;
     keyPrefix?: string;
     count?: number;
+    expired?: number;
+    completed?: number;
     [key: string]: unknown;
 }
 
@@ -33,6 +35,8 @@ const ALLOWED_FIELDS = new Set([
     "message",
     "keyPrefix",
     "count",
+    "expired",
+    "completed",
     "time",
 ]);
 
