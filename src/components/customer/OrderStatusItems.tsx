@@ -14,7 +14,7 @@ export function OrderStatusItems({
   paymentMethod: PaymentMethod;
 }) {
   return (
-    <section aria-labelledby="order-items-heading" className="rounded-3xl border border-[#F3E7DA] bg-white p-5">
+    <section aria-labelledby="order-items-heading" className="rounded-3xl border border-line bg-white p-5">
       <h2 id="order-items-heading" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
         주문 내역
       </h2>
@@ -32,7 +32,7 @@ export function OrderStatusItems({
           </li>
         ))}
       </ul>
-      <dl className="mt-4 flex flex-col gap-2 border-t border-[#F3E7DA] pt-4">
+      <dl className="mt-4 flex flex-col gap-2 border-t border-line pt-4">
         <div className="flex items-center justify-between">
           <dt className="text-sm text-neutral-500">결제 방법</dt>
           <dd className="font-semibold text-neutral-900">{PAYMENT_METHOD_LABELS[paymentMethod]}</dd>

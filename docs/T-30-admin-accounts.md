@@ -1,7 +1,7 @@
 # T-30 관리자 계정 생성 절차 초안 (DB1)
 
 상태: 선작업 초안 — 운영 URL과 실제 계정 준비 여부는 T-25(배포) 후 확정한다.
-담당: 서동혁(DB1). 문서 완성 목표 2026-10-04.
+담당: 서동혁(DB1) · 팀장(10-01 인수 — 운영 계정 생성·준비 현황 기록). 문서 완성 목표 2026-10-04.
 
 기준: PRD F-20·Open Question #17(관리자 계정은 Supabase 대시보드에서 수동 생성, 앱 내 회원가입 없음),
 Architecture "배포 전 필수 설정"(이메일 회원가입 비활성화, 관리자 계정 2~3개), `0003_rls.sql`.
@@ -59,7 +59,7 @@ curl -s -X POST "$SUPABASE_URL/auth/v1/signup" \
 
 ### 4. 로그인 확인 (T-25 후)
 
-운영 URL(`https://<T-25에서 확정>.workers.dev`)에서 각 계정으로 확인한다.
+운영 URL(2026-10-01 첫 배포 주소 `https://ptu-festival-payments.asg21274.workers.dev/admin/login` — 계정 서브도메인은 바꿀 예정(팀장 결정 10-02), [T-25 가이드 1절](T-25-deployment.md))에서 각 계정으로 확인한다.
 
 | 확인 | 기대 결과 |
 |---|---|
@@ -85,17 +85,33 @@ curl -s -X POST "$SUPABASE_URL/auth/v1/signup" \
 
 ## 준비 현황 (T-25 후 작성)
 
-| 항목 | 상태 |
-|---|---|
-| 운영 프로젝트 이메일 회원가입 꺼짐 | 미확인 |
-| 가입 시도 거부 확인(1단계 curl) | 미확인 |
-| 관리자 계정 수 | 0 / 2~3 |
-| 계정별 로그인 확인(4단계) | 미확인 |
-| 운영 URL | T-25에서 확정 |
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| 운영 프로젝트 이메일 회원가입 꺼짐 | 완료 | 2026-10-01 대시보드 Sign In / Providers 확인: Allow new users to sign up 꺼짐, Email만 켜짐, Allow anonymous sign-ins 꺼짐 |
+| 가입 시도 거부 확인(1단계 curl) | 미확인 | anon 키가 필요해 터미널에서 직접 실행 |
+| 관리자 계정 수 | **1 / 2** — 나머지 1개는 축제 첫날(10-06) 전에 추가 | 팀장 결정 2개(2026-10-01). 아래 조회: 계정 1·이메일 인증 1·정지/삭제 0 |
+| 계정별 로그인 확인(4단계) | 현재 계정 1개 확인 | 2026-10-01 17:44 KST 운영 스모크 — 팀장 로그인 → 대시보드 표시 → 현금 수령 확인·조리 완료(이력 `actor_type=admin`). 두 번째 계정은 만든 뒤 확인 |
+| 운영 URL | 첫 배포 주소 있음(서브도메인 변경 예정) | `https://ptu-festival-payments.asg21274.workers.dev` — 2026-10-01 배포, [T-25 가이드 7절](T-25-deployment.md) |
+
+- 계정을 나중에 추가해도 코드·배포 변경은 없다. 로그인한 계정은 모두 관리자다(`requireAdmin()`은 로그인 여부만 확인).
+- 계정을 돌려 쓰면 처리 기록(`acknowledged_by`·`actor_id`)으로 사람을 구분할 수 없으니, 축제 전에 한 사람당 한 계정이 되게 맞춘다.
+
+계정 수 확인(SQL Editor, 이메일·비밀번호를 보지 않는 읽기 조회):
+
+```sql
+select count(*) as users,
+       count(email_confirmed_at) as confirmed,
+       count(last_sign_in_at) as signed_in,
+       count(*) filter (where deleted_at is not null or banned_until is not null) as disabled,
+       count(*) filter (where is_anonymous) as anonymous
+from auth.users;
+```
+
+대시보드 Users 화면 아래의 "Total: N users (estimated)"는 추정치라 실제와 다를 수 있다(10-01 계정 0개일 때 10으로 표시됨). 개수는 위 조회로 확인한다.
 
 ## 완료 전 확정할 항목
 
-- 팀장: 관리자 계정 인원·명단, 계정 목록 보관 위치, 축제 후 계정 삭제 시점.
+- 팀장: 관리자 계정 명단, 계정 목록 보관 위치, 축제 후 계정 삭제 시점. (인원은 2개로 확정, 2026-10-01)
 - 배포 담당(T-25): 운영 URL, 배포 전 1단계 완료 여부 확인.
 - DB1: 1~4단계 실행과 준비 현황 기록.
 - QA: README 운영 절과 이 문서 연결, 체크리스트 검수.

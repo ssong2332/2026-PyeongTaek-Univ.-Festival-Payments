@@ -7,6 +7,7 @@ import type { PaymentMethod } from "@/domain/order/status";
 import { postOrderWithRetry } from "@/lib/api/client";
 import { AppError } from "@/lib/api/errors";
 import { CreateOrderRequestSchema, type CreateOrderResponse } from "@/lib/dto/order";
+import { saveMyOrder } from "./myOrders";
 import { isPaymentMethodEnabled } from "./paymentMethods";
 import { useCart, type CartItem } from "./useCart";
 
@@ -152,6 +153,8 @@ export function useCheckout(options: { onSuccess: (order: CreateOrderResponse) =
             discardIdempotencyKey();
             keyRef.current = null;
             useCart.getState().clear();
+            // #89: 화면을 옮기기 전에 남겨야 메뉴판으로 돌아가거나 다시 접속해도 주문 현황을 찾을 수 있다.
+            saveMyOrder(order);
             onSuccessRef.current(order);
         } catch (caught) {
             setError(toCheckoutError(caught, items));

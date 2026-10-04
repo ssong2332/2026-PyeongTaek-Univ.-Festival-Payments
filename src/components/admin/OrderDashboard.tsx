@@ -1,9 +1,12 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
-import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
+import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, XCircle } from "lucide-react";
+import { HotteokMascot } from "@/components/ui/HotteokMascot";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
 import { OrderActionButtons } from "./OrderActionButtons";
+import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
 
 const LABELS: Record<OrderStatus, string> = {
@@ -28,7 +31,7 @@ export interface OrderDashboardProps {
     onReload: () => Promise<void>;
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
-    onTransition: (id: string, action: TransitionAction) => Promise<void>;
+    onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
@@ -108,12 +111,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         } catch { setActionError("확인 처리에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요."); }
         finally { acknowledging.current = false; setPendingId(null); }
     }
-    async function transitionOrder(order: AdminOrderDto, action: TransitionAction) {
+    async function transitionOrder(order: AdminOrderDto, action: TransitionAction, input?: CancelRefundInput) {
         if (transitioning.current || acknowledging.current || !order.availableActions.includes(action)) return;
         transitioning.current = true; setPendingId(order.id); setPendingAction(action);
         setActionError(""); setTransitionError(null); setNotice("");
         try {
-            await onTransition(order.id, action);
+            if (input) await onTransition(order.id, action, input);
+            else await onTransition(order.id, action);
             setNotice(`픽업 #${pickup(order.pickupNumber)} 주문 상태를 변경했습니다.`);
             if (searchNumber !== null) {
                 const version = searchVersion.current;
@@ -126,8 +130,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     }
                 }
             }
-        } catch {
-            setTransitionError({ id: order.id, message: "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요." });
+        } catch (error) {
+            const message = error instanceof TransitionRequestError
+                ? error.message
+                : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.";
+            if (action === "cancel" || action === "refund") setActionError(message);
+            else setTransitionError({ id: order.id, message });
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }
@@ -144,13 +152,18 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
                 onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}</nav>
             <p className={styles.sideNote}><Bell size={16} /> 미확인 주문 {unacknowledged}건</p>
+            <div className={styles.sideMascots}>
+                <HotteokMascot variant="chef" size={58} motion="bob" />
+                <HotteokMascot variant="wave" size={46} />
+                <HotteokMascot variant="coin" size={36} motion="sway" />
+            </div>
         </aside>
         <div className={styles.main}>
             <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : "주문 관리"}</strong>
                 <button onClick={reload} disabled={isLoading}>새로고침</button></header>
             {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
             <div className={styles.content}>
-                <div className={styles.heading}><span className={styles.logo}><UtensilsCrossed size={26} /></span><div>
+                <div className={styles.heading}><span className={styles.logo}><HotteokMascot variant="chef" size={44} /></span><div>
                     <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
                 {(error || actionError) && <div role="alert" className={styles.error}>{actionError || "주문을 불러오지 못했습니다. 새로고침해 주세요."}</div>}
@@ -186,7 +199,8 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     <section className={styles.detail} aria-label="주문 상세">
                         {selected ? <>
                             <button className={styles.back} onClick={() => setSelectedId(null)}>목록으로</button>
-                            <div className={styles.pickup}><span>픽업 번호</span><strong>#{pickup(selected.pickupNumber)}</strong><span>{LABELS[selected.status]}</span></div>
+                            <div className={styles.pickup}><span>픽업 번호</span><strong>#{pickup(selected.pickupNumber)}</strong><span>{LABELS[selected.status]}</span>
+                                <HotteokMascot variant="wave" size={72} className={styles.pickupMascot} /></div>
                             <div className={styles.info}><div>주문 시각<strong>{time(selected.createdAt)}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
                             <div className={styles.items}><h2>주문 내역</h2>{selected.items.map((item, index) => <div key={index}>
                                 <p><span>{item.menuNameKo} × {item.quantity}</span><strong>{money(item.lineTotal)}</strong></p>
@@ -202,7 +216,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                                 disabled={pendingId !== null}
                                 error={transitionError?.id === selected.id ? transitionError.message : undefined}
                                 onAction={action => transitionOrder(selected, action)} />
-                        </> : <div className={styles.empty}><ClipboardList size={36} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
+                            <OrderCancelRefund key={selected.id} paymentMethod={selected.paymentMethod}
+                                availableActions={selected.availableActions}
+                                pendingAction={pendingId === selected.id ? pendingAction : null}
+                                disabled={pendingId !== null}
+                                onAction={(action, input) => transitionOrder(selected, action, input)} />
+                        </> : <div className={styles.empty}><HotteokMascot variant="heart" size={56} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
                     </section>
                 </section>
             </div>

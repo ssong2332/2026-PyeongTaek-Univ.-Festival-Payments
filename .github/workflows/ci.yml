@@ -26,6 +26,9 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      # T-25: Cloudflare Worker 번들(OpenNext)이 만들어지는지 확인 — 실제 배포는 Cloudflare가 main 기준으로 한다(DECISIONS #53)
+      - run: npm run build:worker
+      - run: test -f .open-next/worker.js && test -d .open-next/assets
 
   integration:
     name: integration

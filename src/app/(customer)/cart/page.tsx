@@ -52,7 +52,7 @@ export default function CartPage() {
                 {hydrated && items.length > 0 && (
                     <>
                         {menu.status === "error" && (
-                            <div className="flex items-center justify-between gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm">
+                            <div className="flex items-center justify-between gap-3 rounded-2xl border border-badge bg-peach px-4 py-3 text-sm">
                                 <p className="font-bold text-brand-deep">메뉴 정보를 확인하지 못했어요.</p>
                                 <button type="button" onClick={menu.reload} className="shrink-0 rounded-full bg-white px-3 py-1 font-bold text-brand-deep shadow-sm">
                                     다시 확인
