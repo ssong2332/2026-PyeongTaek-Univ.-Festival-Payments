@@ -5,12 +5,16 @@ import type { OrderStatus } from "@/domain/order/status";
 import { fetchJson } from "@/lib/api/client";
 import { AppError } from "@/lib/api/errors";
 import { CreateOrderResponseSchema, OrderStatusDtoSchema, type OrderStatusDto } from "@/lib/dto/order";
+import { forgetMyOrder } from "./myOrders";
 
 // Architecture 8절 "주문 완료/상태" — GET /api/orders/{token} 5초 폴링
 export const ORDER_STATUS_POLL_INTERVAL_MS = 5_000;
 
 // 상태 머신에서 나가는 전환이 없는 상태 — 받으면 더 조회하지 않는다.
 const FINAL_STATUSES: ReadonlySet<OrderStatus> = new Set(["completed", "cancelled", "refunded", "expired"]);
+
+// #89: 끝난 주문은 메뉴판 "내 주문"에서 지운다. 완료(completed)는 수령해야 하므로 남긴다.
+const FORGET_STATUSES: ReadonlySet<OrderStatus> = new Set(["cancelled", "refunded", "expired"]);
 
 // 주문 생성 응답의 statusToken과 같은 형식 규칙. 서버도 형식이 틀리면 404라 묻지 않고 바로 notFound로 둔다.
 const statusTokenSchema = CreateOrderResponseSchema.shape.statusToken;
@@ -57,10 +61,12 @@ export function useOrderStatus(token: string): UseOrderStatusResult {
         const order = await fetchJson(url, { cache: "no-store" }, { parse: (data) => OrderStatusDtoSchema.parse(data) });
         if (!active) return;
         setState({ status: "ready", order, refreshFailed: false });
+        if (FORGET_STATUSES.has(order.status)) forgetMyOrder(token);
         if (FINAL_STATUSES.has(order.status)) stop();
       } catch (error) {
         if (!active) return;
         if (error instanceof AppError && error.status === 404) {
+          forgetMyOrder(token);
           setState(NOT_FOUND);
           stop();
           return;

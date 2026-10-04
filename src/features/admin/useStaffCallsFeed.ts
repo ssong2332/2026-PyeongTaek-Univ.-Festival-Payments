@@ -19,31 +19,24 @@ export function useStaffCallsFeed(pollIntervalMs = 5000): UseStaffCallsFeedRetur
   const [isLoading, setIsLoading] = useState(true);
   const [isAcknowledging, setIsAcknowledging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollNowRef = useRef<(() => void) | null>(null);
+  const pollNowRef = useRef<(() => Promise<void>) | null>(null);
 
-  const acknowledge = useCallback(
-    async (id: string) => {
-      setIsAcknowledging(true);
-      try {
-        const response = await fetch(`/api/admin/staff-calls/${encodeURIComponent(id)}/acknowledge`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to acknowledge staff call");
-        }
-
-        setCalls((prev) => prev.filter((c) => c.id !== id));
-        setUnacknowledgedCount((prev) => Math.max(0, prev - 1));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error acknowledging staff call");
-      } finally {
-        setIsAcknowledging(false);
-      }
-    },
-    [],
-  );
+  const acknowledge = useCallback(async (id: string) => {
+    setIsAcknowledging(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/staff-calls/${encodeURIComponent(id)}/acknowledge`, { method: "POST", headers: { "Content-Type": "application/json" } });
+      if (!response.ok) throw new Error("Failed to acknowledge staff call");
+      setCalls((prev) => prev.filter((call) => call.id !== id));
+      setUnacknowledgedCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      const failure = err instanceof Error ? err : new Error("Error acknowledging staff call");
+      setError(failure.message);
+      throw failure;
+    } finally {
+      setIsAcknowledging(false);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -53,17 +46,9 @@ export function useStaffCallsFeed(pollIntervalMs = 5000): UseStaffCallsFeedRetur
       if (inFlight) return;
       inFlight = true;
       try {
-        const response = await fetch("/api/admin/staff-calls?unacknowledgedOnly=true", {
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch staff calls");
-        }
-
-        const data = await response.json();
-        const parsed = StaffCallsListResponseSchema.parse(data);
-
+        const response = await fetch("/api/admin/staff-calls?unacknowledgedOnly=true", { cache: "no-store" });
+        if (!response.ok) throw new Error("Failed to fetch staff calls");
+        const parsed = StaffCallsListResponseSchema.parse(await response.json());
         if (!active) return;
         setCalls(parsed.calls);
         setUnacknowledgedCount(parsed.unacknowledgedCount);
@@ -72,35 +57,18 @@ export function useStaffCallsFeed(pollIntervalMs = 5000): UseStaffCallsFeedRetur
         if (!active) return;
         setError(err instanceof Error ? err.message : "Error fetching staff calls");
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
         inFlight = false;
       }
     }
 
+    pollNowRef.current = poll;
     const intervalId = setInterval(() => void poll(), pollIntervalMs);
-    pollNowRef.current = () => void poll();
     void poll();
-
-    return () => {
-      active = false;
-      clearInterval(intervalId);
-      pollNowRef.current = null;
-    };
+    return () => { active = false; clearInterval(intervalId); pollNowRef.current = null; };
   }, [pollIntervalMs]);
 
-  const reload = useCallback(async () => {
-    pollNowRef.current?.();
-  }, []);
+  const reload = useCallback(async () => { await pollNowRef.current?.(); }, []);
 
-  return {
-    calls,
-    unacknowledgedCount,
-    isLoading,
-    isAcknowledging,
-    error,
-    reload,
-    acknowledge,
-  };
+  return { calls, unacknowledgedCount, isLoading, isAcknowledging, error, reload, acknowledge };
 }

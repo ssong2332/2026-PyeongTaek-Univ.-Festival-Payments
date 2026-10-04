@@ -5,7 +5,7 @@ import { CallStaffResponseSchema } from "@/lib/dto/staffCall";
 
 export interface UseStaffCallReturn {
   isCalling: boolean;
-  cooldownRemaining: number; // 남은 쿨다운 초 (0이면 호출 가능)
+  cooldownRemaining: number;
   message: string | null;
   errorMessage: string | null;
   callStaff: () => Promise<boolean>;
@@ -16,63 +16,33 @@ export function useStaffCall(token: string): UseStaffCallReturn {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (cooldownRemaining <= 0) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      setCooldownRemaining((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [cooldownRemaining]);
+    if (cooldownRemaining <= 0) return;
+    timerRef.current = setInterval(() => setCooldownRemaining((previous) => Math.max(0, previous - 1)), 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); timerRef.current = null; };
+  }, [cooldownRemaining > 0]);
 
   const callStaff = useCallback(async (): Promise<boolean> => {
-    if (cooldownRemaining > 0 || isCalling) {
-      return false;
-    }
-
+    if (cooldownRemaining > 0 || isCalling) return false;
     setIsCalling(true);
     setMessage(null);
     setErrorMessage(null);
-
     try {
-      const response = await fetch(`/api/orders/${encodeURIComponent(token)}/call-staff`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
+      const response = await fetch(`/api/orders/${encodeURIComponent(token)}/call-staff`, { method: "POST", headers: { "Content-Type": "application/json" } });
       if (response.status === 429) {
         const errorData = await response.json().catch(() => null);
-        const retryAfter = errorData?.error?.details?.retryAfter ?? 120;
-        setCooldownRemaining(retryAfter);
+        const retryAfterSeconds = errorData?.error?.details?.retryAfterSeconds ?? 120;
+        setCooldownRemaining(retryAfterSeconds);
         setErrorMessage("잠시 후 다시 호출 가능합니다.");
         return false;
       }
-
       if (!response.ok) {
         setErrorMessage("직원 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.");
         return false;
       }
-
-      const data = await response.json();
-      const parsed = CallStaffResponseSchema.parse(data);
-
+      const parsed = CallStaffResponseSchema.parse(await response.json());
       setCooldownRemaining(parsed.cooldownSeconds || 120);
       setMessage("직원을 호출했습니다. 잠시만 기다려 주세요.");
       return true;
@@ -84,11 +54,5 @@ export function useStaffCall(token: string): UseStaffCallReturn {
     }
   }, [token, cooldownRemaining, isCalling]);
 
-  return {
-    isCalling,
-    cooldownRemaining,
-    message,
-    errorMessage,
-    callStaff,
-  };
+  return { isCalling, cooldownRemaining, message, errorMessage, callStaff };
 }

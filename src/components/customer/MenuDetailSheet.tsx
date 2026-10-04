@@ -101,12 +101,12 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                         </div>
                     )}
                     <div className="mt-5 px-5">
-                        <p className="mb-2 text-sm font-bold text-amber-700">수량</p>
+                        <p className="mb-2 text-sm font-bold text-orange-700">수량</p>
                         <QuantityStepper value={props.quantity} max={props.maxQuantity} onChange={props.onQuantityChange} />
                     </div>
                 </div>
 
-                <div className="shrink-0 border-t border-orange-100 bg-cream px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="shrink-0 border-t border-line bg-cream px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     {props.message && <p className="mb-2 text-center text-sm font-bold text-brand-deep">{props.message}</p>}
                     <button type="button" disabled={!props.canAdd} onClick={props.onAdd} className={props.canAdd ? CTA_ENABLED : CTA_DISABLED}>
                         <CartIcon className="size-5" />

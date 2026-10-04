@@ -64,4 +64,29 @@ export class SupabaseSettingsRepository implements SettingsRepository {
         }
         return result;
     }
+
+    async set(key: string, value: string, updatedBy?: string): Promise<void> {
+        await this.setMany({ [key]: value }, updatedBy);
+    }
+
+    async setMany(settings: Record<string, string>, updatedBy?: string): Promise<void> {
+        const entries = Object.entries(settings);
+        if (entries.length === 0) return;
+
+        const now = new Date().toISOString();
+        const rows = entries.map(([key, value]) => ({
+            key,
+            value,
+            updated_at: now,
+            updated_by: updatedBy ?? null,
+        }));
+
+        const { error } = await this.client
+            .from("app_settings")
+            .upsert(rows);
+
+        if (error) {
+            throw new AppError("INTERNAL_ERROR", 500);
+        }
+    }
 }

@@ -37,9 +37,8 @@
 │  │  │  ├─ login/page.tsx          #   /admin/login
 │  │  │  └─ (protected)/            #   layout.tsx에서 세션 없으면 /admin/login 리다이렉트
 │  │  │     ├─ layout.tsx
-│  │  │     ├─ page.tsx             #   /admin        실시간 주문 대시보드 (+설정 패널)
-│  │  │     ├─ menus/page.tsx       #   /admin/menus  메뉴·재고 관리
-│  │  │     └─ stats/page.tsx       #   /admin/stats  통계 + CSV
+│  │  │     ├─ page.tsx             #   /admin        주문 대시보드 + 설정·매출 통계 탭(CSV 포함)
+│  │  │     └─ menus/page.tsx       #   /admin/menus  메뉴·재고 관리
 │  │  └─ api/                       # Route Handlers — "데이터 모델과 인터페이스" 절의 표와 1:1
 │  │     ├─ health/route.ts
 │  │     ├─ menu/route.ts
@@ -221,7 +220,7 @@ POST /api/orders (Route Handler)
 | `acknowledge` | pending/paid/cooking | admin | `acknowledged_at`, `acknowledged_by` 설정 (F-21). 이력 없음 |
 | `transfer_report` | pending AND transfer | customer | `transfer_reported_at` 최초 1회만 (F-43). 이력 없음 |
 | `cancel_request` | pending/paid | customer | `cancel_requested_at` 최초 1회만, `cancel_rejected_at IS NULL`일 때만 (F-45). 이력 없음 |
-| `cancel_request_reject` | pending/paid AND `cancel_requested_at IS NOT NULL` | admin | `cancel_rejected_at = now()`, 이력 행(사유 선택) (F-18) |
+| `cancel_request_reject` | pending/paid AND `cancel_requested_at IS NOT NULL` | admin | `cancel_rejected_at = now()`, 이력 행(사유 필수) (F-18) |
 
 DB 함수 `transition_order`가 추가로 강제하는 무결성: (1) 현재 상태가 `p_from`과 같을 때만 갱신(CAS, 아니면 `STATE_CHANGED`), (2) `p_from`이 터미널이면 무조건 거부, (3) `p_to ∈ {cancelled, refunded, expired}`면 재고 복구, (4) 이력 1행 INSERT. 정책(어떤 pair가 허용인지)은 TS에만 있다 — DB 함수에 pair 표를 복제하지 않는다 (DECISIONS #8).
 
@@ -257,7 +256,7 @@ function availableActions(order): TransitionAction[];   // 대시보드 버튼 �
 | `order_item_options` | `id` uuid PK · `order_item_id` uuid FK CASCADE · `option_id` uuid FK→options ON DELETE RESTRICT · `option_group_name_ko` text NOT NULL · `option_name_ko` text NOT NULL · `option_name_en` text NULL · `extra_price` int NOT NULL | 스냅샷 |
 | `order_status_history` | `id` bigserial PK · `order_id` uuid FK CASCADE · `from_status` order_status NULL · `to_status` order_status NOT NULL · `action` text NOT NULL · `actor_type` actor_type NOT NULL · `actor_id` uuid NULL · `reason` text NULL · `created_at` timestamptz NOT NULL DEFAULT now() | F-14 이력. 인덱스 `(order_id, created_at)` |
 | `app_settings` | `key` text PK · `value` text NOT NULL · `updated_at` timestamptz NOT NULL DEFAULT now() · `updated_by` uuid NULL | 키 목록·기본값은 ADR-0004 |
-| `rate_limits` (`0014_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
+| `rate_limits` (`0018_rate_limit.sql`, T-51) | `scope` text · `key` text(IP sha256 앞 32자 — 원본 IP 저장 금지) · `window_start` timestamptz · `count` int NOT NULL DEFAULT 0 · PK `(scope, key, window_start)` | F-47. 행은 `consume_rate_limit`가 1시간 지난 것을 삭제. ADR-0009 |
 
 Enum: `order_status` (위 7개) · `payment_method ('cash','transfer')` — `transfer`는 계좌이체 · `refund_channel ('cash','bank')` (2026-09-24: 간편결제 제외로 `transfer_method` enum·컬럼 삭제, `refund_channel`에서 kakaopay·toss 삭제 — 후속 마이그레이션 T-53) · `actor_type ('admin','system','customer')`.
 
@@ -269,7 +268,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
-| `consume_rate_limit` (`0014_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
+| `consume_rate_limit` (`0018_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
 
 트리거: `orders`·`menu_items`에 `updated_at = now()` BEFORE UPDATE.
 
@@ -295,11 +294,14 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0011 | `0011_sweep_expire.sql` | `sweep_order_timeouts` — 만료 부분 | T-18 · DB2 | 0009 | 원격 브랜치 없음 |
 | 0012 | `0012_sweep_auto_complete.sql` | `sweep_order_timeouts` 자동 완료 부분(`CREATE OR REPLACE`) | T-19 · DB2 | 0011 | 원격 브랜치 없음 |
 | 0013 | `0013_realtime.sql` | Realtime publication | T-15 · BE2 | 0001 | 원격 브랜치 없음 |
-| 0014 | `0014_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | 원격 브랜치 없음 |
 | 0015 | `0015_pg_cron.sql`(선택) | 스윕 스케줄 | T-18·T-19 · DB2 | 0012 | 원격 브랜치 없음 |
 | 0016 | `0016_get_stats.sql` | `get_stats` 매출·메뉴 판매율 집계 | T-21 · DB2 | 0012 | `dev` 병합, 운영 적용(DB1, 2026-10-01 확인 — DECISIONS #47) |
 | 0017 | `0017_count_waiting_before.sql` | `count_waiting_before` 대기인원 집계 함수 | T-11 · BE2 | 0001 | `dev` 병합(#61), 운영 적용(팀장, 2026-10-01 SQL Editor — 권한·설정 확인 완료). 적용 이력 표(`supabase_migrations.schema_migrations`)에는 없으므로 DB1의 다음 `supabase db push`가 한 번 더 실행하고 기록한다(`CREATE OR REPLACE`·`REVOKE`·`GRANT`라 재실행 무해) |
+| 0018 | `0018_rate_limit.sql` | `rate_limits` + `consume_rate_limit` | T-51 · DB1 | 0001 | PR #62, 병합 대기. 기존 0014에서 재번호 부여(DECISIONS #45), 운영 적용은 병합 후 DB1이 수행 |
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
+| 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
+| 0101 | `0101_menu_recommendation.sql` | 메뉴별 추천 여부 `is_recommended` | T-38 · DB1 | 0100(운영 적용 순서) | 신규 배정. 기본값 false, NOT NULL; 기존 메뉴 RLS 유지 |
+| 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. 저장 API는 아래 고객 API 규격, 고객 폼 연결은 후속 |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -325,12 +327,13 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|
 | F-34 수기 입력 | `orders.source text NOT NULL DEFAULT 'customer'` (`'customer'|'manual'`), `orders.manual_ordered_at` | T-28 |
 | F-33 직원 호출 | `staff_calls(id, order_id FK, called_at, acknowledged_at, acknowledged_by)`; 2분 중복 방지는 서비스에서 `max(called_at)` 비교 | T-27 |
-| F-35 추천·템플릿 | `menu_items.is_recommended bool`, `option_templates(id, menu_item_id, name, option_ids uuid[])` | #25 확인 후 T-38/T-39 |
+| F-35 추천 | `menu_items.is_recommended boolean NOT NULL DEFAULT false` — `0101_menu_recommendation.sql`. 기존·신규 메뉴 기본 OFF, 복수 추천 허용. 기존 메뉴 RLS 유지: authenticated SELECT만, 쓰기는 관리자 API의 service_role | T-38 · Open Question #25(a)(c) 확정. 관리자 UI #97·T-20 API·FE1 고객 노출 연결은 각 담당 후속 |
+| F-35 템플릿 | `option_templates(id, menu_item_id, name, option_ids uuid[])` | T-39 · Open Question #25(b) 확정 |
 | F-36 재고 임박 | `app_settings 'stock.low_threshold'`, `stock_alerts(id, menu_item_id, kind, created_at, acknowledged_at)` | #26 확인 후 T-40 |
-| F-37 후기 | `reviews(order_id PK/FK, rating int CHECK 1..5, text, created_at)` | #27 확인 후 T-41 |
+| F-37 후기 | `reviews(order_id uuid PK/FK→orders ON DELETE CASCADE, rating int NOT NULL CHECK 1..5, text NULL CHECK char_length≤200, created_at timestamptz NOT NULL DEFAULT now())` — `0102_reviews.sql`. 완료 주문 검사 트리거, authenticated SELECT만·쓰기 service_role | T-41 DB1 · #27 확정. API는 주문 토큰 검증 후 INSERT, 고객 폼·관리자 목록 연결은 후속 |
 | F-38 특가 | `promotions(id, menu_item_id, sale_price, starts_at, ends_at)`, `order_items.promotion_id`, `order_items.list_price` | #28 확인 후 T-43 |
 | F-39 배달 + F-12/N-17 전화번호 | `orders.fulfillment ('pickup'|'delivery') DEFAULT 'pickup'`, `delivery_location text`, `phone_encrypted text`, `phone_consented_at timestamptz` + CHECK — ADR-0008 | #29·#33 확인 후 T-45/T-49. "배달중" 상태 추가 시 팀장 재검토 |
-| F-40 스케줄 | `shifts(id, person_name, date, starts_at, ends_at, role)` | #30 확인 후 T-46 |
+| F-40 스케줄 | `shifts(id uuid PK, person_name text, date date, starts_at time(0), ends_at time(0), role text)` — `0100_shifts.sql`. 이름 1~80자, 역할 1~100자, 공백만 입력 금지. KST 날짜·분 단위 자유 시간대, 종료 > 시작, 같은 날짜 안의 구간, 겹침 허용 | T-46 · Open Question #30 확정. anon 접근 거부, authenticated SELECT만(RLS), 쓰기는 관리자 API의 service_role |
 | F-46 메뉴 등록·삭제 | 스키마 변경 없음(`is_active` 사용, DECISIONS #22) | T-37 |
 
 ### 5. API 규격 — 공통
@@ -352,6 +355,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `INVALID_TRANSITION` | 409 | 상태 머신 불허 |
 | `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내 |
 | `CANCEL_REQUEST_NOT_ALLOWED` | 409 | 조리중 이후 또는 거절됨/이미 요청됨 이외의 불가 상태 |
+| `REVIEW_NOT_ALLOWED` | 409 | 완료 외 주문의 후기 제출(조회 후 상태 변경 경합 포함) |
+| `REVIEW_ALREADY_SUBMITTED` | 409 | 이미 후기가 있는 주문의 재제출·동시 중복 제출 — 기존 내용·시각 유지 |
 | `RATE_LIMITED` | 429 | `POST /api/orders`만. IP당 분당 100건 초과 (`details: { retryAfterSeconds }`, 헤더 `Retry-After`). 멱등 재요청은 대상 아님. 4xx라 자동 재시도 없음 → 수동 재시도 버튼 + 장바구니 유지 (F-47, ADR-0009) |
 | `INTERNAL_ERROR` | 500 | 그 외 — 스택·DB 메시지 노출 금지 |
 
@@ -367,8 +372,13 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 시각 4개는 ISO UTC `…Z`(밀리초)로 응답하고 대기 수 계산에는 DB 원본(µs)을 쓴다. 클라이언트 5초 폴링. 200 응답 `Cache-Control: private, no-store` |
 | `POST /api/orders/{token}/transfer-report` | 본문 없음 | `{ transferReportedAt }` | `status='pending' AND payment_method='transfer'`가 아니면(현금 주문 포함) 409 `INVALID_TRANSITION`. 이미 신고됨이면 기존 시각 그대로 200(멱등, F-43) |
 | `POST /api/orders/{token}/cancel-request` | 본문 없음 | `{ cancelRequestedAt }` | `status ∈ {pending,paid}` 아님 또는 `cancel_rejected_at` 있음 → 409 `CANCEL_REQUEST_NOT_ALLOWED`. 이미 요청됨이면 기존 시각 200(멱등, F-45) |
+| `POST /api/orders/{token}/reviews` | `{ rating: int 1..5, text?: string \| null }` — 텍스트 선택·Unicode code point 200자 이하, 추가 필드 거부 | 201 `{ createdAt }`(ISO 8601 UTC) | T-41·F-37. 토큰 조회로 주문 식별(본문 주문 ID 불허), 완료 외 409 `REVIEW_NOT_ALLOWED`, 중복 409 `REVIEW_ALREADY_SUBMITTED`. 형식 오류·미존재 토큰 404 `NOT_FOUND`. 입력 오류 400 `VALIDATION_ERROR`(자유 입력 보호를 위해 `details` 생략). 기존 `0102_reviews.sql` 트리거·PK로 상태 변경·동시 제출 경합 차단. 성공·오류 모두 `Cache-Control: private, no-store` |
 
 ### 7. 관리자 API (전부 `requireAdmin()` — 세션 없으면 401)
+
+T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜·시작·이름·id 오름차순 전체 목록).
+`POST /api/admin/shifts` → 201, `PATCH /api/admin/shifts/{id}` → 200: 전체 `ShiftInput { personName, date: YYYY-MM-DD, startsAt: HH:mm, endsAt: HH:mm, role }` 본문, 응답은 `Shift { id, ...ShiftInput }`.
+`DELETE /api/admin/shifts/{id}` → 204. 잘못된 날짜·시간·빈 이름/역할·추가 필드·UUID는 400 `VALIDATION_ERROR`, 미존재 수정/삭제는 404. 인증은 모든 검증·저장소 접근보다 먼저 수행한다.
 
 | 메서드·경로 | 요청 | 응답 | 규칙 |
 |---|---|---|---|
@@ -376,7 +386,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `GET /api/admin/orders/{id}` | — | `AdminOrderDto` | Realtime INSERT 하이드레이션용 |
 | `POST /api/admin/orders/{id}/acknowledge` | — | `AdminOrderDto` | 이미 확인됨이면 그대로 200 |
 | `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id` |
-| `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` |
+| `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` — 이미 거절된 요청(`cancel_rejected_at` 있음)·결제대기/결제확인이 아닌 주문도 409. `reason` 빈 문자열 400 `VALIDATION_ERROR`, 공백만 400 `REASON_REQUIRED`(승인·거절 모두 사유 필수) |
 | `GET /api/admin/menus` | — | `{ menus: AdminMenuDto[] }` · `AdminMenuDto { id, translations: { [locale]: { name, description } }, basePrice, stock, isSoldOutManual, isActive, sortOrder, imageUrl, optionGroups: [{ id, translations, minSelect, maxSelect, isActive, options: [{ id, translations, extraPrice, isActive }] }] }` | 비활성 포함(1차 UI는 수정만) |
 | `PATCH /api/admin/menus/{id}` | `{ basePrice?: int≥0, stock?: int≥0, isSoldOutManual?: bool, translations?: { [locale]: { name: string≥1, description?: string } } }` | `AdminMenuDto` | ko `name` 빈값 → 400. 재고 0이면 `isSoldOut` 파생(F-25) — 별도 플래그 저장 없음 |
 | `PATCH /api/admin/option-groups/{id}` | `{ translations?, minSelect?, maxSelect?, isActive? }` | `AdminMenuDto`(소속 메뉴) | max ≥ min 아니면 400 |
@@ -402,8 +412,9 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 관리자 로그인 | `/admin/login` | 로컬 폼 상태 | `supabase.auth.signInWithPassword`(브라우저 클라이언트) → 성공 시 `/admin` | 빈칸 → 제출 비활성; 오류 메시지 표시. 회원가입 링크 없음 |
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
-| 통계 | `/admin/stats` | `useStats(date)` | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도 |
-| (2차) 수기 입력·스케줄·프로모션 | `/admin/manual-orders`, `/admin/shifts`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
+| 통계 | `/admin` 내부 매출 통계 탭 | `StatsPanel`의 날짜·조회 상태 | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도. `/admin/stats` 별도 페이지는 두지 않음 |
+| 교대 스케줄 (T-46, F-40) | `/admin/shifts` (`admin/(protected)/shifts/page.tsx`) | `features/admin/ShiftManagement` — CRUD 폼·목록·현재 담당자. 현재 시각은 30초마다 갱신, KST 구간 [시작, 종료)로 복수 담당자 산출 | `lib/api/client` → 관리자 shifts API | 0건·현재 담당자 없음·조회 로딩/오류 재시도·저장 잠금/실패 안내·삭제 확인. 오류 상태를 0건으로 표시하지 않음. 세션 없음/만료 → 로그인 |
+| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
 
 설정 패널(F-48, `/admin` 안의 `SettingsPanel` — 별도 라우트 없음, 접힘/펼침 UI는 디자인 재량):
 
@@ -453,13 +464,13 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 
 | 항목 | 결정 |
 |---|---|
-| 호스팅 / 실행 대상 | **Cloudflare Workers Free + Supabase Free** 프로젝트 1개(프로덕션). T-50(2026-09-23) 검증 결과 비용 0원 방침에 따라 Vercel Hobby를 사용하지 않고 Cloudflare Workers Free로 전환 확정. 배포 어댑터는 OpenNext(`@opennextjs/cloudflare`, devDependencies 고정)로 확정(DECISIONS #52, 2026-10-01 — 이전 판의 "vinext 우선 검증"을 개정). `next build` 결과를 Worker로 변환하며 CI unit-build가 Worker 번들 생성을 확인한다. 빌드 Node는 `.nvmrc`(22, DECISIONS #51). 도메인은 구매하지 않고 `{worker}.{account-subdomain}.workers.dev` 사용(N-14). Worker 이름과 account subdomain은 T-25에서 확정한 후 QR 인쇄 전 변경 금지. Workers Free는 100,000 requests/day, CPU 10ms/request 한도이므로 요청량은 예상 200건/일에 충분하나 SSR/API CPU 사용량은 T-25 스모크·T-29 부하 검증에서 확인한다. |
+| 호스팅 / 실행 대상 | **Cloudflare Workers Free + Supabase Free** 프로젝트 1개(프로덕션). T-50(2026-09-23) 검증 결과 비용 0원 방침에 따라 Vercel Hobby를 사용하지 않고 Cloudflare Workers Free로 전환 확정. 배포 어댑터는 OpenNext(`@opennextjs/cloudflare`, devDependencies 고정)로 확정(DECISIONS #52, 2026-10-01 — 이전 판의 "vinext 우선 검증"을 개정). `next build` 결과를 Worker로 변환하며 CI unit-build가 Worker 번들 생성을 확인한다. 빌드 Node는 `.nvmrc`(22, DECISIONS #51). 도메인은 구매하지 않고 `{worker}.{account-subdomain}.workers.dev` 사용(N-14). Worker 이름과 account subdomain은 T-25에서 확정한 후 QR 인쇄 전 변경 금지. Workers Free 한도는 100,000 requests/day·CPU 10ms/request다. 요청량은 예상 200건/일에 충분하며, 실제 배포 경로와 CPU 제한은 T-25 운영 스모크·운영 URL 검증에서 확인한다. T-29 30 RPS(`next start`, Node.js 서버)는 Workers 런타임·한도를 거치지 않으므로 애플리케이션·Supabase 처리 성능만 검증한다(DECISIONS #57, 2026-10-04 개정). |
 | 빌드·릴리스 파이프라인 | Cloudflare Workers Git 연동 기준으로 **`main`을 프로덕션 배포 브랜치로 사용**한다(DECISIONS #53, 2026-10-01 — 이전 `dev`에서 변경). 작업은 `dev`에 병합해 통합·검증하고, `dev` → `main` PR을 병합할 때 운영 주소에 반영된다. 비프로덕션 브랜치 빌드(프리뷰)를 켜면 같은 운영 Supabase를 쓰므로 프리뷰에서 주문을 만들지 않는다. 테스트는 기존 GitHub Actions가 push·PR마다 실행하며, 병합 전 DoD에서 CI 녹색을 요구한다. 배포와 CI가 별도이므로 CI 실패 코드를 `dev`에 직접 push하지 않는다. |
 | 환경과 승격 | 로컬(Supabase CLI 로컬 스택) → 프리뷰(Cloudflare 비프로덕션 배포, DB는 프로덕션 Supabase 공유) → 프로덕션(`main`, DECISIONS #53). 스테이징 DB는 두지 않는다. 축제 당일(10-07~08)에는 긴급 장애 수정 외의 `main` 병합(= 운영 배포)·DB 마이그레이션을 금지한다(T-30 동결 규칙 — 긴급 수정은 책임자 승인·최소 스모크 후). |
-| 환경별 설정 | Cloudflare Workers 환경변수/Secrets에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`를 설정한다. `SUPABASE_SERVICE_ROLE_KEY`와 `PHONE_ENCRYPTION_KEY`는 서버 전용 Secret으로 관리한다. 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
+| 환경별 설정 | Cloudflare Workers에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`는 **빌드 변수**로(`next build` 때 코드에 박힘), `SUPABASE_SERVICE_ROLE_KEY`, (2차) `PHONE_ENCRYPTION_KEY`는 **실행 Secret**으로 설정한다. 대시보드의 일반 텍스트 실행 변수는 배포(`wrangler deploy`) 때 덮어써져 사라지므로 쓰지 않는다(T-25 가이드 3절, 2026-10-01 첫 배포에서 확인). 로컬 값은 미커밋 파일에서 관리하고 `.env.example`에는 플레이스홀더만 둔다. 송금 정보·운영값은 환경변수가 아니라 `app_settings`에서 관리한다(ADR-0004). |
 | DB·상태 마이그레이션 | `supabase/migrations/*.sql`이 원본. 적용: DB1(서동혁, DECISIONS #47)이 `supabase link` 후 `supabase db push`(수동, 배포 전에 먼저). 순서 규칙: 컬럼 추가는 앱 배포 전, 컬럼 삭제는 앱 배포 후. 예외(2026-09-24): T-53의 `orders.transfer_method` 삭제는 이 컬럼을 쓰는 앱 코드가 아직 배포 전(P0)이라 배포 전에 적용 — 이후 삭제는 원칙대로 앱 배포 후. 시드: `supabase db reset`(로컬) / 프로덕션은 `seed.sql`의 멱등 INSERT를 SQL Editor에서 1회 실행(T-36, DB1). seed의 계좌 3개(`transfer.*`)는 빈 값이므로 적용 후 팀장이 Table Editor로 입력한다 — 절차 [T-30](T-30-transfer-settings.md). seed 적용 후 DB1은 메뉴 데이터도 확인한다 — 활성 메뉴의 활성 필수 옵션 그룹 중 ko 이름이 없거나 공백인 것 0건: `SELECT g.id FROM option_groups g JOIN menu_items m ON m.id = g.menu_item_id LEFT JOIN option_group_translations t ON t.option_group_id = g.id AND t.locale = 'ko' WHERE m.is_active AND g.is_active AND g.min_select >= 1 AND (t.name IS NULL OR btrim(t.name) = '')` (메뉴 API는 ko 이름 없는 그룹을 숨기므로, 필수 그룹이 숨겨지면 그 메뉴는 보이지만 주문할 수 없다). |
 | 롤백 절차 | 앱: Cloudflare Workers Deployments에서 이전 배포 버전으로 Rollback한다. DB는 되돌리기 마이그레이션 없이 전진 수정(새 마이그레이션)을 원칙으로 한다. 데이터 손상 대비 축제 전 `supabase db dump`로 수동 백업 1회(T-25). |
-| 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 취소(테스트 주문 정리). 테스트 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋을 T-25 마지막 단계로 한다. |
+| 헬스체크 / 스모크 테스트 | `GET /api/health`(DB 왕복 포함). 배포 후 T-25 수동 스모크: 프로덕션 URL에서 메뉴판 로드 → 현금 주문 1건 → 관리자 로그인 → 대시보드 표시 → 현금 수령 확인 → 조리 완료(P1에는 취소 화면 없음). 테스트 주문은 픽업 번호를 소비하므로 축제 전 `counters` 리셋·테스트 주문 삭제·재고 원복을 T-25 마지막 단계로 한다. **2026-10-01 첫 운영 배포(`main` `572a346`)·스모크 통과** — 주소·결과는 [T-25 가이드 7절](T-25-deployment.md). |
 | 배포 전 필수 설정(Supabase 대시보드) | Auth → 이메일 회원가입 비활성화, 관리자 계정 2~3개 생성(F-20), pg_cron 가용 확인(ADR-0006). 절차는 T-30에 기록한다. |
 ## 에러 처리
 
@@ -488,7 +499,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 |---|---|
 | 시크릿 | `SUPABASE_SERVICE_ROLE_KEY`·(2차)`PHONE_ENCRYPTION_KEY`는 서버 전용, `NEXT_PUBLIC_` 금지. ESLint `no-restricted-imports`로 `infra/supabase/server.ts`를 클라이언트 컴포넌트(`'use client'`)에서 import 금지(T-01 설정). 계좌 정보는 DB(ADR-0004), 리포지토리 0건 — 리뷰 시 `grep`로 확인 |
 | 주입 | SQL은 Postgres 함수 파라미터·supabase-js 빌더만(문자열 조립 금지). XSS: React 기본 이스케이프, `dangerouslySetInnerHTML` 금지. CSV: 셀이 `= + - @`로 시작하면 `'` 접두(스프레드시트 수식 주입 방지) |
-| 인증·인가 | 관리자 API 전부 `requireAdmin()`. 고객 API는 토큰(256비트) = 인가. 토큰은 URL에 있으므로 `Referrer-Policy: no-referrer`(외부 송금 링크 클릭 시 토큰 유출 방지)를 `next.config` 헤더로 설정, 송금 링크 `<a rel="noopener noreferrer" target="_blank">`. IDOR: 고객은 `id`가 아니라 토큰으로만 조회 |
+| 인증·인가 | 관리자 API 전부 `requireAdmin()`. 고객 API는 토큰(256비트) = 인가. 토큰은 URL에 있으므로 `Referrer-Policy: no-referrer`(외부 송금 링크 클릭 시 토큰 유출 방지)를 `next.config` 헤더로 설정(2026-10-02 적용 — `next.config.ts` `headers()` `/:path*`. 예외: proxy의 로그인 리다이렉트 307, Worker를 거치지 않는 `_next/static` 파일 — 둘 다 토큰 없는 URL), 송금 링크 `<a rel="noopener noreferrer" target="_blank">`. IDOR: 고객은 `id`가 아니라 토큰으로만 조회 |
 | 입력 검증 | 모든 핸들러 zod `strict()` — 모르는 필드(예: `price`) 거부(N-03). 수량 1..99, 항목 1..20, 사유 1..200자 |
 | 남용 | `POST /api/orders` IP당 분당 100건(초기값), 초과 429 `RATE_LIMITED`(F-47). 카운터는 Postgres `rate_limits` + `consume_rate_limit`(서버리스 인스턴스 무관), 키는 IP sha256(원문 미저장), 멱등 재요청 제외, 관리자 API 제외 — ADR-0009. NAT 공유 IP 오차단은 PRD Open Question #39(한도는 `domain/order/rateLimit.ts` 상수 한 곳) |
 

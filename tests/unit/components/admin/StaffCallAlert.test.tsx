@@ -1,57 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StaffCallAlert } from "@/components/admin/StaffCallAlert";
 import type { StaffCallDto } from "@/lib/dto/staffCall";
 
-describe("T-27 StaffCallAlert Component", () => {
-  it("미확인 호출이 없으면 아무것도 렌더링하지 않는다", () => {
-    const { container } = render(
-      <StaffCallAlert calls={[]} onAcknowledge={vi.fn()} />
-    );
-    expect(container.firstChild).toBeNull();
-  });
+const call: StaffCallDto = { id: "call-1", orderId: "order-1", pickupNumber: 7, calledAt: "2026-10-04T12:00:00.000Z", acknowledgedAt: null, acknowledgedBy: null };
 
-  it("모두 확인 완료된 호출만 있으면 렌더링하지 않는다", () => {
-    const calls: StaffCallDto[] = [
-      {
-        id: "call-1",
-        orderId: "order-1",
-        pickupNumber: 5,
-        calledAt: "2026-10-04T12:00:00.000Z",
-        acknowledgedAt: "2026-10-04T12:01:00.000Z",
-        acknowledgedBy: "admin-1",
-      },
-    ];
-
-    const { container } = render(
-      <StaffCallAlert calls={calls} onAcknowledge={vi.fn()} />
-    );
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("미확인 호출이 있으면 픽업 번호와 확인 버튼을 렌더링하고, 클릭 시 onAcknowledge를 호출한다", () => {
-    const onAcknowledge = vi.fn().mockResolvedValue(undefined);
-    const calls: StaffCallDto[] = [
-      {
-        id: "call-1",
-        orderId: "order-1",
-        pickupNumber: 7,
-        calledAt: "2026-10-04T12:00:00.000Z",
-        acknowledgedAt: null,
-        acknowledgedBy: null,
-      },
-    ];
-
-    render(<StaffCallAlert calls={calls} onAcknowledge={onAcknowledge} />);
-
-    expect(screen.getByText(/픽업/)).toBeDefined();
-    expect(screen.getByText(/#007/)).toBeDefined();
-    expect(screen.getByText(/직원을 호출했습니다/)).toBeDefined();
-
-    const button = screen.getByRole("button", { name: "확인" });
-    fireEvent.click(button);
-
-    expect(onAcknowledge).toHaveBeenCalledWith("call-1");
-  });
+describe("T-27 StaffCallAlert", () => {
+  it("미확인 호출이 없으면 빈 상태를 표시한다", () => { render(<StaffCallAlert calls={[]} onAcknowledge={vi.fn()} />); expect(screen.getByText("직원 호출 알림 없음")).toBeTruthy(); });
+  it("호출을 확인하면 처리 중을 표시하고 성공 뒤 숨긴다", async () => { let resolve!: () => void; const onAcknowledge = vi.fn(() => new Promise<void>((done) => { resolve = done; })); render(<StaffCallAlert calls={[call]} onAcknowledge={onAcknowledge} />); fireEvent.click(screen.getByRole("button", { name: "확인" })); expect(screen.getByRole("button", { name: /처리 중/ })).toBeDisabled(); resolve(); await waitFor(() => expect(screen.queryByText(/#007/)).toBeNull()); });
+  it("확인 실패 시 호출을 유지하고 재시도 안내를 표시한다", async () => { const onAcknowledge = vi.fn().mockRejectedValueOnce(new Error("network")); render(<StaffCallAlert calls={[call]} onAcknowledge={onAcknowledge} />); fireEvent.click(screen.getByRole("button", { name: "확인" })); await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("다시 시도")); expect(screen.getByText(/#007/)).toBeTruthy(); expect(screen.getByRole("button", { name: "확인" })).not.toBeDisabled(); });
 });

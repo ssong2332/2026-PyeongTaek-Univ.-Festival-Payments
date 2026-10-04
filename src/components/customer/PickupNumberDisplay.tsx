@@ -1,5 +1,5 @@
 // 부스에서 부르는 번호 그대로 보이게 3자리로 0을 채우고(5 → 005), 천 단위 쉼표는 넣지 않는다.
-function formatPickupNumber(pickupNumber: number): string {
+export function formatPickupNumber(pickupNumber: number): string {
   return String(pickupNumber).padStart(3, "0");
 }
 
