@@ -198,6 +198,25 @@ describe("Admin Settings API Route (/api/admin/settings)", () => {
             expect(mockSetMany).not.toHaveBeenCalled();
         });
 
+        it("요청 본문에 규격에 없는 최상위 필드가 있으면 400 VALIDATION_ERROR를 반환하고 저장하지 않는다(strict)", async () => {
+            const { PUT } = await import("@/app/api/admin/settings/route");
+            const response = await PUT(
+                new Request("http://localhost/api/admin/settings", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        settings: { "payment.expire_minutes": "15" },
+                        unexpected: true,
+                    }),
+                }),
+            );
+
+            expect(response.status).toBe(400);
+            const body = await response.json();
+            expect(body.error.code).toBe("VALIDATION_ERROR");
+            expect(mockSetMany).not.toHaveBeenCalled();
+        });
+
         it("JSON 형식이 아니거나 settings 필드가 누락되면 400 VALIDATION_ERROR를 반환한다", async () => {
             const { PUT } = await import("@/app/api/admin/settings/route");
             const response = await PUT(

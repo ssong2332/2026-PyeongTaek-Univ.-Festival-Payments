@@ -5,6 +5,7 @@ import { getAllAdminSettings, updateAdminSettings } from "@/services/settingsSer
 import { UpdateAdminSettingsRequestSchema } from "@/lib/dto/settings";
 import { AppError } from "@/lib/api/errors";
 import { withHandler } from "@/lib/api/handler";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,10 @@ export const PUT = withHandler(
         }
 
         const repository = new SupabaseSettingsRepository();
-        const settings = await updateAdminSettings(repository, parsed.data.settings, user?.id);
+        const settings = await updateAdminSettings(repository, parsed.data.settings, user.id);
+        // 고객 송금 계좌가 바뀌는 기능이라 변경 추적용으로 바뀐 키 이름만 남긴다(값은 남기지 않음).
+        const changedKeys = Object.keys(parsed.data.settings);
+        logger.info("settings.update", { route: "/api/admin/settings", count: changedKeys.length, message: changedKeys.join(",") });
 
         return NextResponse.json(
             { settings },

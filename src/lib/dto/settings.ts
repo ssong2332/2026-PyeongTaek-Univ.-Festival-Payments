@@ -48,7 +48,8 @@ export const SETTING_SCHEMAS: Record<AdminSettingKey, z.ZodType<string>> = {
     [PAYMENT_EXPIRE_SETTING_KEY]: PaymentExpireMinutesSchema,
 };
 
-export const UpdateAdminSettingsRequestSchema = z.object({
+// 요청 규격에 없는 최상위 필드는 거부한다(Architecture 보안 "모든 핸들러 zod strict()").
+export const UpdateAdminSettingsRequestSchema = z.strictObject({
     settings: z.record(z.string(), z.string()),
 });
 export type UpdateAdminSettingsRequest = z.infer<typeof UpdateAdminSettingsRequestSchema>;

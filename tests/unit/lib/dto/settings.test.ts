@@ -8,6 +8,7 @@ import {
     TransferSettingSchema,
     AutoCompleteEnabledSchema,
     MinutesSettingSchema,
+    UpdateAdminSettingsRequestSchema,
 } from "@/lib/dto/settings";
 
 describe("T-52 / ADR-0004 settings DTO and schemas", () => {
@@ -59,6 +60,19 @@ describe("T-52 / ADR-0004 settings DTO and schemas", () => {
             expect(MinutesSettingSchema.safeParse("10.5").success).toBe(false);
             expect(MinutesSettingSchema.safeParse("abc").success).toBe(false);
             expect(MinutesSettingSchema.safeParse("").success).toBe(false);
+        });
+    });
+
+    describe("UpdateAdminSettingsRequestSchema (PUT 요청 본문)", () => {
+        it("settings만 있는 요청을 허용한다", () => {
+            expect(UpdateAdminSettingsRequestSchema.safeParse({ settings: { "payment.expire_minutes": "15" } }).success).toBe(true);
+        });
+
+        it("규격에 없는 최상위 필드가 있으면 거부한다(strict)", () => {
+            expect(UpdateAdminSettingsRequestSchema.safeParse({
+                settings: { "payment.expire_minutes": "15" },
+                unexpected: true,
+            }).success).toBe(false);
         });
     });
 
