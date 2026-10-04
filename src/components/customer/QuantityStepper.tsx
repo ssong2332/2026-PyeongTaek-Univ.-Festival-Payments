@@ -14,7 +14,7 @@ export function QuantityStepper({ value, max, onChange, min = 1, label = "수량
     const button = size === "md" ? "size-10" : "size-8";
     const buttonClass = `flex ${button} items-center justify-center rounded-xl bg-white text-brand-deep shadow-sm disabled:text-stone-300 disabled:shadow-none focus-visible:outline-2 focus-visible:outline-brand`;
     return (
-        <div role="group" aria-label={label} className="inline-flex items-center gap-1 rounded-2xl border border-amber-200 bg-amber-50 p-1">
+        <div role="group" aria-label={label} className="inline-flex items-center gap-1 rounded-2xl border border-badge bg-peach p-1">
             <button type="button" aria-label="수량 줄이기" disabled={value <= min} onClick={() => onChange(value - 1)} className={buttonClass}>
                 <MinusIcon className="size-4" />
             </button>

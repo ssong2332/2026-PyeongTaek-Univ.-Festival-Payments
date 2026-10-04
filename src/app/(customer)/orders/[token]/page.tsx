@@ -30,7 +30,7 @@ const CLOSED_NOTICES: Partial<Record<OrderStatus, { title: string; body: string 
   },
 };
 
-const CARD = "rounded-3xl border border-[#F3E7DA] bg-white p-5";
+const CARD = "rounded-3xl border border-line bg-white p-5";
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep";
 // 글씨가 왼쪽에 있어 그라데이션의 어두운 쪽(대비 4.7:1 이상) 위에 놓인다.
 const PRIMARY_CTA = `flex h-13 w-full items-center rounded-2xl bg-linear-to-br from-brand-deep to-brand-amber px-5 text-base font-bold text-white shadow-md ${FOCUS_RING}`;
@@ -74,7 +74,7 @@ function Screen({ children, bottom }: { children: ReactNode; bottom?: ReactNode 
     <main className="min-h-screen bg-cream">
       <div className={`mx-auto flex max-w-md flex-col ${bottom ? "pb-44" : "pb-8"}`}>{children}</div>
       {bottom && (
-        <div className="fixed inset-x-0 bottom-0 border-t border-[#F3E7DA] bg-white">
+        <div className="fixed inset-x-0 bottom-0 border-t border-line bg-white">
           <div className="mx-auto flex max-w-md flex-col gap-1 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {bottom}
           </div>

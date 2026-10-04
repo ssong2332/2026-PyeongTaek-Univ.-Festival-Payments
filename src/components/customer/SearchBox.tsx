@@ -2,7 +2,7 @@ import { CloseIcon, SearchIcon } from "@/components/ui/icons";
 
 export function SearchBox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
     return (
-        <div className="flex h-13 items-center gap-2 rounded-2xl border border-orange-100 bg-white px-4 shadow-sm focus-within:border-brand">
+        <div className="flex h-13 items-center gap-2 rounded-2xl border border-line bg-white px-4 shadow-sm focus-within:border-brand">
             <SearchIcon className="size-5 text-brand-amber" />
             <label htmlFor="menu-search" className="sr-only">
                 메뉴 검색
