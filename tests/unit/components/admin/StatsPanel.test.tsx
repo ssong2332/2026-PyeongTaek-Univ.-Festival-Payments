@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { StatsPanel } from "@/components/admin/StatsPanel";
 import type { StatsDto } from "@/lib/dto/stats";
 
@@ -22,8 +22,9 @@ it("shows the aggregate and accessible menu quantities and ratios", async () => 
     expect(loadStats).toHaveBeenCalledWith("all");
     expect(screen.getByText("5,000원")).toBeTruthy();
     expect(screen.getByText("10개")).toBeTruthy();
-    expect(screen.getByText("25.0%")).toBeTruthy();
-    expect(screen.getByText("75.0%")).toBeTruthy();
+    const table = screen.getByRole("table", { name: "메뉴별 판매 수량과 비율" });
+    expect(within(table).getByText("25.0%")).toBeTruthy();
+    expect(within(table).getByText("75.0%")).toBeTruthy();
 });
 
 it("shows an empty chart state when no menus sold", async () => {
