@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 import { StatsDtoSchema } from "@/lib/dto/stats";
@@ -16,6 +17,7 @@ async function fetchStats(date: string) {
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
     const feed = useOrdersFeed();
+    useSweepHeartbeat(feed.reload);
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map(order => {
         const response = confirmed[order.id];
