@@ -86,17 +86,27 @@ export function ManualOrderForm({ menu, onSave }: Props) {
                         {item?.optionGroups.map((group) => (
                             <fieldset key={group.id} className="space-y-1">
                                 <legend className="text-sm font-medium">{group.name} ({group.minSelect}~{group.maxSelect}개)</legend>
-                                {group.options.map((option) => (
-                                    <label key={option.id} className="flex items-center gap-2 text-sm">
-                                        <input type="checkbox" checked={line.optionIds.includes(option.id)}
-                                            onChange={(event) => updateLine(line.key, {
-                                                optionIds: event.target.checked
-                                                    ? [...line.optionIds, option.id]
-                                                    : line.optionIds.filter((id) => id !== option.id),
-                                            })} />
+                                {group.options.map((option) => {
+                                    const checked = line.optionIds.includes(option.id);
+                                    const selectedInGroup = group.options.filter((candidate) =>
+                                        line.optionIds.includes(candidate.id)).length;
+                                    return <label key={option.id} className="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" checked={checked}
+                                            disabled={saving || (!checked && group.maxSelect !== 1 && selectedInGroup >= group.maxSelect)}
+                                            onChange={(event) => {
+                                                const otherGroups = line.optionIds.filter((id) =>
+                                                    !group.options.some((candidate) => candidate.id === id));
+                                                const currentGroup = line.optionIds.filter((id) =>
+                                                    group.options.some((candidate) => candidate.id === id) && id !== option.id);
+                                                updateLine(line.key, {
+                                                    optionIds: event.target.checked
+                                                        ? [...otherGroups, ...(group.maxSelect === 1 ? [] : currentGroup), option.id]
+                                                        : [...otherGroups, ...currentGroup],
+                                                });
+                                            }} />
                                         {option.name} (+{option.extraPrice.toLocaleString("ko-KR")}원)
-                                    </label>
-                                ))}
+                                    </label>;
+                                })}
                             </fieldset>
                         ))}
                         {lines.length > 1 && <button type="button" className="text-sm text-red-700"

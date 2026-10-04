@@ -9,13 +9,21 @@ afterEach(cleanup);
 
 const MENU_ID = "11111111-1111-1111-1111-111111111111";
 const OPTION_ID = "22222222-2222-2222-2222-222222222222";
+const SECOND_OPTION_ID = "44444444-4444-4444-4444-444444444444";
+const SAUCE_OPTION_ID = "66666666-6666-6666-6666-666666666666";
 const KEY = "a19ac145-4e29-47c0-aadd-f53531211996";
 const menu: MenuItemDto[] = [{
     id: MENU_ID, name: "호떡", description: null, price: 3000, stock: 1,
     isAvailable: true, isSoldOut: false, imageUrl: null,
     optionGroups: [{
         id: "33333333-3333-3333-3333-333333333333", name: "추가", minSelect: 1, maxSelect: 1,
-        options: [{ id: OPTION_ID, name: "치즈", extraPrice: 500 }],
+        options: [
+            { id: OPTION_ID, name: "치즈", extraPrice: 500 },
+            { id: SECOND_OPTION_ID, name: "콩가루", extraPrice: 500 },
+        ],
+    }, {
+        id: "77777777-7777-7777-7777-777777777777", name: "불닭 소스 추가", minSelect: 0, maxSelect: 1,
+        options: [{ id: SAUCE_OPTION_ID, name: "불닭 소스", extraPrice: 500 }],
     }],
 }];
 const line = { key: "line", menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] };
@@ -39,6 +47,18 @@ describe("T-28 manual order input", () => {
         render(<ManualOrderForm menu={menu} />);
         expect((screen.getByRole("button", { name: "수기 주문 저장" }) as HTMLButtonElement).disabled).toBe(true);
         expect(screen.getByRole("status").textContent).toContain("입력은 저장되지 않습니다");
+    });
+
+    it("allows one seasoning and an independent sauce in the finalized menu", () => {
+        render(<ManualOrderForm menu={menu} />);
+        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
+        fireEvent.click(screen.getByLabelText(/치즈/));
+        fireEvent.click(screen.getByLabelText(/콩가루/));
+        fireEvent.click(screen.getByLabelText(/불닭 소스 \(\+500원\)/));
+        expect((screen.getByLabelText(/치즈/) as HTMLInputElement).checked).toBe(false);
+        expect((screen.getByLabelText(/콩가루/) as HTMLInputElement).checked).toBe(true);
+        expect((screen.getByLabelText(/불닭 소스 \(\+500원\)/) as HTMLInputElement).checked).toBe(true);
+        expect(screen.getByText("예상 합계 4,000원")).toBeTruthy();
     });
 
     it("prevents repeated save, preserves failed input and idempotency key for retry", async () => {
