@@ -95,15 +95,31 @@ const EXPIRE_HISTORY = {
   actor_type: "system", actor_id: null, reason: null,
 };
 
+async function must(query: PromiseLike<{ error: unknown }>) {
+  const { error } = await query;
+  if (error) throw error;
+}
+
 beforeAll(async () => {
   const { data, error } = await db.from("app_settings").select("value").eq("key", "payment.expire_minutes").maybeSingle();
   if (error) throw error;
   if (data) expireMinutes = Number(data.value);
+
+  // 스윕은 DB 전체를 처리한다. 이미 만료 대상인 결제대기 주문이 남아 있으면 건수 검증(expired: 1)이 어긋나므로
+  // 스윕으로 치우지 않고 실패시킨다 — 다른 데이터를 바꾸지 않고, 이전 실행의 정리 실패도 드러난다.
+  const stale = await db.from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending").is("transfer_reported_at", null)
+    .lte("created_at", minutesAgo(expireMinutes));
+  if (stale.error) throw stale.error;
+  if (stale.count) throw new Error(`만료 대상 결제대기 주문 ${stale.count}건이 이미 있습니다 — 초기화된 DB에서 실행하세요`);
 });
 
 afterEach(async () => {
-  if (createdOrders.length) await db.from("orders").delete().in("id", createdOrders.splice(0));
-  if (createdMenus.length) await db.from("menu_items").delete().in("id", createdMenus.splice(0));
+  // 삭제가 실패하면 남은 주문이 다음 스윕의 건수를 바꾼다 — 조용히 넘어가지 않는다.
+  // order_items.menu_item_id가 ON DELETE RESTRICT라 주문을 먼저 지운다(항목·이력은 CASCADE).
+  if (createdOrders.length) await must(db.from("orders").delete().in("id", createdOrders.splice(0)));
+  if (createdMenus.length) await must(db.from("menu_items").delete().in("id", createdMenus.splice(0)));
 });
 
 describe("T-18 스윕 호출: 만료 대상", () => {
@@ -151,7 +167,7 @@ describe("T-18 스윕 호출: 만료 대상", () => {
     expect(await history(order.id)).toEqual([EXPIRE_HISTORY]);
   });
 
-  test("스윕이 동시에 두 번 호출돼도(대시보드 2대) 주문은 한 번만 만료된다", async () => {
+  test("스윕이 동시에 세 번 호출돼도(대시보드 3대) 주문은 한 번만 만료된다", async () => {
     const order = await createOrder("pending", "cash", expireMinutes + 1);
 
     const results = await Promise.all([sweep(), sweep(), sweep()]);
@@ -354,18 +370,18 @@ describe("T-18 만료 시간은 설정값(payment.expire_minutes)", () => {
     expect(await stock(fresh.menuId)).toBe(8);
   });
 
-  test("설정을 30분으로 늘리면 29분 된 주문은 만료되지 않고, 되돌린 뒤 스윕하면 만료된다", async () => {
-    const order = await createOrder("pending", "transfer", 29);
+  test("설정을 늘리면 원래 기준을 넘긴 주문도 만료되지 않고, 되돌린 뒤 스윕하면 만료된다", async () => {
+    // 주문 나이를 현재 설정 기준으로 잡는다 — 원래 설정이 몇 분이든 같은 검증을 한다(설정 상한 120분 안에서).
+    const age = expireMinutes + 5;
+    const order = await createOrder("pending", "transfer", age);
 
-    await withExpireMinutes(30, async () => {
+    await withExpireMinutes(age + 5, async () => {
       expect(await sweep()).toEqual({ expired: 0, completed: 0 });
       expect((await stored(order.id)).status).toBe("pending");
     });
 
-    // 설정이 원래 값(기본 10분)으로 돌아왔는지: 29분 된 주문이 이제 만료 대상이다.
-    if (expireMinutes < 29) {
-      expect(await sweep()).toEqual({ expired: 1, completed: 0 });
-      expect((await stored(order.id)).status).toBe("expired");
-    }
+    // 원래 설정으로 돌아오면 바로 만료 대상이다.
+    expect(await sweep()).toEqual({ expired: 1, completed: 0 });
+    expect((await stored(order.id)).status).toBe("expired");
   });
 });
