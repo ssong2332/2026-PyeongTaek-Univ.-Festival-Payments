@@ -3,7 +3,17 @@
 import { useRef, useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
+import { aggregateStats } from "@/domain/stats/aggregate";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
+
+async function loadPreviewStats(date: string) {
+    return aggregateStats(makePreviewOrders().map(order => ({
+        id: order.id, status: order.status, totalAmount: order.totalAmount,
+        createdAt: order.createdAt, items: order.items.map(item => ({
+            menuItemId: order.id, nameKo: item.menuNameKo, quantity: item.quantity,
+        })),
+    })), date);
+}
 
 export function makePreviewOrders(): AdminOrderDto[] {
     const menus = [["기본 호떡", 2000], ["뿌링클 호떡", 2500], ["불닭 콘치즈 호떡", 3500], ["말차 화이트초코 호떡", 3500]] as const;
@@ -29,6 +39,7 @@ export function DashboardPreview() {
     function replace(next: AdminOrderDto[]) { current.current = next; setOrders(next); }
     return <OrderDashboard orders={orders} preview
         onReload={async () => replace(makePreviewOrders())}
+        onLoadStats={loadPreviewStats}
         onSearch={async number => current.current.filter(order => order.pickupNumber === number)}
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {
             ...order, acknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
