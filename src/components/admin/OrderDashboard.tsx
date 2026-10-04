@@ -151,7 +151,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
 
     return <div className={styles.shell}>
         <aside className={styles.sidebar}>
-            <nav aria-label="관리자 메뉴">{([
+            <nav aria-label="관리자 메뉴" className={settingsPanel ? styles.fourTabs : undefined}>{([
                 ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
                 ["stats", "매출 통계", BarChart3],
             ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
