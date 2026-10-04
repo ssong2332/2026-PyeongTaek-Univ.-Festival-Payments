@@ -43,6 +43,16 @@ export interface SweepRepository {
     sweep(): Promise<SweepResult>;
 }
 
+export interface RateLimitRepository {
+    consume(
+        scope: string,
+        key: string,
+        limit: number,
+        windowSeconds: number,
+        now?: Date,
+    ): Promise<boolean>;
+}
+
 // 지금은 상태 전환(T-14)에 필요한 필드만 둔다. 다른 서비스 Task가 필요한 필드·메서드를 추가한다.
 export type OrderForTransition = {
     id: string;
