@@ -19,6 +19,23 @@ INSERT INTO public.order_items (
     '22222222-2222-2222-2222-222222222222',
     '11111111-1111-1111-1111-111111111111', '테스트', 2000, 2, 0, 4000
 );
+-- 만료 경계에 이미 도달했어도 관리자가 먼저 입금 확인한 주문은 스윕에서 제외한다.
+INSERT INTO public.orders (
+    id, pickup_number, payment_method, total_amount, idempotency_key, status_token, created_at
+) VALUES (
+    '33333333-3333-3333-3333-333333333333', 2, 'transfer', 2000,
+    gen_random_uuid(), 't18-paid-before-sweep', now() - interval '10 minutes'
+);
+INSERT INTO public.order_items (
+    order_id, menu_item_id, menu_name_ko, unit_price, quantity, options_price, line_total
+) VALUES (
+    '33333333-3333-3333-3333-333333333333',
+    '11111111-1111-1111-1111-111111111111', '테스트', 2000, 1, 0, 2000
+);
+SELECT public.transition_order(
+    '33333333-3333-3333-3333-333333333333', 'pending', 'paid',
+    'confirm_payment', 'admin', NULL, NULL, NULL
+);
 DO $$ BEGIN
     IF public.sweep_order_timeouts() <> '{"expired":1,"completed":0}'::jsonb
         OR public.sweep_order_timeouts() <> '{"expired":0,"completed":0}'::jsonb THEN
@@ -33,6 +50,13 @@ DO $$ BEGIN
             WHERE id = '22222222-2222-2222-2222-222222222222'
               AND status = 'expired' AND closed_at IS NOT NULL) THEN
         RAISE EXCEPTION 'FAILED: stock restored once, system history and closed_at';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM public.orders
+        WHERE id = '33333333-3333-3333-3333-333333333333' AND status = 'paid')
+        OR EXISTS (SELECT 1 FROM public.order_status_history
+            WHERE order_id = '33333333-3333-3333-3333-333333333333'
+              AND action = 'expire') THEN
+        RAISE EXCEPTION 'FAILED: payment confirmed before sweep must not expire';
     END IF;
 END $$;
 ROLLBACK;

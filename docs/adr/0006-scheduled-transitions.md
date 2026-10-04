@@ -27,7 +27,7 @@ F-17(결제대기 10분 경과 → 만료 + 재고 복구, 송금 신고 주문 
   - 결제확인(paid) 상태는 대상 아님(F-24 "조리중→완료만").
   - 각 건은 CAS로 전환하므로, 스윕 직전에 관리자가 입금 확인해 상태가 바뀐 주문은 건너뛴다(F-17 "만료 직전 입금 확인 시 만료 안 됨").
 - pg_cron: 마이그레이션에서 `CREATE EXTENSION IF NOT EXISTS pg_cron; SELECT cron.schedule('sweep-orders', '* * * * *', $$SELECT public.sweep_order_timeouts()$$);` — 확장 불가 시 이 마이그레이션은 건너뛰고(별도 파일로 분리) T-02 근거 열에 "pg_cron 불가 → C 단독"을 기록.
-- 폴백 C: 대시보드 `useConnectionMonitor`의 30초 틱마다 `POST /api/admin/sweep` (관리자 세션 필요). 응답의 expired>0이면 피드가 Realtime UPDATE로 갱신된다.
+- 폴백 C: 대시보드 `useSweepHeartbeat`가 30초마다 `POST /api/admin/sweep` 호출 (관리자 세션 필요). 전환이 있으면 주문 피드를 다시 조회한다.
 - 경계 의미: "10분 경과"는 `created_at + 10분 <= now`. 1분 주기 특성상 실제 만료 시각은 경계 후 0~60초(B) 또는 0~30초(C) 지연 — PRD AC(9분59초 미만료 / 10분 경과 만료)는 함수 수준 통합 테스트로 검증하고, 지연은 운영 문서(T-30)에 명시.
 
 ## 결과 (트레이드오프 포함)
