@@ -34,6 +34,15 @@ export interface Clock {
     now(): Date;
 }
 
+export interface SweepResult {
+    expired: number;
+    completed: number;
+}
+
+export interface SweepRepository {
+    sweep(): Promise<SweepResult>;
+}
+
 export interface RateLimitRepository {
     consume(
         scope: string,
