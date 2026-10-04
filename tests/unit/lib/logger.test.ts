@@ -83,4 +83,11 @@ describe("Architecture 7절: 로깅 규격 검증 (logger.ts)", () => {
         expect(parsed.event).toBe("settings.transfer.missing");
         expect(output).not.toContain("account");
     });
+
+    it("스윕 성공 건수만 로그에 포함하고 임의 필드는 버린다", () => {
+        logger.info("order.sweep", { expired: 2, completed: 1, rawDatabaseMessage: "secret" });
+        const output = consoleInfoSpy.mock.calls[0][0] as string;
+        expect(JSON.parse(output)).toMatchObject({ event: "order.sweep", expired: 2, completed: 1 });
+        expect(output).not.toContain("secret");
+    });
 });
