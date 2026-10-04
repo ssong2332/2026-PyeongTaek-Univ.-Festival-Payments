@@ -10,6 +10,8 @@ export type ErrorCode =
     | "INVALID_TRANSITION"
     | "STATE_CHANGED"
     | "CANCEL_REQUEST_NOT_ALLOWED"
+    | "REVIEW_NOT_ALLOWED"
+    | "REVIEW_ALREADY_SUBMITTED"
     | "RATE_LIMITED"
     | "INTERNAL_ERROR";
 
@@ -33,6 +35,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     INVALID_TRANSITION: "Invalid order status transition.",
     STATE_CHANGED: "Order state has changed.",
     CANCEL_REQUEST_NOT_ALLOWED: "Cancel request is not allowed.",
+    REVIEW_NOT_ALLOWED: "Reviews are only allowed for completed orders.",
+    REVIEW_ALREADY_SUBMITTED: "A review has already been submitted for this order.",
     RATE_LIMITED: "Rate limit exceeded.",
     INTERNAL_ERROR: "An internal server error occurred.",
 };

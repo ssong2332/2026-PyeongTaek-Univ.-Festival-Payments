@@ -44,6 +44,7 @@
   - Tasks: T-53 신설(간편결제 제외 스키마 마이그레이션, DB1), T-07 선행에 T-53 추가
 
 ### Added
+- 2026-10-04 T-41 DB1 후기 저장 API `POST /api/orders/{token}/reviews`: 완료 주문 토큰 검증, 별점 1~5·선택 텍스트 200자, 중복·상태 변경 경합 거부. PR #102의 후기 테이블 사용, 신규 마이그레이션 없음. 고객 폼 연결·관리자 목록은 별도 담당 범위 — `docs/T-41-review-api.md`
 - 2026-10-01 Cloudflare Workers 배포 설정 — `wrangler.jsonc`·`open-next.config.ts`·`npm run build:worker`(`@opennextjs/cloudflare` 1.20.7·wrangler 4.145.0 고정), CI에 Worker 번들 생성 검증, `GET /api/health`, 운영 가이드 `T-25-deployment.md` — PR #50(T-25, 유은조 작성·팀장 인수)
 - 2026-10-01 관리자 주문 상태 변경 버튼(입금 확인·현금 수령 확인·조리 시작·조리 완료, 불허 전환 비활성·실패 알림) — PR #54(T-16 UI, 김 혁 작성·팀장 인수 — 통합 테스트 `requireAdmin` mock 제거, DECISIONS #46). 공통 전환 API는 PR #60(09-30)
 - 2026-10-01 RLS 검증 통합 테스트(anon·관리자 API 클라이언트로 관리자 테이블 접근 확인) — PR #43(T-13 DB1, 서동혁)
