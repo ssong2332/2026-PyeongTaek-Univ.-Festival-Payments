@@ -11,6 +11,9 @@
 - 2026-10-01 브라우저 API 호출의 8초 타임아웃이 응답 헤더까지만 걸리던 문제 — 본문 수신까지 유지, 본문 수신 중 끊김·지연은 응답 없음(자동 재시도 대상)으로 처리(`lib/api/client.ts`, DECISIONS #24) — PR #85(릴리스 PR #84 리뷰)
 
 ### Changed
+- 2026-10-05 Tasks·노션 동기화: T-21·T-51 완료(팀장 결정: PR 모두 병합 → 완료, T-51 FE1 429 안내는 팀장 10-01 인수 구현으로 인정), T-52 대기 → 진행(#107 병합 + #86 Draft), T-18·T-41·T-36 근거 갱신(T-36은 노션 진행중·이 문서 완료 유지 — 운영 seed 재적용 확인 후 판단). 운영 DB 0018·0102 적용 확인 필요(배포 전)
+- 2026-10-04 PRD N-06 기준 명확화: k6 30 RPS는 **전체 사용자 합산**(여러 클라이언트로 분산), 429도 오류로 계산, 속도 제한 규칙은 T-51 통합 테스트로 따로 검증 — 단일 IP 30 RPS는 F-47(IP당 분당 100건)과 양립 불가(PR #108 리뷰에서 발견). 팀장 결정(DECISIONS #57, PRD Open Question #41). N-14 검증 범위도 정리 — 30 RPS 기준 실행은 `next start`(Node.js 서버, 가상 클라이언트 20개 이상)로 고정하고 N-06 합격(오류 0%·API별 p95 1초 이내)은 이 실행으로 판정, 운영 URL은 N-14 운영 검증(30 RPS 판정에 미사용), `next start`·로컬 Workers 실행은 Workers 한도를 거치지 않아 운영 Workers의 30 RPS·Free 한도는 검증 범위 아님, 운영 DB 사용 시 #108 안전한 정리 절차 전 실행 금지, 일일 100,000 요청 한도는 실제 실행량으로 대조. N-14의 옛 "vinext 우선" 문구를 OpenNext 확정(DECISIONS #52)으로 정정, Architecture 호스팅 행 동기화
+- 2026-10-04 고객·관리자 화면 디자인 업그레이드(프론트 담당 Figma Make 시각 요소만, 팀장 예외 결정): 크림·피치·코랄·코코아 팔레트 토큰, Pretendard Variable 동적 서브셋(npm `pretendard` 1.3.9, OFL-1.1), 호떡 마스코트 SVG 5종(`public/mascot/`), 메뉴판 헤더 호떡 이미지(Codex 생성, `public/images/hotteok-hero.webp`). 로직·API 변경 없음. 코랄 위 흰 글씨는 대비 기준에 맞게 진한 값으로 조정 — `docs/Design-Changes.md` #58~#65
 - 2026-10-04 Tasks·노션 동기화: T-17·T-46 완료(팀장 결정: PR 모두 병합 → 완료), T-19·21·22·32·35·38·41 대기 → 진행, 근거 열 갱신 12행(PR 없는 마감 경과 4행 포함), T-35 담당 열을 FE2 예외(김희진)에 맞춤. T-36은 노션만 진행중으로 다시 엶 — 이 문서는 "완료 행 되돌리지 않음" 규칙과 충돌해 팀장 판단 대기(Tasks 10-04 변경 이력)
 - 2026-10-02 운영 계좌 3개 입력 담당 변경: 팀장 → DB1(서동혁). 팀장은 실제 값 1:1 전달·입력 값 대조, DB1은 입력·채움 확인(DECISIONS #55, #47 개정) — `T-30-transfer-settings.md` 순서·4단계 값 대조 추가, `T-30-operations-runbook.md` 4절
 - 2026-10-01 **첫 운영 배포** — 릴리스 PR #84(`dev` → `main`, `572a346`)를 Cloudflare Workers Builds(Production branch `main`, 미리보기 빌드 끔)로 배포. `/api/health` 200 `db:true`, 스모크 5단계 통과(현금 주문 → 현금 수령 확인 → 조리 완료). 주소·결과는 `T-25-deployment.md` 7절 — 계정 서브도메인은 바꿀 예정(팀장 결정 10-02) — 새 주소로 다시 확정. 팀장 진행
@@ -42,6 +45,7 @@
   - Tasks: T-53 신설(간편결제 제외 스키마 마이그레이션, DB1), T-07 선행에 T-53 추가
 
 ### Added
+- 2026-10-04 T-41 DB1 후기 저장 API `POST /api/orders/{token}/reviews`: 완료 주문 토큰 검증, 별점 1~5·선택 텍스트 200자, 중복·상태 변경 경합 거부. PR #102의 후기 테이블 사용, 신규 마이그레이션 없음. 고객 폼 연결·관리자 목록은 별도 담당 범위 — `docs/T-41-review-api.md`
 - 2026-10-01 Cloudflare Workers 배포 설정 — `wrangler.jsonc`·`open-next.config.ts`·`npm run build:worker`(`@opennextjs/cloudflare` 1.20.7·wrangler 4.145.0 고정), CI에 Worker 번들 생성 검증, `GET /api/health`, 운영 가이드 `T-25-deployment.md` — PR #50(T-25, 유은조 작성·팀장 인수)
 - 2026-10-01 관리자 주문 상태 변경 버튼(입금 확인·현금 수령 확인·조리 시작·조리 완료, 불허 전환 비활성·실패 알림) — PR #54(T-16 UI, 김 혁 작성·팀장 인수 — 통합 테스트 `requireAdmin` mock 제거, DECISIONS #46). 공통 전환 API는 PR #60(09-30)
 - 2026-10-01 RLS 검증 통합 테스트(anon·관리자 API 클라이언트로 관리자 테이블 접근 확인) — PR #43(T-13 DB1, 서동혁)

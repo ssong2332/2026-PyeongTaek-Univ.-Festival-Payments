@@ -26,7 +26,7 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
             {lines.map((line) => (
                 <li
                     key={line.lineId}
-                    className={`rounded-[20px] border bg-white p-3 shadow-sm ${line.warning ? "border-red-300" : "border-orange-100"}`}
+                    className={`rounded-[20px] border bg-white p-3 shadow-sm ${line.warning ? "border-red-300" : "border-line"}`}
                 >
                     <div className="flex gap-3">
                         <MenuThumbnail imageUrl={line.imageUrl} />

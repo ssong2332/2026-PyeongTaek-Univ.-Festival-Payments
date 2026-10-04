@@ -6,6 +6,15 @@ import { LiveOrderDashboard } from "@/features/admin/LiveOrderDashboard";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const reloadOrders = vi.hoisted(() => vi.fn(async () => {}));
+const refreshOrders = vi.hoisted(() => vi.fn(async () => {}));
+const monitorState = vi.hoisted(() => ({
+    disconnected: false,
+    checkNow: vi.fn(async () => true),
+    options: null as null | {
+        onRecover?: () => Promise<void> | void;
+        onDisconnectedTick?: () => Promise<void> | void;
+    },
+}));
 // reload()가 서버에서 다시 받아 올 주문 목록. null이면 목록을 바꾸지 않는다.
 const server = vi.hoisted(() => ({ orders: null as AdminOrderDto[] | null }));
 vi.mock("@/features/admin/useOrdersFeed", async () => {
@@ -13,14 +22,43 @@ vi.mock("@/features/admin/useOrdersFeed", async () => {
     return {
         useOrdersFeed: () => {
             const [orders, setOrders] = useState(makePreviewOrders);
-            return { orders, isLoading: false, error: null, reload: async () => {
+            return { orders, isLoading: false, error: null, channelStatus: "SUBSCRIBED", refresh: async () => {
+                await refreshOrders();
+                if (server.orders) setOrders(server.orders);
+            }, reload: async () => {
                 await reloadOrders();
                 if (server.orders) setOrders(server.orders);
             } };
         },
     };
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null; });
+vi.mock("@/features/admin/useConnectionMonitor", () => ({
+    useConnectionMonitor: (options: typeof monitorState.options) => {
+        monitorState.options = options;
+        return { isDisconnected: monitorState.disconnected, isChecking: false, checkNow: monitorState.checkNow };
+    },
+}));
+afterEach(() => {
+    cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null;
+    monitorState.disconnected = false;
+    monitorState.options = null;
+});
+
+it("배너 재확인은 헬스체크를 호출하고 대체 조회는 기존 주문판을 유지한다", async () => {
+    monitorState.disconnected = true;
+    render(<LiveOrderDashboard />);
+    expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy();
+
+    await monitorState.options?.onDisconnectedTick?.();
+    expect(refreshOrders).toHaveBeenCalledTimes(1);
+    expect(reloadOrders).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
+    await waitFor(() => expect(monitorState.checkNow).toHaveBeenCalledTimes(1));
+    await monitorState.options?.onRecover?.();
+    expect(refreshOrders).toHaveBeenCalledTimes(2);
+});
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {
     const updated = { ...makePreviewOrders()[0], acknowledgedAt: "2026-09-25T11:00:00.000Z", updatedAt: "2026-09-25T11:00:00.000Z" };

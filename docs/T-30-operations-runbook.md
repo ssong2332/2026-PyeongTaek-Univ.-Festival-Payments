@@ -76,6 +76,14 @@
 - 온라인 주문과 `M-` 수기 주문은 별개로 관리해 중복 조리·지급·재고 차감을 방지한다.
 - 발생 시각 / 최초 발견자 / 장애 유형·증상 / 영향 범위 / 마지막 정상 주문번호 / 주문 중단·수기 전환 시각 / 연락·조치 내용 / 복구 검증 및 재개 시각 / 잔여 미확인 주문을 기록한다.
 
+### 3.5 미입금 주문 자동 만료·자동 완료 점검
+
+- 운영 전 실제 활성화된 스윕 호출 경로를 확인한다. 선택지는 DB의 1분 `pg_cron` 작업(#82)과 관리자 대시보드가 열린 동안의 30초 heartbeat(#112)다. PR 상태만 보고 운영에 적용됐다고 판단하지 않는다.
+- 관리자 화면에서 미입금 주문이 만료되지 않으면 먼저 `order.sweep` 로그의 `expired`·`completed` 건수와 `order.sweep.rpc_failed`·`order.sweep.rpc_threw`·`order.sweep.invalid_result` 오류 이벤트를 확인한다. 오류 로그의 `code`는 진단 코드이며 DB 오류 원문이나 설정값은 기록하지 않는다. `INVALID_PAYMENT_EXPIRE_MINUTES`·`INVALID_AUTO_COMPLETE_ENABLED`·`INVALID_AUTO_COMPLETE_MINUTES`는 해당 설정 키를 점검하라는 뜻이다.
+- 로그가 전혀 없다면 호출 경로가 활성화됐는지 확인한다. `pg_cron` 사용 시 DB 담당자가 `cron.job` 등록과 `cron.job_run_details` 최근 실행 결과를 확인한다. heartbeat만 사용 중이면 관리자 대시보드 접속이 유지되는지 확인한다.
+- 설정값 오류 코드가 의심되면 DB 담당자가 `app_settings`의 `payment.expire_minutes`(정수 1~120), `auto_complete.enabled`(`true`/`false`), `auto_complete.minutes`(자동 완료 사용 시 정수 1~120)를 확인한다. 잘못된 값이 있으면 만료와 자동 완료가 함께 멈출 수 있다. 운영 설정은 관리자 설정 화면으로 수정하고, Table Editor 직접 수정은 담당자와 변경 이력을 확인한 뒤에만 진행한다.
+- 복구 후 스윕이 다시 실행되는지, 만료 대상·송금 신고 제외·재고 복구·상태 이력을 대조한다. 이미 만료되거나 전환된 주문을 임의로 재생성하지 않는다.
+
 ## 4. 관리자 설정 화면 장애 시 Supabase 폴백
 
 운영 계좌의 입력·변경 순서, 값 규칙, 확인 방법은

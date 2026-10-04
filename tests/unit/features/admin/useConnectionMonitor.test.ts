@@ -10,7 +10,26 @@ describe("T-23 useConnectionMonitor", () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
         vi.clearAllMocks();
+    });
+
+    it("헬스체크 응답이 멈추면 4초 제한 신호로 요청을 중단하고 장애로 판정한다", async () => {
+        const controller = new AbortController();
+        const timeout = vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+        const fetchMock = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        }));
+        vi.stubGlobal("fetch", fetchMock);
+
+        const { result } = renderHook(() => useConnectionMonitor({ channelStatus: "SUBSCRIBED" }));
+        expect(timeout).toHaveBeenCalledWith(4000);
+        expect(fetchMock).toHaveBeenCalledWith("/api/health", expect.objectContaining({ signal: controller.signal }));
+
+        await act(async () => { controller.abort(); await vi.advanceTimersByTimeAsync(0); });
+        expect(result.current.isHealthOk).toBe(false);
+        expect(result.current.isDisconnected).toBe(false);
     });
 
     it("정상 상태(채널 SUBSCRIBED, 헬스체크 성공)에서는 isDisconnected=false를 유지한다", async () => {

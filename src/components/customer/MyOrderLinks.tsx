@@ -13,7 +13,7 @@ export function MyOrderLinks({ orders }: { orders: readonly MyOrderLink[] }) {
     if (orders.length === 0) return null;
 
     return (
-        <section aria-labelledby="my-orders-title" className="rounded-2xl border border-orange-100 bg-white px-4 py-3 shadow-sm">
+        <section aria-labelledby="my-orders-title" className="rounded-2xl border border-line bg-white px-4 py-3 shadow-sm">
             <h2 id="my-orders-title" className="text-sm font-bold text-neutral-900">
                 내 주문 현황 보기
             </h2>
@@ -25,7 +25,7 @@ export function MyOrderLinks({ orders }: { orders: readonly MyOrderLink[] }) {
                             <Link
                                 href={`/orders/${order.statusToken}`}
                                 aria-label={`픽업 번호 ${digits} 주문 현황 보기`}
-                                className="flex min-h-12 items-center gap-2 rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 text-brand-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
+                                className="flex min-h-12 items-center gap-2 rounded-xl border border-line bg-peach px-3 py-2 text-brand-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep"
                             >
                                 <span className="text-xs font-bold">픽업 번호</span>
                                 <span className="text-xl font-extrabold tabular-nums">{digits}</span>

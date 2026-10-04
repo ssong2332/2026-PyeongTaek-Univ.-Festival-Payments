@@ -7,9 +7,25 @@ import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardP
 afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
     onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []),
+    onLoadStats: vi.fn(async () => ({ date: "all", sales: 0, orderCount: 0, refundedAmount: 0,
+        refundedCount: 0, byMenu: [], totals: { pending: 0, paid: 0, cooking: 0, completed: 0,
+            cancelled: 0, refunded: 0, expired: 0 } })),
     onTransition: vi.fn(async () => {}) });
 
 describe("T-15 order dashboard", () => {
+    it("keeps sales statistics and operating settings available in the same menu", async () => {
+        const props = base();
+        render(<OrderDashboard {...props} settingsPanel={<section>설정 입력 화면</section>} />);
+        const menu = screen.getByRole("navigation", { name: "관리자 메뉴" });
+        fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
+        await waitFor(() => expect(props.onLoadStats).toHaveBeenCalled());
+        expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
+        fireEvent.click(within(menu).getByRole("button", { name: "운영 설정" }));
+        expect(screen.getByText("설정 입력 화면")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "새로고침" })).toBeNull();
+        fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
+        expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
+    });
     it("acknowledges without changing payment status, removing the unread count", async () => {
         render(<DashboardPreview />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
@@ -271,9 +287,8 @@ describe("T-23 connection banner", () => {
         expect(screen.queryByText("서버 연결이 끊겼습니다")).toBeNull();
     });
 
-    it("prevents repeated retry while orders are loading", () => {
-        render(<OrderDashboard {...base()} disconnected isLoading />);
+    it("prevents repeated retry while checking the connection", () => {
+        render(<OrderDashboard {...base()} disconnected connectionChecking />);
         expect((screen.getByRole("button", { name: "확인 중…" }) as HTMLButtonElement).disabled).toBe(true);
     });
 });
-

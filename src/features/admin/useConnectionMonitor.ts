@@ -71,7 +71,7 @@ export function useConnectionMonitor({
 
     // 끊김 상태 동안 5초 폴링 폴백
     useEffect(() => {
-        if (!isDisconnected || !onDisconnectedTick) return;
+        if (!isDisconnected) return;
 
         const interval = setInterval(() => {
             void onDisconnectedTickRef.current?.();
@@ -80,7 +80,7 @@ export function useConnectionMonitor({
         return () => {
             clearInterval(interval);
         };
-    }, [isDisconnected, onDisconnectedTick, disconnectedPollingIntervalMs]);
+    }, [isDisconnected, disconnectedPollingIntervalMs]);
 
     // 채널 상태 정상 여부 (channelStatus가 주어지면 "SUBSCRIBED"여야 정상)
     const isChannelOk = channelStatus === undefined || channelStatus === null || channelStatus === "SUBSCRIBED";
@@ -95,7 +95,7 @@ export function useConnectionMonitor({
             }
         }
         try {
-            const res = await fetch(healthUrl, { cache: "no-store" });
+            const res = await fetch(healthUrl, { cache: "no-store", signal: AbortSignal.timeout(4000) });
             if (!res.ok) return false;
             const data = await res.json().catch(() => null);
             return Boolean(data && data.ok === true);
@@ -162,11 +162,17 @@ export function useConnectionMonitor({
         if (!enabled) return;
 
         let isCancelled = false;
+        let inFlight = false;
 
         const runCheck = async () => {
-            const ok = await performHealthCheck();
-            if (isCancelled) return;
-            setIsHealthOk(ok);
+            if (inFlight) return;
+            inFlight = true;
+            try {
+                const ok = await performHealthCheck();
+                if (!isCancelled) setIsHealthOk(ok);
+            } finally {
+                inFlight = false;
+            }
         };
 
         // 초기 마운트 시 헬스체크 1회 실행

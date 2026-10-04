@@ -167,8 +167,6 @@ export function mergeOrdersSnapshot(
 
 export interface UseOrdersFeedOptions {
     initialDate?: string;
-    isDisconnected?: boolean;
-    pollingIntervalMs?: number;
 }
 
 export interface UseOrdersFeedReturn {
@@ -180,6 +178,7 @@ export interface UseOrdersFeedReturn {
     channelStatus: string | null;
     acknowledge: (id: string) => Promise<void>;
     reload: () => Promise<void>;
+    refresh: () => Promise<void>;
 }
 
 export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): UseOrdersFeedReturn {
@@ -187,7 +186,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         ? { initialDate: optionsOrDate }
         : optionsOrDate ?? {};
 
-    const { initialDate, isDisconnected = false, pollingIntervalMs = 5000 } = options;
+    const { initialDate } = options;
 
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -331,27 +330,17 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         };
     }, [hydrateOrder, markLive]);
 
-    // 3. ADR-0003: 연결 끊김 동안 5초 폴링 폴백으로 강등
-    useEffect(() => {
-        if (!isDisconnected) return;
-
-        let isCancelled = false;
-        const interval = setInterval(() => {
-            const loadStartSeq = liveSeqRef.current;
-            loadOrders().then((result) => {
-                if (isCancelled) return;
-                if (result.map) {
-                    applySnapshot(result.map, loadStartSeq);
-                    setError(null);
-                }
-            });
-        }, pollingIntervalMs);
-
-        return () => {
-            isCancelled = true;
-            clearInterval(interval);
-        };
-    }, [isDisconnected, pollingIntervalMs, loadOrders, applySnapshot]);
+    // 연결 끊김 중 대체 조회와 복구 시에는 기존 주문판을 가리지 않는다.
+    const refresh = useCallback(async () => {
+        const loadStartSeq = liveSeqRef.current;
+        const result = await loadOrders();
+        if (result.map) {
+            applySnapshot(result.map, loadStartSeq);
+            setError(null);
+        } else {
+            setError(result.error);
+        }
+    }, [loadOrders, applySnapshot]);
 
     const reload = useCallback(async () => {
         setIsLoading(true);
@@ -381,5 +370,6 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         channelStatus,
         acknowledge,
         reload,
+        refresh,
     };
 }

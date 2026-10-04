@@ -10,6 +10,8 @@ export type ErrorCode =
     | "INVALID_TRANSITION"
     | "STATE_CHANGED"
     | "CANCEL_REQUEST_NOT_ALLOWED"
+    | "REVIEW_NOT_ALLOWED"
+    | "REVIEW_ALREADY_SUBMITTED"
     | "RATE_LIMITED"
     | "INTERNAL_ERROR";
 
@@ -33,6 +35,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     INVALID_TRANSITION: "Invalid order status transition.",
     STATE_CHANGED: "Order state has changed.",
     CANCEL_REQUEST_NOT_ALLOWED: "Cancel request is not allowed.",
+    REVIEW_NOT_ALLOWED: "Reviews are only allowed for completed orders.",
+    REVIEW_ALREADY_SUBMITTED: "A review has already been submitted for this order.",
     RATE_LIMITED: "Rate limit exceeded.",
     INTERNAL_ERROR: "An internal server error occurred.",
 };
@@ -53,10 +57,25 @@ export class AppError extends Error {
     }
 }
 
-export function toErrorResponse(error: unknown): { status: number; envelope: ErrorResponseEnvelope } {
+export function toErrorResponse(error: unknown): {
+    status: number;
+    envelope: ErrorResponseEnvelope;
+    headers?: Record<string, string>;
+} {
     if (error instanceof AppError) {
         const isInternal = error.status >= 500 || error.code === "INTERNAL_ERROR";
         const message = ERROR_MESSAGES[error.code] ?? "An error occurred.";
+
+        const headers: Record<string, string> = {};
+        if (
+            error.code === "RATE_LIMITED" &&
+            error.details &&
+            typeof error.details === "object" &&
+            "retryAfterSeconds" in error.details &&
+            typeof (error.details as { retryAfterSeconds: unknown }).retryAfterSeconds === "number"
+        ) {
+            headers["Retry-After"] = String((error.details as { retryAfterSeconds: number }).retryAfterSeconds);
+        }
 
         return {
             status: error.status,
@@ -67,6 +86,7 @@ export function toErrorResponse(error: unknown): { status: number; envelope: Err
                     ...(!isInternal && error.details !== undefined ? { details: error.details } : {}),
                 },
             },
+            ...(Object.keys(headers).length > 0 ? { headers } : {}),
         };
     }
 
