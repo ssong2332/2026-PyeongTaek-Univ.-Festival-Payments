@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
+import type { StaffCallAlert } from "@/components/admin/CallAlertsPanel";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 
@@ -25,9 +26,14 @@ export function makePreviewOrders(): AdminOrderDto[] {
 }
 export function DashboardPreview() {
     const [orders, setOrders] = useState(makePreviewOrders);
+    const [callAlerts, setCallAlerts] = useState<StaffCallAlert[]>([
+        { id: "preview-call-1", pickupNumber: 2, createdAt: "2026-09-25T10:31:00.000Z", acknowledgedAt: null },
+    ]);
     const current = useRef(orders);
     function replace(next: AdminOrderDto[]) { current.current = next; setOrders(next); }
-    return <OrderDashboard orders={orders} preview
+    return <OrderDashboard orders={orders} preview callAlerts={callAlerts}
+        onAcknowledgeCall={async id => setCallAlerts(previous => previous.map(alert =>
+            alert.id === id ? { ...alert, acknowledgedAt: new Date().toISOString() } : alert))}
         onReload={async () => replace(makePreviewOrders())}
         onSearch={async number => current.current.filter(order => order.pickupNumber === number)}
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {

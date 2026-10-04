@@ -3,6 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, UtensilsCrossed, XCircle } from "lucide-react";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import { CallAlertsPanel, type StaffCallAlert } from "./CallAlertsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
 import { TransitionRequestError } from "@/features/admin/transitionError";
@@ -27,6 +28,8 @@ export interface OrderDashboardProps {
     isLoading?: boolean;
     error?: string | null;
     preview?: boolean;
+    callAlerts?: StaffCallAlert[];
+    onAcknowledgeCall?: (id: string) => Promise<void>;
     onReload: () => Promise<void>;
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
@@ -34,7 +37,7 @@ export interface OrderDashboardProps {
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
+    callAlerts, onAcknowledgeCall, onReload, onAcknowledge, onSearch, onTransition }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -161,6 +164,8 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                     <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
                 {(error || actionError) && <div role="alert" className={styles.error}>{actionError || "주문을 불러오지 못했습니다. 새로고침해 주세요."}</div>}
+                {page === "dashboard" && callAlerts && onAcknowledgeCall &&
+                    <CallAlertsPanel alerts={callAlerts} onAcknowledge={onAcknowledgeCall} />}
                 {page === "dashboard" && <section className={styles.stats} aria-label="오늘 주문 요약">
                     {stats.map(s => <button key={s.label} className={styles.stat} onClick={() => { setPage("orders"); setFilter(s.filter); clearSearch(); }}>
                         <s.icon size={20} /><strong>{isLoading ? "—" : s.value}</strong><span>{s.label}</span></button>)}
