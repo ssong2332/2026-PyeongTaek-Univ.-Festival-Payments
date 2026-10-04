@@ -27,7 +27,7 @@ export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelector
                         role="group"
                         aria-labelledby={labelId}
                         aria-describedby={hintId}
-                        className="rounded-[20px] border border-orange-100 bg-white p-4"
+                        className="rounded-[20px] border border-line bg-white p-4"
                     >
                         <div className="mb-3 flex items-baseline justify-between gap-2">
                             <span id={labelId} className="text-sm font-extrabold text-brand-deep">
@@ -46,7 +46,7 @@ export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelector
                                     <label
                                         key={option.id}
                                         className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand ${
-                                            checked ? "border-brand bg-orange-50" : "border-orange-100 bg-white"
+                                            checked ? "border-brand bg-peach" : "border-line bg-white"
                                         } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
                                     >
                                         <input
