@@ -29,7 +29,7 @@ export default function CheckoutPage() {
     let body: React.ReactNode = null;
     if (checkout.succeeded) {
         body = (
-            <p role="status" className="rounded-2xl border border-orange-100 bg-white px-4 py-10 text-center font-bold text-brand-deep">
+            <p role="status" className="rounded-2xl border border-line bg-white px-4 py-10 text-center font-bold text-brand-deep">
                 주문이 접수됐어요. 주문 화면으로 이동하고 있어요.
             </p>
         );
