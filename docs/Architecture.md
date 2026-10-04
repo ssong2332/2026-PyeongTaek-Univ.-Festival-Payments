@@ -302,7 +302,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 01xx | 2차 스키마 | 2차 확장(4절) | 각 2차 작업 | 1차 전부 | — |
 | 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
 | 0101 | `0101_menu_recommendation.sql` | 메뉴별 추천 여부 `is_recommended` | T-38 · DB1 | 0100(운영 적용 순서) | 신규 배정. 기본값 false, NOT NULL; 기존 메뉴 RLS 유지 |
-| 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. API 토큰 검증·고객 폼 연결은 후속 |
+| 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. 저장 API는 아래 고객 API 규격, 고객 폼 연결은 후속 |
 
 > **운영 DB 적용 현황(2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). 남은 적용 순서는 `0018` → `0019`이고, `0014`(PR #62)·`0015`(PR #52)는 병합 직전 규칙 4에 따라 `0018`·`0019`로 이름을 바꾼다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -356,6 +356,8 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `INVALID_TRANSITION` | 409 | 상태 머신 불허 |
 | `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내 |
 | `CANCEL_REQUEST_NOT_ALLOWED` | 409 | 조리중 이후 또는 거절됨/이미 요청됨 이외의 불가 상태 |
+| `REVIEW_NOT_ALLOWED` | 409 | 완료 외 주문의 후기 제출(조회 후 상태 변경 경합 포함) |
+| `REVIEW_ALREADY_SUBMITTED` | 409 | 이미 후기가 있는 주문의 재제출·동시 중복 제출 — 기존 내용·시각 유지 |
 | `RATE_LIMITED` | 429 | `POST /api/orders`만. IP당 분당 100건 초과 (`details: { retryAfterSeconds }`, 헤더 `Retry-After`). 멱등 재요청은 대상 아님. 4xx라 자동 재시도 없음 → 수동 재시도 버튼 + 장바구니 유지 (F-47, ADR-0009) |
 | `INTERNAL_ERROR` | 500 | 그 외 — 스택·DB 메시지 노출 금지 |
 
@@ -371,6 +373,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `GET /api/orders/{token}` | 경로 토큰 64 hex | `OrderStatusDto { orderId, pickupNumber, status, paymentMethod, totalAmount, items: [{ name, quantity, options: string[], lineTotal }], createdAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, aheadCount, canTransferReport, canCancelRequest }` | 토큰 형식 불일치·미존재 모두 404. `aheadCount` = `count_waiting_before(created_at)`. `name`/`options`는 주문 시 `locale` 기준 스냅샷(ko 폴백). 시각 4개는 ISO UTC `…Z`(밀리초)로 응답하고 대기 수 계산에는 DB 원본(µs)을 쓴다. 클라이언트 5초 폴링. 200 응답 `Cache-Control: private, no-store` |
 | `POST /api/orders/{token}/transfer-report` | 본문 없음 | `{ transferReportedAt }` | `status='pending' AND payment_method='transfer'`가 아니면(현금 주문 포함) 409 `INVALID_TRANSITION`. 이미 신고됨이면 기존 시각 그대로 200(멱등, F-43) |
 | `POST /api/orders/{token}/cancel-request` | 본문 없음 | `{ cancelRequestedAt }` | `status ∈ {pending,paid}` 아님 또는 `cancel_rejected_at` 있음 → 409 `CANCEL_REQUEST_NOT_ALLOWED`. 이미 요청됨이면 기존 시각 200(멱등, F-45) |
+| `POST /api/orders/{token}/reviews` | `{ rating: int 1..5, text?: string \| null }` — 텍스트 선택·Unicode code point 200자 이하, 추가 필드 거부 | 201 `{ createdAt }`(ISO 8601 UTC) | T-41·F-37. 토큰 조회로 주문 식별(본문 주문 ID 불허), 완료 외 409 `REVIEW_NOT_ALLOWED`, 중복 409 `REVIEW_ALREADY_SUBMITTED`. 형식 오류·미존재 토큰 404 `NOT_FOUND`. 입력 오류 400 `VALIDATION_ERROR`(자유 입력 보호를 위해 `details` 생략). 기존 `0102_reviews.sql` 트리거·PK로 상태 변경·동시 제출 경합 차단. 성공·오류 모두 `Cache-Control: private, no-store` |
 
 ### 7. 관리자 API (전부 `requireAdmin()` — 세션 없으면 401)
 
