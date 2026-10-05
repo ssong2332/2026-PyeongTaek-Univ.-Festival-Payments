@@ -109,7 +109,7 @@ export default function MenuPage() {
                             {t("menu.allTitle")}
                         </h2>
                         {menu.status === "ready" && (
-                            <span className="font-num pb-1 text-xs text-dough-dim">
+                            <span className="fest-hint font-num mb-1">
                                 {t("menu.kinds", { count: menu.items.length })}
                             </span>
                         )}

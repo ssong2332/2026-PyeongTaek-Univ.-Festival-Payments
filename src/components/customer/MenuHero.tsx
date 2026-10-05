@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, use
 import { useState } from "react";
 import { useCartBump } from "@/components/motion/cartBump";
 import { SPRING } from "@/components/motion/presets";
-import { CartIcon } from "@/components/ui/icons";
+import { CartIcon, FlameIcon } from "@/components/ui/icons";
 import { FESTIVAL_ART } from "@/features/festival/festivalArt";
 import { FestivalHorizon } from "@/features/festival/FestivalHorizon";
 import { useT } from "@/lib/i18n/locale";
@@ -48,9 +48,10 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                     <span className="fest-lights fest-swing fest-twinkle block size-full" style={{ "--src": `url(${FESTIVAL_ART.lightsString})` } as React.CSSProperties} />
                 </span>
                 <div className="relative flex items-center justify-between gap-3">
-                    <p className="font-num flex min-w-0 items-center gap-2 text-xs leading-tight text-dough-dim">
-                        <span className="pulse-dot size-2 shrink-0 rounded-full bg-syrup" />
-                        {t("hero.festival")}
+                    {/* 축제 입장권 딱지: 왼쪽 표 머리(연도) | 절취선 | 축제 이름 */}
+                    <p className="fest-ticket min-w-0 -rotate-2 text-[13px] leading-none">
+                        <span className="fest-ticket-stub font-num flex items-center px-2.5 py-2 text-[11px] font-bold tracking-wider">{t("hero.festivalYear")}</span>
+                        <span className="font-display flex min-w-0 items-center truncate px-2.5 py-2">{t("hero.festivalName")}</span>
                     </p>
                     <div className="flex shrink-0 items-center gap-2">
                         <LanguageToggle />
@@ -155,9 +156,18 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.9, type: "spring", stiffness: 300, damping: 26 }}
-                        className="mt-3 text-sm text-dough-dim"
+                        className="font-display mt-4 flex items-center gap-2 text-[17px] leading-snug text-dough"
                     >
-                        {t("hero.tagline")}
+                        <FlameIcon className="ember-flicker-soft size-[18px] shrink-0 text-syrup" />
+                        <span>
+                            {t("hero.taglineLead")}{" "}
+                            <span className="syrup-swash syrup-text">
+                                {t("hero.taglineAccent")}
+                                <svg aria-hidden="true" viewBox="0 0 100 10" preserveAspectRatio="none">
+                                    <path d="M2 7 C 25 2, 50 2, 72 5 S 94 8, 98 3" pathLength={1} fill="none" stroke="var(--color-syrup)" strokeWidth="2.6" strokeLinecap="round" />
+                                </svg>
+                            </span>
+                        </span>
                     </motion.p>
                 </motion.div>
                 <FestivalHorizon />

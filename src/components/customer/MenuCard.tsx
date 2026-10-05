@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion } from "motion/react";
 import { PlusIcon } from "@/components/ui/icons";
 import { formatWon } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/locale";
@@ -21,10 +21,6 @@ export interface MenuCardProps {
 export function MenuCard({ name, description, price, imageUrl, soldOut, onSelect, layoutId }: MenuCardProps) {
     const locale = useLocale();
     const t = useT();
-    // 스크롤하면 둥근 호떡 사진이 철판 위에서 돌듯 천천히 회전한다.
-    const { scrollY } = useScroll();
-    const spin = useTransform(scrollY, (y) => (soldOut ? 0 : y * 0.12));
-
     // 손가락·마우스 자리를 따라 카드 위에 스포트라이트를 비춘다(globals.css .spotlight).
     function trackPointer(event: React.PointerEvent<HTMLButtonElement>) {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -49,13 +45,12 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, onSelect
                 layoutId={layoutId}
                 variants={{
                     pressed: { scaleY: 0.82, scaleX: 1.1, transition: { type: "spring", stiffness: 700, damping: 15 } },
-                    hover: { rotate: 8, scale: 1.04 },
+                    hover: { scale: 1.04 },
                 }}
                 className={`relative block size-24 overflow-hidden rounded-full shadow-[0_12px_24px_rgba(0,0,0,0.5),0_0_0_3px_rgba(255,181,71,0.08)] ${soldOut ? "grayscale" : ""}`}
             >
-                <motion.span style={{ rotate: spin }} className="block size-full">
-                    <MenuThumbnail imageUrl={imageUrl} className="size-full" />
-                </motion.span>
+                {/* 메뉴 사진은 똑바로 둔다(돌리면 사진이 기울어 보인다) */}
+                <MenuThumbnail imageUrl={imageUrl} className="size-full" />
                 {soldOut && (
                     <span className="absolute inset-0 flex items-center justify-center bg-iron/60">
                         <span className="rounded-md border border-dough/60 px-2 py-0.5 text-xs font-bold tracking-widest text-dough">{t("menu.soldOut")}</span>

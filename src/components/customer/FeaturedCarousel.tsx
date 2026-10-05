@@ -2,7 +2,7 @@
 
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import type { PointerEvent } from "react";
-import { FlameIcon, PlusIcon } from "@/components/ui/icons";
+import { ChevronRightIcon, FlameIcon, PlusIcon } from "@/components/ui/icons";
 import { menuImageUrl } from "@/features/customer/menuImages";
 import type { MenuItemDto } from "@/lib/dto/menu";
 import { formatWon } from "@/lib/format";
@@ -22,7 +22,10 @@ export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItem
                     <FlameIcon className="ember-flicker-soft size-5 text-syrup" />
                     {t("menu.featured.title")}
                 </p>
-                <p className="text-xs text-dough-dim">{t("menu.featured.swipe")}</p>
+                <p className="fest-hint">
+                    {t("menu.featured.swipe")}
+                    <ChevronRightIcon className="fest-hint-arrow size-3.5" strokeWidth={3} />
+                </p>
             </div>
             <div className="feat-track flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pt-1 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {items.map((item, index) => (
