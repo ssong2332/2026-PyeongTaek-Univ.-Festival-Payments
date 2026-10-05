@@ -17,7 +17,8 @@
   ```
   - `<계정 workers.dev 서브도메인>`은 Cloudflare 대시보드 **Workers & Pages** 화면의 "Your subdomain" 값이다(계정마다 다름). 2026-10-01 정정: 이전 판의 `https://ptu-festival-payments.workers.dev`는 계정 서브도메인이 빠진 잘못된 주소다.
   - 실제 주소는 첫 배포 뒤 대시보드에 표시된 값으로 확정하고, 이 문서와 QR에 그대로 옮긴다.
-  - **2026-10-01 첫 배포 주소**: `https://ptu-festival-payments.asg21274.workers.dev` — 계정 서브도메인 `asg21274`는 **바꿀 예정**(팀장 결정 2026-10-02). 바꾸면 주소 전체가 바뀌므로 이 문서·README·T-30 문서·QR을 함께 고친다. 새 주소가 정해지기 전에는 이 주소를 인쇄물에 쓰지 않는다.
+  - **운영 주소(2026-10-06 확정)**: `https://ptu-festival-payments.aiisgod.workers.dev` — 팀장이 계정 서브도메인을 `asg21274` → `aiisgod`로 바꿈(DECISIONS #59, 대시보드 Workers & Pages → Your subdomain → Change). 확인: 변경 직후 옛 주소는 DNS에서 사라졌고(00:28 KST "DNS name does not exist"), 새 주소는 잠시 HTTPS 연결이 실패하다가(00:28~00:29, TLS handshake failure) 00:29:52 `/api/health` 200 `{"ok":true,"db":true}`, 00:30 `/`·`/admin/login`·`/api/menu?lang=ko` 200. 코드·환경변수는 고치지 않았다(운영 `main`은 572a346 그대로).
+  - 2026-10-01 첫 배포 주소는 `https://ptu-festival-payments.asg21274.workers.dev`였다(7절 기록) — 더 이상 열리지 않으므로 인쇄물·즐겨찾기에 쓰지 않는다.
   > [!IMPORTANT]
   > Worker 이름(`ptu-festival-payments`)과 계정 서브도메인은 **축제 포스터 및 QR 인쇄물 출력 이후에는 절대 변경하지 않습니다 (N-11, N-14)**. 계정 서브도메인을 바꾸면 주소 전체가 바뀐다.
 
@@ -178,7 +179,7 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 |---|---|---|
 | 배포 커밋 | `main` `572a346` (릴리스 PR #84, `dev` `eabeed9`와 내용 같음 — #85 리뷰 수정 포함) | `git log origin/main` |
 | Worker | `ptu-festival-payments` — Workers Builds 연결, Production branch `main`, 미리보기 빌드 끔 | Cloudflare Settings → Builds |
-| 운영 URL | `https://ptu-festival-payments.asg21274.workers.dev` (계정 서브도메인 변경 예정 — 1절) | 배포 로그 "Deployed … triggers" |
+| 운영 URL | `https://ptu-festival-payments.asg21274.workers.dev`(첫 배포 당시) → 2026-10-06 `https://ptu-festival-payments.aiisgod.workers.dev`로 변경(1절) | 배포 로그 "Deployed … triggers" / 10-06 새 주소 `/api/health` 200 |
 | 빌드 환경 | Node 22.23.3(`.nvmrc`), Next 16.3.8, `@opennextjs/cloudflare` 1.20.7, wrangler 4.145.0 | 빌드 로그 |
 | 변수 | 빌드 변수 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_ANON_KEY`(publishable 키), 실행 Secret `SUPABASE_SERVICE_ROLE_KEY`(secret 키) — 값은 기록하지 않음 | Cloudflare Settings(이름·형식만 확인) |
 | 활성 버전 | `ec3548d8` (변수 추가 뒤 Retry build로 만든 버전) | Deployments → Active deployment |
