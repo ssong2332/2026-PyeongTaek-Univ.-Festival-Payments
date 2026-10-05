@@ -59,7 +59,7 @@ curl -s -X POST "$SUPABASE_URL/auth/v1/signup" \
 
 ### 4. 로그인 확인 (T-25 후)
 
-운영 URL(2026-10-01 첫 배포 주소 `https://ptu-festival-payments.asg21274.workers.dev/admin/login` — 계정 서브도메인은 바꿀 예정(팀장 결정 10-02), [T-25 가이드 1절](T-25-deployment.md))에서 각 계정으로 확인한다.
+운영 URL(`https://ptu-festival-payments.aiisgod.workers.dev/admin/login` — 2026-10-06 계정 서브도메인 변경 후 확정, [T-25 가이드 1절](T-25-deployment.md))에서 각 계정으로 확인한다.
 
 | 확인 | 기대 결과 |
 |---|---|
@@ -91,7 +91,7 @@ curl -s -X POST "$SUPABASE_URL/auth/v1/signup" \
 | 가입 시도 거부 확인(1단계 curl) | 미확인 | anon 키가 필요해 터미널에서 직접 실행 |
 | 관리자 계정 수 | **1 / 2** — 나머지 1개는 축제 첫날(10-06) 전에 추가 | 팀장 결정 2개(2026-10-01). 아래 조회: 계정 1·이메일 인증 1·정지/삭제 0 |
 | 계정별 로그인 확인(4단계) | 현재 계정 1개 확인 | 2026-10-01 17:44 KST 운영 스모크 — 팀장 로그인 → 대시보드 표시 → 현금 수령 확인·조리 완료(이력 `actor_type=admin`). 두 번째 계정은 만든 뒤 확인 |
-| 운영 URL | 첫 배포 주소 있음(서브도메인 변경 예정) | `https://ptu-festival-payments.asg21274.workers.dev` — 2026-10-01 배포, [T-25 가이드 7절](T-25-deployment.md) |
+| 운영 URL | 확정(2026-10-06) | `https://ptu-festival-payments.aiisgod.workers.dev` — 계정 서브도메인 변경 후 `/api/health`·`/admin/login` 200 확인, [T-25 가이드 1절](T-25-deployment.md). 첫 배포 주소 `asg21274`는 더 이상 열리지 않음 |
 
 - 계정을 나중에 추가해도 코드·배포 변경은 없다. 로그인한 계정은 모두 관리자다(`requireAdmin()`은 로그인 여부만 확인).
 - 계정을 돌려 쓰면 처리 기록(`acknowledged_by`·`actor_id`)으로 사람을 구분할 수 없으니, 축제 전에 한 사람당 한 계정이 되게 맞춘다.
