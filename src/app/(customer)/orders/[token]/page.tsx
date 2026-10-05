@@ -12,6 +12,7 @@ import { OrderCompleteCard } from "@/components/customer/OrderCompleteCard";
 import { OrderProgressStepper, type ProgressStatus } from "@/components/customer/OrderProgressStepper";
 import { OrderStatusHeader } from "@/components/customer/OrderStatusHeader";
 import { OrderStatusItems } from "@/components/customer/OrderStatusItems";
+import { StaffCallButton } from "@/components/customer/StaffCallButton";
 import { TransferGuide } from "@/components/customer/TransferGuide";
 import type { OrderStatus } from "@/domain/order/status";
 import { useOrderStatus } from "@/features/customer/useOrderStatus";
@@ -76,11 +77,11 @@ function OrderStatusScreen({ token, openedFromCheckout }: { token: string; opene
       <>
         {toast}
         <CompleteView
-        token={token}
-        order={state.order}
-        notice={notice}
-        onRefresh={state.retry}
-        onShowStatus={() => setView("status")}
+          token={token}
+          order={state.order}
+          notice={notice}
+          onRefresh={state.retry}
+          onShowStatus={() => setView("status")}
         />
       </>
     );
@@ -89,11 +90,11 @@ function OrderStatusScreen({ token, openedFromCheckout }: { token: string; opene
     <>
       {toast}
       <StatusView
-      token={token}
-      order={state.order}
-      notice={notice}
-      onRefresh={state.retry}
-      onBack={openedFromCheckout ? () => setView("complete") : undefined}
+        token={token}
+        order={state.order}
+        notice={notice}
+        onRefresh={state.retry}
+        onBack={openedFromCheckout ? () => setView("complete") : undefined}
       />
     </>
   );
@@ -242,6 +243,7 @@ function StatusView({
           cancelRejectedAt={order.cancelRejectedAt}
           onRequested={onRefresh}
         />
+        <StaffCallButton token={token} />
       </div>
     </Screen>
   );
