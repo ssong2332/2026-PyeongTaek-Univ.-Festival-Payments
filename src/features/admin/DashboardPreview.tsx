@@ -7,15 +7,17 @@ import { SettingsPanel, type SettingsApi } from "@/components/admin/SettingsPane
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { aggregateStats } from "@/domain/stats/aggregate";
+import { aggregateHourlyMenuSales } from "@/domain/stats/hourlySales";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 
 async function loadPreviewStats(date: string) {
-    return aggregateStats(makePreviewOrders().map(order => ({
+    const orders = makePreviewOrders().map(order => ({
         id: order.id, status: order.status, totalAmount: order.totalAmount,
         createdAt: order.createdAt, items: order.items.map(item => ({
             menuItemId: order.id, nameKo: item.menuNameKo, quantity: item.quantity,
         })),
-    })), date);
+    }));
+    return { ...aggregateStats(orders, date), hourlyByMenu: aggregateHourlyMenuSales(orders, date) };
 }
 
 export function makePreviewOrders(): AdminOrderDto[] {
