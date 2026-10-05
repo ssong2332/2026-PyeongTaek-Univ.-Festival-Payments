@@ -7,6 +7,8 @@ import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const reloadOrders = vi.hoisted(() => vi.fn(async () => {}));
 const refreshOrders = vi.hoisted(() => vi.fn(async () => {}));
+// reload()/refresh()가 서버에서 다시 받아 올 주문 목록. null이면 목록을 바꾸지 않는다.
+const server = vi.hoisted(() => ({ orders: null as AdminOrderDto[] | null }));
 const monitorState = vi.hoisted(() => ({
     disconnected: false,
     checkNow: vi.fn(async () => true),
@@ -15,20 +17,17 @@ const monitorState = vi.hoisted(() => ({
         onDisconnectedTick?: () => Promise<void> | void;
     },
 }));
-// reload()가 서버에서 다시 받아 올 주문 목록. null이면 목록을 바꾸지 않는다.
-const server = vi.hoisted(() => ({ orders: null as AdminOrderDto[] | null }));
 vi.mock("@/features/admin/useOrdersFeed", async () => {
     const { useState } = await import("react");
     return {
         useOrdersFeed: () => {
             const [orders, setOrders] = useState(makePreviewOrders);
-            return { orders, isLoading: false, error: null, channelStatus: "SUBSCRIBED", refresh: async () => {
-                await refreshOrders();
-                if (server.orders) setOrders(server.orders);
-            }, reload: async () => {
-                await reloadOrders();
-                if (server.orders) setOrders(server.orders);
-            } };
+            const applyServer = () => { if (server.orders) setOrders(server.orders); };
+            return {
+                orders, isLoading: false, error: null, channelStatus: "SUBSCRIBED",
+                reload: async () => { await reloadOrders(); applyServer(); },
+                refresh: async () => { await refreshOrders(); applyServer(); },
+            };
         },
     };
 });
@@ -38,26 +37,15 @@ vi.mock("@/features/admin/useConnectionMonitor", () => ({
         return { isDisconnected: monitorState.disconnected, isChecking: false, checkNow: monitorState.checkNow };
     },
 }));
+vi.mock("@/features/admin/useStaffCallsFeed", () => ({
+    useStaffCallsFeed: () => ({
+        calls: [], unacknowledgedCount: 0, isLoading: false, isAcknowledging: false,
+        error: null, reload: vi.fn(async () => {}), acknowledge: vi.fn(async () => {}),
+    }),
+}));
 afterEach(() => {
     cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null;
-    monitorState.disconnected = false;
-    monitorState.options = null;
-});
-
-it("배너 재확인은 헬스체크를 호출하고 대체 조회는 기존 주문판을 유지한다", async () => {
-    monitorState.disconnected = true;
-    render(<LiveOrderDashboard />);
-    expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy();
-
-    await monitorState.options?.onDisconnectedTick?.();
-    expect(refreshOrders).toHaveBeenCalledTimes(1);
-    expect(reloadOrders).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
-    await waitFor(() => expect(monitorState.checkNow).toHaveBeenCalledTimes(1));
-    await monitorState.options?.onRecover?.();
-    expect(refreshOrders).toHaveBeenCalledTimes(2);
+    monitorState.disconnected = false; monitorState.options = null;
 });
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {
@@ -161,4 +149,20 @@ it("returns the card to the latest server state after a 409 and keeps the failur
     expect((within(actions).getByRole("button", { name: "현금 수령 확인" }) as HTMLButtonElement).disabled).toBe(true);
     expect(within(screen.getByRole("region", { name: "주문 상세" })).getByText("조리중")).toBeTruthy();
     expect(reloadOrders).toHaveBeenCalledTimes(1);
+});
+
+it("T-23 배너 재확인은 헬스체크를 호출하고 끊김 폴링·복구는 refresh로 재동기화한다", async () => {
+    monitorState.disconnected = true;
+    render(<LiveOrderDashboard />);
+    expect(screen.getByRole("button", { name: "픽업 001 주문 상세" })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain("서버 연결이 끊겼습니다");
+
+    await monitorState.options?.onDisconnectedTick?.();
+    expect(refreshOrders).toHaveBeenCalledTimes(1);
+    expect(reloadOrders).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
+    await waitFor(() => expect(monitorState.checkNow).toHaveBeenCalledTimes(1));
+    await monitorState.options?.onRecover?.();
+    expect(refreshOrders).toHaveBeenCalledTimes(2);
 });

@@ -122,15 +122,20 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
     });
 
-    it("P1은 현금만: 계좌이체는 '준비 중'으로 비활성, 눌러도 선택되지 않고 주문 버튼도 열리지 않는다(Tasks T-31 P2)", () => {
+    it("계좌이체도 고를 수 있다: 계좌 안내 예고 문구가 보이고 paymentMethod 'transfer'로 주문한다 (T-31, 2026-10-05 결정)", async () => {
         fillCart();
+        fetchMock.mockResolvedValueOnce(json(201, order));
         render(<CheckoutPage />);
-        const transfer = screen.getByRole("radio", { name: "계좌이체 (준비 중)" }) as HTMLInputElement;
-        expect(transfer.disabled).toBe(true);
+        const transfer = screen.getByRole("radio", { name: "계좌이체" }) as HTMLInputElement;
+        expect(transfer.disabled).toBe(false);
         fireEvent.click(transfer);
-        expect(transfer.checked).toBe(false);
-        expect(confirmButton().disabled).toBe(true);
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getByText("주문하면 입금할 계좌를 안내해 드려요.")).toBeTruthy();
+        fireEvent.click(confirmButton());
+
+        expect(await screen.findByText("주문이 접수됐어요. 주문 화면으로 이동하고 있어요.")).toBeTruthy();
+        expect(router.replace).toHaveBeenCalledWith(`/orders/${order.statusToken}?new=1`);
+        const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+        expect(body.paymentMethod).toBe("transfer");
     });
 
     it("로딩: 주문 생성 중에는 버튼 잠금 + 진행 표시(중복 탭 방지)", async () => {

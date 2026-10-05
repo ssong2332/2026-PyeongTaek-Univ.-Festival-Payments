@@ -26,6 +26,19 @@ describe("T-15 order dashboard", () => {
         fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
         expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
     });
+    it("T-20: 메뉴·재고 화면이 있으면 탭을 보여 주고, 없으면(미리보기) 탭을 숨긴다", () => {
+        const props = base();
+        const { unmount } = render(<OrderDashboard {...props} menuPanel={<section>메뉴 수정 화면</section>} />);
+        const menu = screen.getByRole("navigation", { name: "관리자 메뉴" });
+        fireEvent.click(within(menu).getByRole("button", { name: "메뉴·재고" }));
+        expect(within(menu).getByRole("button", { name: "메뉴·재고" }).getAttribute("aria-current")).toBe("page");
+        expect(screen.getByText("메뉴 수정 화면")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "새로고침" })).toBeNull();
+        unmount();
+
+        render(<OrderDashboard {...base()} />);
+        expect(within(screen.getByRole("navigation", { name: "관리자 메뉴" })).queryByRole("button", { name: "메뉴·재고" })).toBeNull();
+    });
     it("acknowledges without changing payment status, removing the unread count", async () => {
         render(<DashboardPreview />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
@@ -276,19 +289,45 @@ describe("T-17 cancel and refund controls", () => {
     });
 });
 
-describe("T-23 connection banner", () => {
-    it("shows the interruption prominently, retries, and clears when connection recovers", async () => {
+describe("T-35 고객 취소 요청 승인·거절", () => {
+    const requested = () => {
+        const [first, ...rest] = makePreviewOrders();
+        return [{ ...first, status: "pending" as const, cancelRequestedAt: "2026-10-07T03:10:00.000Z", cancelRejectedAt: null }, ...rest];
+    };
+
+    it("요청된 주문에 [승인]/[거절]이 있고, 사유를 적어야 확정할 수 있다", async () => {
         const props = base();
-        const { rerender } = render(<OrderDashboard {...props} disconnected />);
-        expect(screen.getByRole("alert").textContent).toContain("서버 연결이 끊겼습니다");
-        fireEvent.click(screen.getByRole("button", { name: "다시 확인" }));
-        await waitFor(() => expect(props.onReload).toHaveBeenCalledTimes(1));
-        rerender(<OrderDashboard {...props} disconnected={false} />);
-        expect(screen.queryByText("서버 연결이 끊겼습니다")).toBeNull();
+        const onCancelRequestDecision = vi.fn(async () => {});
+        const orders = requested();
+        render(<OrderDashboard {...props} orders={orders} onCancelRequestDecision={onCancelRequestDecision} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "고객 취소 요청" });
+        fireEvent.click(within(panel).getByRole("button", { name: "거절" }));
+        const confirm = within(panel).getByRole("button", { name: "거절 확정" }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        fireEvent.change(within(panel).getByLabelText(/거절 사유/), { target: { value: "  이미 굽는 중  " } });
+        fireEvent.click(confirm);
+        await waitFor(() => expect(onCancelRequestDecision).toHaveBeenCalledWith(orders[0].id, "reject", "이미 굽는 중"));
+        await waitFor(() => expect(screen.getByText("픽업 #001 취소 요청을 거절했습니다.")).toBeTruthy());
     });
 
-    it("prevents repeated retry while checking the connection", () => {
-        render(<OrderDashboard {...base()} disconnected connectionChecking />);
-        expect((screen.getByRole("button", { name: "확인 중…" }) as HTMLButtonElement).disabled).toBe(true);
+    it("실패하면 오류를 알린다", async () => {
+        const props = base();
+        const onCancelRequestDecision = vi.fn(async () => { throw new Error("409"); });
+        render(<OrderDashboard {...props} orders={requested()} onCancelRequestDecision={onCancelRequestDecision} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "고객 취소 요청" });
+        fireEvent.click(within(panel).getByRole("button", { name: "승인" }));
+        fireEvent.change(within(panel).getByLabelText(/승인 사유/), { target: { value: "고객 요청" } });
+        fireEvent.click(within(panel).getByRole("button", { name: "승인 확정" }));
+        await waitFor(() => expect(within(panel).getByRole("alert").textContent).toContain("처리하지 못했습니다"));
+    });
+
+    it("처리 함수가 없거나(미리보기) 거절된 요청이면 버튼을 그리지 않는다", () => {
+        const props = base();
+        const [first, ...rest] = requested();
+        render(<OrderDashboard {...props} orders={[{ ...first, cancelRejectedAt: "2026-10-07T03:12:00.000Z" }, ...rest]} onCancelRequestDecision={vi.fn()} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        expect(screen.queryByRole("region", { name: "고객 취소 요청" })).toBeNull();
     });
 });

@@ -45,7 +45,37 @@ jobs:
         with:
           version: 2.117.0
       - name: 테스트용 Supabase 시작
+        id: supabase_start
         run: supabase start
+      - name: T-18/T-19 pg_cron 등록 또는 폴백 확인
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: psql -d postgres -v ON_ERROR_STOP=1 -f tests/integration/pg_cron.sql
+      - name: 테스트용 pg_cron 잡 정리
+        if: ${{ always() && steps.supabase_start.outcome == 'success' }}
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('cron.job') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'sweep-orders') THEN
+                PERFORM cron.unschedule('sweep-orders');
+              END IF;
+              IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'sweep-orders') THEN
+                RAISE EXCEPTION 'FAILED: test sweep-orders job was not removed';
+              END IF;
+            END IF;
+          END;
+          $$;
+          SQL
       - name: 테스트용 접속 설정 등록
         shell: bash
         run: |
