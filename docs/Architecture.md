@@ -414,7 +414,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
 | 통계 | `/admin` 내부 매출 통계 탭 | `StatsPanel`의 날짜·조회 상태 | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도. `/admin/stats` 별도 페이지는 두지 않음 |
 | 교대 스케줄 (T-46, F-40) | `/admin/shifts` (`admin/(protected)/shifts/page.tsx`) | `features/admin/ShiftManagement` — CRUD 폼·목록·현재 담당자. 현재 시각은 30초마다 갱신, KST 구간 [시작, 종료)로 복수 담당자 산출 | `lib/api/client` → 관리자 shifts API | 0건·현재 담당자 없음·조회 로딩/오류 재시도·저장 잠금/실패 안내·삭제 확인. 오류 상태를 0건으로 표시하지 않음. 세션 없음/만료 → 로그인 |
-| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신 |
+| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신. 2026-10-05: 수기 입력(T-28)은 축제 포함 — 재고 부족 시 저장·재고 0에서 멈춤, 매출 날짜는 `orders.manual_ordered_at` 기준(DECISIONS #62, PRD F-34). 저장 API 요청·응답 계약은 BE1 구현 PR에서 이 표와 API 절에 추가(초안: #98 `docs/T-28-manual-order-integration.md`). 프로모션(F-38)은 미구현 |
 
 설정 패널(F-48, `/admin` 안의 `SettingsPanel` — 별도 라우트 없음, 접힘/펼침 UI는 디자인 재량):
 
