@@ -100,37 +100,37 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
   }
   function field(name: keyof ShiftInput, label: string, type = "text", id = `shift-${name}`) {
     const validation = (showValidation || (name === "endsAt" && !!form.endsAt)) ? fieldErrors[name] : undefined;
-    return <label className="flex flex-col gap-2 text-sm font-medium text-gray-700" htmlFor={id}>
+    return <label className="flex flex-col gap-2 text-sm font-medium text-dough-dim" htmlFor={id}>
       {label}<input id={id} name={name} type={type} required value={form[name]} disabled={locked}
         maxLength={name === "personName" ? SHIFT_RULES.nameMaxLength : name === "role" ? SHIFT_RULES.roleMaxLength : undefined}
         aria-invalid={!!validation} aria-describedby={validation ? id + "-error" : undefined}
         onChange={(event) => setForm({ ...form, [name]: event.target.value })}
-        className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-brand-deep disabled:opacity-60" />
-      {validation && <span id={id + "-error"} className="text-xs text-red-700">{validation}</span>}
+        className="rounded-lg border border-iron-line bg-iron-2 px-3 py-2.5 font-normal outline-none focus:ring-2 focus:ring-syrup disabled:opacity-60" />
+      {validation && <span id={id + "-error"} className="text-xs text-chili">{validation}</span>}
     </label>;
   }
 
   return <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-sm font-medium text-brand-deep">운영 관리</p>
-        <h1 className="mt-1 text-2xl font-bold text-gray-900">교대 스케줄</h1>
-        <p className="mt-2 text-sm text-gray-600">운영진의 시간과 역할을 관리하세요. 모든 시간은 한국 시간(KST) 기준입니다.</p></div>
-      <button type="button" disabled={loading || saving} onClick={reload} className="rounded-lg border bg-white px-4 py-2 text-sm font-medium disabled:opacity-50">새로고침</button>
+      <div><p className="text-sm font-medium text-syrup">운영 관리</p>
+        <h1 className="mt-1 text-2xl font-bold text-dough">교대 스케줄</h1>
+        <p className="mt-2 text-sm text-dough-dim">운영진의 시간과 역할을 관리하세요. 모든 시간은 한국 시간(KST) 기준입니다.</p></div>
+      <button type="button" disabled={loading || saving} onClick={reload} className="rounded-lg border bg-iron-2 px-4 py-2 text-sm font-medium disabled:opacity-50">새로고침</button>
     </header>
-    {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
-    {notice && <div role="status" className="rounded-lg bg-green-50 p-3 text-sm text-green-800">{notice}</div>}
-    <section aria-labelledby="shift-current" className="rounded-xl border border-badge bg-peach p-5">
-      <div className="flex flex-wrap justify-between gap-2"><h2 id="shift-current" className="font-semibold text-gray-900">현재 담당자</h2>
-        <time className="text-sm text-gray-600" dateTime={now.toISOString()}>{now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</time></div>
-      {loading ? <p role="status" className="mt-3 text-sm text-gray-600">스케줄 불러오는 중…</p>
-        : !loaded ? <p className="mt-3 text-sm text-gray-600">스케줄 조회가 필요합니다.</p>
+    {error && <div role="alert" className="rounded-lg border border-chili/45 bg-chili/10 p-3 text-sm text-red-800">{error}</div>}
+    {notice && <div role="status" className="rounded-lg bg-ok/10 p-3 text-sm text-ok">{notice}</div>}
+    <section aria-labelledby="shift-current" className="rounded-xl border border-iron-line bg-peach p-5">
+      <div className="flex flex-wrap justify-between gap-2"><h2 id="shift-current" className="font-semibold text-dough">현재 담당자</h2>
+        <time className="text-sm text-dough-dim" dateTime={now.toISOString()}>{now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</time></div>
+      {loading ? <p role="status" className="mt-3 text-sm text-dough-dim">스케줄 불러오는 중…</p>
+        : !loaded ? <p className="mt-3 text-sm text-dough-dim">스케줄 조회가 필요합니다.</p>
         : active.length ? <ul className="mt-3 flex flex-wrap gap-3">{active.map((shift) =>
-          <li key={shift.id} className="rounded-lg border border-badge bg-white px-4 py-3">
-            <span className="font-semibold">{shift.personName}</span><span className="ml-2 text-sm text-gray-600">{shift.role}</span>
-            <p className="mt-1 text-xs text-gray-500">{shift.startsAt}–{shift.endsAt}</p></li>)}</ul>
-        : <p className="mt-3 text-sm text-gray-600">현재 담당자 없음</p>}
+          <li key={shift.id} className="rounded-lg border border-iron-line bg-iron-2 px-4 py-3">
+            <span className="font-semibold">{shift.personName}</span><span className="ml-2 text-sm text-dough-dim">{shift.role}</span>
+            <p className="mt-1 text-xs text-dough-dim">{shift.startsAt}–{shift.endsAt}</p></li>)}</ul>
+        : <p className="mt-3 text-sm text-dough-dim">현재 담당자 없음</p>}
     </section>
-    <section aria-labelledby="shift-form-heading" className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs">
+    <section aria-labelledby="shift-form-heading" className="rounded-xl border border-iron-line bg-iron-2 p-5 ">
       <h2 id="shift-form-heading" className="mb-4 font-semibold">{editingId ? "스케줄 수정" : "스케줄 추가"}</h2>
       <form onSubmit={save}>
         <fieldset disabled={locked} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -138,29 +138,29 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
           {field("startsAt", "시작 시각", "time")}{field("endsAt", "종료 시각", "time")}{field("role", "역할")}
         </fieldset>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={locked} className="rounded-lg bg-brand-deep px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? "처리 중…" : editingId ? "수정 저장" : "스케줄 등록"}</button>
+          <button type="submit" disabled={locked} className="rounded-lg bg-syrup px-5 py-2.5 text-sm font-semibold text-molasses disabled:opacity-50">{saving ? "처리 중…" : editingId ? "수정 저장" : "스케줄 등록"}</button>
           {editingId && <button type="button" disabled={locked} onClick={() => { setEditingId(null); setForm(emptyInput(now)); setShowValidation(false); }} className="rounded-lg border px-4 py-2 text-sm">수정 취소</button>}
-          <p className="text-xs text-gray-500">같은 시간대에 여러 명을 등록할 수 있습니다.</p>
+          <p className="text-xs text-dough-dim">같은 시간대에 여러 명을 등록할 수 있습니다.</p>
         </div>
       </form>
     </section>
-    <section aria-labelledby="shift-list-heading" className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xs">
-      <h2 id="shift-list-heading" className="border-b px-5 py-4 font-semibold">전체 스케줄 {loaded && <span className="ml-2 text-sm font-normal text-gray-500">{shifts.length}건</span>}</h2>
-      {loading ? <p role="status" className="p-8 text-center text-sm text-gray-500">스케줄 불러오는 중…</p>
-        : !loaded ? <p className="p-8 text-center text-sm text-gray-600">새로고침으로 스케줄을 다시 불러와 주세요.</p>
-        : !shifts.length ? <div className="p-10 text-center"><p className="text-gray-600">등록된 스케줄 없음</p><button type="button" onClick={() => document.getElementById("shift-name")?.focus()} className="mt-3 text-sm font-semibold text-brand-deep underline">스케줄 추가</button></div>
+    <section aria-labelledby="shift-list-heading" className="overflow-hidden rounded-xl border border-iron-line bg-iron-2 ">
+      <h2 id="shift-list-heading" className="border-b px-5 py-4 font-semibold">전체 스케줄 {loaded && <span className="ml-2 text-sm font-normal text-dough-dim">{shifts.length}건</span>}</h2>
+      {loading ? <p role="status" className="p-8 text-center text-sm text-dough-dim">스케줄 불러오는 중…</p>
+        : !loaded ? <p className="p-8 text-center text-sm text-dough-dim">새로고침으로 스케줄을 다시 불러와 주세요.</p>
+        : !shifts.length ? <div className="p-10 text-center"><p className="text-dough-dim">등록된 스케줄 없음</p><button type="button" onClick={() => document.getElementById("shift-name")?.focus()} className="mt-3 text-sm font-semibold text-syrup underline">스케줄 추가</button></div>
         : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm">
           <caption className="sr-only">운영진 교대 스케줄, 한국 시간 기준</caption>
-          <thead className="bg-gray-50 text-gray-600"><tr>{["날짜", "시간대", "이름", "역할", "관리"].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}</tr></thead>
+          <thead className="bg-iron text-dough-dim"><tr>{["날짜", "시간대", "이름", "역할", "관리"].map((label) => <th key={label} scope="col" className="px-5 py-3 font-medium">{label}</th>)}</tr></thead>
           <tbody className="divide-y">{shifts.map((shift) => <tr key={shift.id} className={active.some((item) => item.id === shift.id) ? "bg-peach/50" : ""}>
             <td className="px-5 py-4">{shift.date}</td><td className="px-5 py-4 whitespace-nowrap">{shift.startsAt}–{shift.endsAt}</td>
             <td className="px-5 py-4 font-medium">{shift.personName}{active.some((item) => item.id === shift.id) && <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-900">현재</span>}</td>
             <td className="px-5 py-4">{shift.role}</td><td className="px-5 py-4">
-              {deletingId === shift.id ? <div className="flex flex-wrap gap-2"><span className="w-full text-xs text-gray-600">삭제하시겠습니까?</span>
-                <button type="button" disabled={locked} onClick={() => remove(shift.id)} className="text-red-700 underline">삭제 확인</button>
+              {deletingId === shift.id ? <div className="flex flex-wrap gap-2"><span className="w-full text-xs text-dough-dim">삭제하시겠습니까?</span>
+                <button type="button" disabled={locked} onClick={() => remove(shift.id)} className="text-chili underline">삭제 확인</button>
                 <button type="button" disabled={locked} onClick={() => setDeletingId(null)}>취소</button></div>
-                : <div className="flex gap-3"><button type="button" disabled={locked} onClick={() => edit(shift)} aria-label={`${shift.personName} ${shift.date} ${shift.startsAt} 수정`} className="text-brand-deep underline">수정</button>
-                  <button type="button" disabled={locked} onClick={() => setDeletingId(shift.id)} aria-label={`${shift.personName} ${shift.date} ${shift.startsAt} 삭제`} className="text-red-700 underline">삭제</button></div>}
+                : <div className="flex gap-3"><button type="button" disabled={locked} onClick={() => edit(shift)} aria-label={`${shift.personName} ${shift.date} ${shift.startsAt} 수정`} className="text-syrup underline">수정</button>
+                  <button type="button" disabled={locked} onClick={() => setDeletingId(shift.id)} aria-label={`${shift.personName} ${shift.date} ${shift.startsAt} 삭제`} className="text-chili underline">삭제</button></div>}
             </td></tr>)}</tbody>
         </table></div>}
     </section>
