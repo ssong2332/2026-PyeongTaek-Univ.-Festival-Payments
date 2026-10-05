@@ -48,7 +48,7 @@ describe("MenuCard", () => {
         rerender(<MenuCard {...base} onSelect={() => {}} />);
         const images = container.querySelectorAll("img");
         expect(images).toHaveLength(1);
-        expect(images[0].getAttribute("src")).toBe("/mascot/default.svg");
+        expect(images[0].getAttribute("src")).toBe("/mascot/hotteoki/hello.webp");
         expect(images[0].getAttribute("alt")).toBe("");
         expect(images[0].closest("[aria-hidden='true']")).not.toBeNull();
     });
