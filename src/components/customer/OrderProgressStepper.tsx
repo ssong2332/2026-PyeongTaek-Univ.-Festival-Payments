@@ -46,7 +46,7 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
                 aria-hidden="true"
                 className={`relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-500 ${
                   state === "done"
-                    ? "bg-caramel text-dough"
+                    ? "bg-caramel text-[#fff3e0]"
                     : state === "current"
                       ? "pulse-dot bg-syrup text-molasses"
                       : "border border-iron-line bg-iron-2 text-dough-dim"

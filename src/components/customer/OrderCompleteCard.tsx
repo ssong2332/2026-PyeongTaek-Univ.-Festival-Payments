@@ -2,11 +2,12 @@
 
 import { motion } from "motion/react";
 import type { PaymentMethod } from "@/domain/order/status";
+import { CelebrationBurst } from "@/features/festival/CelebrationBurst";
 import type { OrderStatusItemDto } from "@/lib/dto/order";
 import { BrandedPickup } from "./BrandedPickup";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
-// 주문 완료 보기: 제목 → 인두로 새긴 픽업 번호 → 영수증 출력·"접수완료" 도장.
+// 주문 완료 보기: 제목 → 인두로 새긴 픽업 번호 → 영수증 출력·"접수완료" 도장. 인두가 찍힌 직후 양쪽에서 축하 폭죽이 터진다.
 export function OrderCompleteCard({
   pickupNumber,
   totalAmount,
@@ -32,6 +33,7 @@ export function OrderCompleteCard({
       </motion.h1>
       <BrandedPickup pickupNumber={pickupNumber} />
       <ReceiptPrinter totalAmount={totalAmount} paymentMethod={paymentMethod} items={items} createdAt={createdAt} />
+      <CelebrationBurst delay={0.9} />
     </>
   );
 }

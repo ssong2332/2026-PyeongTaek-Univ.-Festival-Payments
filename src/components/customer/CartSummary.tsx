@@ -41,7 +41,7 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                         exit={{ opacity: 0, x: -320, height: 0, marginTop: -12, transition: { duration: 0.28 } }}
                         className="relative overflow-hidden rounded-3xl"
                     >
-                        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-end rounded-3xl bg-chili/90 pr-6 text-sm font-bold text-iron">
+                        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-end rounded-3xl bg-chili/90 pr-6 text-sm font-bold text-molasses">
                             삭제
                         </span>
                         <motion.div
@@ -51,7 +51,7 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                             onDragEnd={(_, info) => {
                                 if (info.offset.x < SWIPE_DELETE_OFFSET) onRemove(line.lineId);
                             }}
-                            className={`iron-card relative touch-pan-y rounded-3xl p-3 ${line.warning ? "!border-chili/70" : ""}`}
+                            className={`iron-card iron-solid relative touch-pan-y rounded-3xl p-3 ${line.warning ? "!border-chili/70" : ""}`}
                         >
                             <div className="flex gap-3">
                                 <MenuThumbnail imageUrl={line.imageUrl} className="size-20 rounded-full shadow-[0_8px_18px_rgba(0,0,0,0.45)]" />

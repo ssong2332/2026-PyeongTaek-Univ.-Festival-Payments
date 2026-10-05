@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useLayoutEffect, useState } from "react";
 import { CategoryChips } from "@/components/customer/CategoryChips";
+import { FeaturedCarousel } from "@/components/customer/FeaturedCarousel";
 import { MenuCard } from "@/components/customer/MenuCard";
 import { MenuDetailSheet } from "@/components/customer/MenuDetailSheet";
 import { MenuHero } from "@/components/customer/MenuHero";
@@ -50,6 +51,11 @@ type Flight = { key: number; imageUrl: string | null; from: DOMRect };
 const imageLayoutId = (menuId: string) => sharedLayoutId(`menu-image-${menuId}`);
 
 // 고객 메뉴판(/) — PRD 화면 표 "고객 · 메뉴판", Architecture 8절.
+// 오늘의 추천: 지금 주문할 수 있는 메뉴 앞에서부터 다섯 개
+function featuredItems(items: readonly MenuItemDto[]): MenuItemDto[] {
+    return items.filter((item) => item.isAvailable && !item.isSoldOut).slice(0, 5);
+}
+
 export default function MenuPage() {
     const menu = useMenu();
     const hydrated = useCartHydrated();
@@ -83,6 +89,11 @@ export default function MenuPage() {
                 <QueueCount waitingCount={menu.waitingCount} />
                 <MyOrderLinks orders={myOrders} />
                 <SearchBox value={query} onChange={setQuery} />
+                {menu.status === "ready" && !query && (
+                    <div className="mt-3">
+                        <FeaturedCarousel items={featuredItems(menu.items)} onSelect={setOpenMenuId} />
+                    </div>
+                )}
                 <section
                     aria-labelledby="menu-list-title"
                     className="mt-4 flex flex-col gap-3"
@@ -140,7 +151,7 @@ export default function MenuPage() {
                                 <motion.span
                                     animate={cartBump}
                                     data-cart-target="bar"
-                                    className="relative flex size-9 items-center justify-center rounded-full bg-molasses/90 text-syrup"
+                                    className="relative flex size-9 items-center justify-center rounded-full bg-molasses/90 text-[#ffb547]"
                                 >
                                     <CartIcon className="size-[18px]" />
                                     <motion.span
@@ -152,7 +163,7 @@ export default function MenuPage() {
                                             stiffness: 700,
                                             damping: 12,
                                         }}
-                                        className="font-num absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-dough px-1 text-[10px] font-medium text-molasses"
+                                        className="font-num absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#f7e8d0] px-1 text-[10px] font-medium text-molasses"
                                     >
                                         {cartCount}
                                     </motion.span>

@@ -15,7 +15,7 @@ const MESSAGES: Partial<Record<OrderStatus, { title: string; body: string; Icon:
 };
 const TONE = {
   warm: "bg-syrup text-molasses",
-  ok: "bg-ok text-iron",
+  ok: "bg-ok text-molasses",
   cold: "bg-iron-3 text-dough-dim",
 };
 const SHOW_MS = 3600;
@@ -53,7 +53,7 @@ export function StatusChangeToast({ status }: { status: OrderStatus }) {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -90, opacity: 0 }}
             transition={{ type: "spring", stiffness: 420, damping: 26 }}
-            className="iron-card flex w-full max-w-sm items-center gap-3 rounded-2xl px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.55)]"
+            className="iron-card iron-solid flex w-full max-w-sm items-center gap-3 rounded-2xl px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.55)]"
           >
             <motion.span
               initial={{ rotate: 0 }}

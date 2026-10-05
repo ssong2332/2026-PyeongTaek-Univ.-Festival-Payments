@@ -6,6 +6,7 @@ import { GriddleScene } from "@/components/customer/GriddleScene";
 import { CancelRequestPanel } from "@/components/customer/CancelRequestPanel";
 import { ReviewForm } from "@/components/customer/ReviewForm";
 import { StatusChangeToast } from "@/components/customer/StatusChangeToast";
+import { CelebrateWhen } from "@/features/festival/CelebrationBurst";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { OrderCompleteCard } from "@/components/customer/OrderCompleteCard";
 import { OrderProgressStepper, type ProgressStatus } from "@/components/customer/OrderProgressStepper";
@@ -63,7 +64,13 @@ function OrderStatusScreen({ token, openedFromCheckout }: { token: string; opene
   if (state.status === "error") return <ErrorState onRetry={state.retry} />;
 
   const notice = state.refreshFailed ? <RefreshFailedNotice onRetry={state.retry} /> : null;
-  const toast = <StatusChangeToast status={state.order.status} />;
+  // 상태 알림 + 호떡이 완성되는 순간(조리중 → 완료) 축하 폭죽
+  const toast = (
+    <>
+      <StatusChangeToast status={state.order.status} />
+      <CelebrateWhen active={state.order.status === "completed"} />
+    </>
+  );
   if (view === "complete") {
     return (
       <>

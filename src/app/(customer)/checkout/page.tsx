@@ -107,6 +107,7 @@ export default function CheckoutPage() {
                         <AnimatePresence>
                             {(checkout.submitting || checkout.succeeded) && (
                                 <motion.span
+                                    key="fill"
                                     aria-hidden="true"
                                     initial={{ width: "0%" }}
                                     animate={{ width: checkout.succeeded ? "100%" : "88%" }}
@@ -137,9 +138,38 @@ export default function CheckoutPage() {
                                     <span className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-white/15 to-transparent" />
                                 </motion.span>
                             )}
+                            {/* 캐러멜이 지나간 만큼만 글씨가 크림색으로 물든다(아래 당밀색 글씨 위에 같은 자리로 겹친 사본) */}
+                            {(checkout.submitting || checkout.succeeded) && (
+                                <motion.span
+                                    key="fill-label"
+                                    aria-hidden="true"
+                                    initial={{ clipPath: "inset(0 100% 0 0)" }}
+                                    animate={{ clipPath: checkout.succeeded ? "inset(0 0% 0 0)" : "inset(0 12% 0 0)" }}
+                                    exit={{ opacity: 0 }}
+                                    transition={checkout.succeeded ? { duration: 0.35, ease: "easeOut" } : { duration: 2.6, ease: [0.2, 0.7, 0.3, 1] }}
+                                    className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center gap-3 px-5 text-[#fff3e0]"
+                                >
+                                    {checkout.succeeded && (
+                                        <svg viewBox="0 0 24 24" className="size-5">
+                                            <motion.path
+                                                d="M5 12.5l4.5 4.5L19 7.5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="3"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                initial={{ pathLength: 0 }}
+                                                animate={{ pathLength: 1 }}
+                                                transition={{ duration: 0.35, delay: 0.2 }}
+                                            />
+                                        </svg>
+                                    )}
+                                    <span>{confirmLabel}</span>
+                                </motion.span>
+                            )}
                         </AnimatePresence>
                         {checkout.succeeded && (
-                            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 text-dough">
+                            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5">
                                 <motion.path
                                     d="M5 12.5l4.5 4.5L19 7.5"
                                     fill="none"
@@ -158,7 +188,6 @@ export default function CheckoutPage() {
                             initial={{ y: 14, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                            className={checkout.submitting || checkout.succeeded ? "text-dough" : ""}
                         >
                             {confirmLabel}
                         </motion.span>

@@ -49,7 +49,7 @@ export function ReceiptPrinter({
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1, x: [0, -1.5, 1.5, -1, 1, 0] }}
         transition={{ y: { type: "spring", stiffness: 300, damping: 22 }, opacity: { duration: 0.2 }, x: { duration: 0.25, repeat: 6, delay: PRINT_START } }}
-        className="relative z-10 mx-1 flex h-14 items-center justify-between rounded-[22px] bg-linear-to-b from-iron-3 to-iron border border-iron-line px-4 shadow-[0_14px_28px_rgba(42,20,12,0.35)]"
+        className="relative z-10 mx-1 flex h-14 items-center justify-between rounded-[22px] bg-linear-to-b from-[#2d2631] to-[#15121a] border border-[#3a3140] px-4 shadow-[0_14px_28px_rgba(42,20,12,0.35)]"
       >
         <span className="flex items-center gap-2">
           <motion.span

@@ -658,3 +658,384 @@ body {
         box-shadow: 0 0 0 rgba(255, 181, 71, 0);
     }
 }
+
+/* ── 시간대 축제 테마(2026-10-05) ─────────────────────────────────
+   festivalTheme.applyFestival이 휴대폰 시각으로 <html>에 --fest-* 값을 넣는다(루트 <head> 인라인 스크립트 + 30초마다).
+   고객 화면 틀(.festival-root) 안에서만 철판 토큰을 이 값으로 바꿔, 아침 크림빛 → 낮 주황 → 16시 무쇠+시럽으로 섞인다.
+   등록된(@property) 색이라 값이 바뀔 때 부드럽게 전환된다. 기본값은 지금의 야간 철판(16시 최종)과 같다. */
+@property --fest-iron {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #15121a;
+}
+@property --fest-iron2 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #211c25;
+}
+@property --fest-iron3 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #2d2631;
+}
+@property --fest-line {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #3a3140;
+}
+@property --fest-dough {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #f7e8d0;
+}
+@property --fest-dim {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #b3a497;
+}
+@property --fest-sky1 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #15121a;
+}
+@property --fest-sky2 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #1a1218;
+}
+@property --fest-glow {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(240, 120, 40, 0.14);
+}
+@property --fest-horizon {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(240, 120, 40, 0.28);
+}
+@property --fest-sil {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(10, 8, 12, 0.95);
+}
+@property --fest-crowd {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0.55;
+}
+@property --fest-ember {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 1;
+}
+@property --fest-fx {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 1;
+}
+/* 첫 계산 뒤(FestivalStage가 data-fest-anim을 단 뒤)부터만 전환 — 새로 열 때는 바로 맞는 시간대 색으로 뜬다.
+   글씨색(dough·dim)은 바탕이 절반쯤 바뀐 순간 넘어가게 늦춰, 밝은↔어두운 전환(14시) 중에도 글씨가 묻히지 않게 한다. */
+html[data-fest-anim] {
+    transition:
+        --fest-iron 4s ease,
+        --fest-iron2 4s ease,
+        --fest-iron3 4s ease,
+        --fest-line 4s ease,
+        --fest-sky1 4s ease,
+        --fest-sky2 4s ease,
+        --fest-glow 4s ease,
+        --fest-ember 4s ease,
+        --fest-fx 4s ease,
+        --fest-horizon 4s ease,
+        --fest-sil 4s ease,
+        --fest-crowd 4s ease,
+        --fest-dough 0.8s ease 1.6s,
+        --fest-dim 0.8s ease 1.6s;
+}
+.festival-root {
+    --color-iron: var(--fest-iron);
+    --color-iron-2: var(--fest-iron2);
+    --color-iron-3: var(--fest-iron3);
+    --color-iron-line: var(--fest-line);
+    --color-dough: var(--fest-dough);
+    --color-dough-dim: var(--fest-dim);
+}
+/* 하늘: 위에서 아래로 시간대 그라데이션 + 바닥 숯불빛(화면에 고정) */
+.festival-sky {
+    background-image:
+        radial-gradient(70% 40% at 50% 105%, var(--fest-glow), transparent 70%),
+        radial-gradient(60% 30% at 80% -5%, rgba(255, 181, 71, 0.06), transparent 70%),
+        linear-gradient(180deg, var(--fest-sky1), var(--fest-sky2));
+}
+.festival-embers {
+    opacity: var(--fest-ember);
+}
+/* 밝은 시간대: 무쇠 위에서 쓰던 밝은 강조색을 크림 바탕에서도 읽히는 진한 색으로 */
+[data-daylight] .festival-root .text-syrup,
+[data-daylight] .festival-root .text-syrup\/90,
+[data-daylight] .festival-root .text-syrup-2 {
+    color: #a8480c;
+}
+[data-daylight] .festival-root .text-ok {
+    color: #3f7a2a;
+}
+[data-daylight] .festival-root .text-chili,
+[data-daylight] .festival-root .hover\:text-chili:hover {
+    color: #c0321f;
+}
+[data-daylight] .festival-root .syrup-text {
+    background-image: linear-gradient(180deg, #f59a3c 0%, #c2570c 52%, #8a3a0a 100%);
+}
+[data-daylight] .festival-root .iron-card {
+    box-shadow: 0 6px 20px rgba(160, 80, 30, 0.1);
+}
+
+/* 불타는 "호떡" 위로 피어오르는 연기 */
+@media (prefers-reduced-motion: no-preference) {
+    .title-smoke {
+        animation: title-smoke 3.8s ease-out infinite;
+    }
+}
+@keyframes title-smoke {
+    0% {
+        transform: translate(0, 10px) scale(0.35);
+        opacity: 0;
+    }
+    18% {
+        opacity: var(--smoke-alpha, 0.55);
+    }
+    100% {
+        transform: translate(var(--smoke-drift, 14px), -124px) scale(2.1);
+        opacity: 0;
+    }
+}
+.smoke-puff {
+    opacity: 0;
+    background: radial-gradient(closest-side, rgba(228, 214, 204, 0.75), rgba(200, 182, 170, 0.28) 62%, transparent);
+    filter: blur(5px);
+}
+[data-daylight] .festival-root .smoke-puff {
+    background: radial-gradient(closest-side, rgba(120, 84, 62, 0.42), rgba(120, 84, 62, 0.14) 62%, transparent);
+}
+/* 고객 화면 카드는 살짝 비쳐서 뒤의 불꽃·전구·군중 불빛이 은은하게 번져 보인다(글씨는 그대로 또렷) */
+.festival-root .iron-card {
+    background: linear-gradient(155deg, color-mix(in srgb, var(--color-iron-3) 86%, transparent), color-mix(in srgb, var(--color-iron-2) 90%, transparent) 58%);
+}
+/* 뒤에 다른 내용이 겹치는 카드(스와이프 삭제 줄, 떠 있는 알림)는 비치지 않게 */
+.festival-root .iron-card.iron-solid {
+    background: linear-gradient(155deg, var(--color-iron-3), var(--color-iron-2) 58%);
+}
+/* 밝은 시간대는 뒤 군중 실루엣이 글씨에 비치지 않게 카드를 거의 불투명하게 */
+[data-daylight] .festival-root .iron-card:not(.iron-solid) {
+    background: linear-gradient(155deg, color-mix(in srgb, var(--color-iron-3) 95%, transparent), color-mix(in srgb, var(--color-iron-2) 97%, transparent) 58%);
+}
+
+/* ── 축제 지평선(FestivalHorizon)·전구·축하 그림 ───────────────────────────────
+   그림(Flaticon)을 마스크로 써서 시간대 색으로 칠한다. --src: url(그림), --th: 나타나는 문턱값. */
+.fest-sil {
+    background-color: var(--fest-sil);
+    -webkit-mask-image: var(--src);
+    mask-image: var(--src);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center bottom;
+    mask-position: center bottom;
+}
+/* 군중이 모일수록(--fest-crowd) 문턱값을 넘은 사람부터 나타난다 */
+.fest-crowd-item {
+    opacity: clamp(0, calc((var(--fest-crowd) - var(--th, 0)) * 8), 1);
+}
+/* 축제 이펙트 강도(--fest-fx)에 따라 켜지는 장식 */
+.fest-fx-item {
+    opacity: clamp(0, calc((var(--fest-fx) - var(--th, 0)) * 3), 1);
+}
+.fest-horizon-glow {
+    background:
+        radial-gradient(70% 75% at 50% 100%, var(--fest-horizon), transparent 72%),
+        radial-gradient(30% 60% at 85% 85%, var(--fest-horizon), transparent 70%);
+}
+/* 밤에는 실루엣 윗선에 축제 불빛이 테두리처럼 비친다 */
+.fest-skyline {
+    filter: drop-shadow(0 -1px 3px var(--fest-horizon));
+}
+[data-daylight] .fest-skyline {
+    filter: none;
+}
+.fest-beam {
+    background: linear-gradient(to top, rgba(255, 214, 150, 0.55), rgba(255, 180, 90, 0.18) 45%, transparent);
+    clip-path: polygon(42% 100%, 58% 100%, 100% 0, 0 0);
+    transform: rotate(-24deg);
+    transform-origin: 50% 100%;
+}
+.fest-beam-b {
+    transform: rotate(20deg);
+}
+/* 전구 줄: 그림을 가로로 이어 붙이고 은은하게 빛나게 */
+.fest-lights {
+    background-image: var(--src);
+    background-repeat: repeat-x;
+    background-size: auto 100%;
+    filter: drop-shadow(0 0 6px rgba(255, 196, 100, 0.85));
+}
+[data-daylight] .fest-lights {
+    filter: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .fest-bob {
+        animation: fest-bob var(--dur, 2s) ease-in-out var(--delay, 0s) infinite;
+    }
+    .fest-jump {
+        animation: fest-jump var(--dur, 1.3s) cubic-bezier(0.3, 0.7, 0.4, 1) var(--delay, 0s) infinite;
+    }
+    .fest-sway {
+        animation: fest-sway var(--dur, 2s) ease-in-out var(--delay, 0s) infinite alternate;
+    }
+    .fest-walk {
+        animation: fest-walk var(--dur, 24s) linear var(--delay, 0s) infinite;
+    }
+    .fest-walk-reverse {
+        animation-direction: reverse;
+    }
+    .fest-beam {
+        animation: fest-beam 5.5s ease-in-out infinite alternate;
+    }
+    .fest-beam-b {
+        animation: fest-beam-b 6.5s ease-in-out infinite alternate;
+    }
+    .fest-twinkle {
+        animation: fest-twinkle 2.2s ease-in-out infinite alternate;
+    }
+    .fest-swing {
+        animation: fest-swing 5s ease-in-out infinite alternate;
+    }
+}
+@keyframes fest-bob {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+@keyframes fest-jump {
+    0%,
+    100% {
+        transform: translateY(0) scale(1, 1);
+    }
+    12% {
+        transform: translateY(1px) scale(1.06, 0.92);
+    }
+    45% {
+        transform: translateY(-9px) scale(0.96, 1.05);
+    }
+    75% {
+        transform: translateY(0) scale(1.04, 0.96);
+    }
+}
+@keyframes fest-sway {
+    from {
+        transform: rotate(-3deg);
+    }
+    to {
+        transform: rotate(3deg);
+    }
+}
+@keyframes fest-walk {
+    from {
+        transform: translateX(-14%);
+    }
+    to {
+        transform: translateX(110%);
+    }
+}
+@keyframes fest-beam {
+    from {
+        transform: rotate(-34deg);
+    }
+    to {
+        transform: rotate(-6deg);
+    }
+}
+@keyframes fest-beam-b {
+    from {
+        transform: rotate(30deg);
+    }
+    to {
+        transform: rotate(2deg);
+    }
+}
+@keyframes fest-twinkle {
+    from {
+        opacity: 0.55;
+    }
+    to {
+        opacity: 1;
+    }
+}
+@keyframes fest-swing {
+    from {
+        transform: rotate(-1.2deg);
+    }
+    to {
+        transform: rotate(1.2deg);
+    }
+}
+
+/* 오늘의 추천 띠: 밀면 가운데 카드가 앞으로, 양옆은 비스듬히 물러난다(스크롤 연동 애니메이션을 지원하는 브라우저) */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .feat-card {
+            animation: feat-focus linear both;
+            animation-timeline: view(inline);
+        }
+        .feat-img {
+            animation: feat-pan linear both;
+            animation-timeline: view(inline);
+        }
+    }
+}
+@keyframes feat-focus {
+    0% {
+        transform: scale(0.86) rotateY(16deg);
+        opacity: 0.6;
+    }
+    50% {
+        transform: none;
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.86) rotateY(-16deg);
+        opacity: 0.6;
+    }
+}
+@keyframes feat-pan {
+    from {
+        transform: translateX(10%);
+    }
+    to {
+        transform: translateX(-10%);
+    }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .ember-flicker-soft {
+        animation: flicker 1.4s ease-in-out infinite;
+    }
+}
+
+/* 유리 알약(검색창): 뒤의 하늘·불빛이 흐리게 비친다 */
+.fest-glass {
+    border: 1px solid color-mix(in srgb, var(--color-dough) 16%, transparent);
+    background: color-mix(in srgb, var(--color-iron-2) 58%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 24px rgba(0, 0, 0, 0.18);
+}
+[data-daylight] .festival-root .fest-glass {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(200, 120, 60, 0.22);
+}
