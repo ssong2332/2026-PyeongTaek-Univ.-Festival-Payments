@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { DEFAULT_LOCALE } from "@/domain/i18n/locales";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "@/domain/i18n/locales";
 
-// Architecture "6. 고객 API" GET /api/menu?lang=ko. 지원 언어 목록은 T-04에서 SUPPORTED_LOCALES로 옮긴다.
-const MenuLocaleSchema = z.enum(["ko", "en"]);
+// Architecture "6. 고객 API" GET /api/menu?lang=ko. 언어 목록은 SUPPORTED_LOCALES(domain/i18n/locales).
+const MenuLocaleSchema = z.enum(SUPPORTED_LOCALES);
 export type MenuLocale = z.infer<typeof MenuLocaleSchema>;
 
 // 없으면 기본 언어(ko). 목록 밖 값(빈 문자열·대문자 포함)은 400 VALIDATION_ERROR.
