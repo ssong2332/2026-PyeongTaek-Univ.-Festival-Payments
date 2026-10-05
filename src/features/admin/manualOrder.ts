@@ -1,5 +1,36 @@
 import { z } from "zod";
 import type { MenuItemDto } from "@/lib/dto/menu";
+import type { AdminMenuDto } from "@/lib/dto/adminMenu";
+
+export type ManualOrderMenu = MenuItemDto & { isActive?: boolean };
+
+// 관리자 조회는 판매 종료 메뉴·옵션도 포함한다. 종이 주문 사후 입력에서는 과거에 판매한 항목도 선택할 수 있어야 한다.
+export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
+    const name = (translations: Record<string, { name: string }>) =>
+        translations.ko?.name ?? translations.en?.name ?? "이름 없음";
+    return items.map((item) => ({
+        id: item.id,
+        name: name(item.translations),
+        description: item.translations.ko?.description ?? item.translations.en?.description ?? null,
+        price: item.basePrice,
+        stock: item.stock,
+        isActive: item.isActive,
+        isAvailable: item.isActive && !item.isSoldOutManual && item.stock > 0,
+        isSoldOut: item.isSoldOutManual || item.stock === 0,
+        imageUrl: item.imageUrl,
+        optionGroups: item.optionGroups.map((group) => ({
+            id: group.id,
+            name: name(group.translations),
+            minSelect: group.minSelect,
+            maxSelect: group.maxSelect,
+            options: group.options.map((option) => ({
+                id: option.id,
+                name: name(option.translations),
+                extraPrice: option.extraPrice,
+            })),
+        })),
+    }));
+}
 
 // T-28 저장 API 계약. 가격은 보내지 않고 서버가 DB 가격·옵션을 스냅샷으로 확정한다.
 export const ManualOrderRequestSchema = z.strictObject({

@@ -2,8 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { MenuItemDto } from "@/lib/dto/menu";
+import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import { ManualOrderForm } from "@/features/admin/ManualOrderForm";
-import { manualOrderShortages, manualOrderTotal, toManualOrderRequest } from "@/features/admin/manualOrder";
+import { manualOrderShortages, manualOrderTotal, toManualOrderMenu, toManualOrderRequest } from "@/features/admin/manualOrder";
 
 afterEach(cleanup);
 
@@ -29,6 +30,27 @@ const menu: MenuItemDto[] = [{
 const line = { key: "line", menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] };
 
 describe("T-28 manual order input", () => {
+    it("관리자 메뉴 조회에서 판매 종료 메뉴와 현재 비활성 옵션도 사후 입력 선택지에 남긴다", () => {
+        const historical: AdminMenuDto = {
+            id: MENU_ID,
+            translations: { ko: { name: "예전 호떡", description: null } },
+            basePrice: 3000, stock: 0, isSoldOutManual: false, isActive: false, sortOrder: 0, imageUrl: null,
+            optionGroups: [{
+                id: "33333333-3333-3333-3333-333333333333",
+                translations: { ko: { name: "예전 토핑" } },
+                minSelect: 0, maxSelect: 1, isActive: false,
+                options: [{ id: OPTION_ID, translations: { ko: { name: "예전 치즈" } }, extraPrice: 500, isActive: false }],
+            }],
+        };
+        const converted = toManualOrderMenu([historical]);
+        expect(converted[0]).toMatchObject({
+            name: "예전 호떡", isActive: false, isAvailable: false,
+            optionGroups: [{ name: "예전 토핑", options: [{ name: "예전 치즈", extraPrice: 500 }] }],
+        });
+        render(<ManualOrderForm menu={converted} />);
+        expect(screen.getByRole("option", { name: /예전 호떡.*판매 종료\(과거 메뉴\)/ })).toBeTruthy();
+    });
+
     it("builds a KST timestamp and calculates option price and cumulative shortage", () => {
         const request = toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY);
         expect(request?.manualOrderedAt).toBe("2026-10-03T11:00:00.000Z");

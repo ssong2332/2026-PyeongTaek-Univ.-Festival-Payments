@@ -1,22 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useMenu } from "@/features/customer/useMenu";
+import { useMemo } from "react";
+import { useMenuAdmin } from "@/features/admin/useMenuAdmin";
 import { ManualOrderForm } from "@/features/admin/ManualOrderForm";
+import { toManualOrderMenu } from "@/features/admin/manualOrder";
 
 export default function ManualOrdersPage() {
-    const { status, items, reload } = useMenu("ko", { pollQueue: false });
+    const admin = useMenuAdmin();
+    const items = useMemo(() => toManualOrderMenu(admin.menus), [admin.menus]);
     return (
         <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6">
             <div className="flex items-center justify-between gap-3">
                 <h1 className="text-2xl font-bold">수기 주문 사후 입력</h1>
                 <Link href="/admin" className="text-sm underline">주문 대시보드</Link>
             </div>
-            {status === "loading" && <p role="status">메뉴를 불러오는 중입니다…</p>}
-            {status === "error" && <div role="alert">
-                메뉴를 불러오지 못했습니다. <button type="button" onClick={reload} className="underline">다시 시도</button>
+            {admin.status === "loading" && <p role="status">메뉴를 불러오는 중입니다…</p>}
+            {(admin.status === "error" || admin.status === "unavailable") && <div role="alert">
+                관리자 메뉴를 불러오지 못했습니다. <button type="button" onClick={() => void admin.reload()} className="underline">다시 시도</button>
             </div>}
-            {status === "ready" && (items.length > 0
+            {admin.status === "ready" && (items.length > 0
                 ? <ManualOrderForm menu={items} />
                 : <p role="status">입력할 수 있는 메뉴가 없습니다.</p>)}
         </div>

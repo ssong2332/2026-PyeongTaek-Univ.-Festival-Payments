@@ -1,14 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type { MenuItemDto } from "@/lib/dto/menu";
 import {
     manualOrderShortages, manualOrderTotal, toManualOrderRequest,
-    type ManualOrderLine, type ManualOrderRequest,
+    type ManualOrderLine, type ManualOrderMenu, type ManualOrderRequest,
 } from "./manualOrder";
 
 type Props = {
-    menu: MenuItemDto[];
+    menu: ManualOrderMenu[];
     onSave?: (request: ManualOrderRequest) => Promise<void>;
 };
 
@@ -74,7 +73,7 @@ export function ManualOrderForm({ menu, onSave }: Props) {
                                 onChange={(event) => updateLine(line.key, { menuItemId: event.target.value, optionIds: [] })}>
                                 <option value="">선택하세요</option>
                                 {menu.map((candidate) => <option key={candidate.id} value={candidate.id}>
-                                    {candidate.name} · {candidate.price.toLocaleString("ko-KR")}원
+                                    {candidate.name} · {candidate.price.toLocaleString("ko-KR")}원{candidate.isActive === false ? " · 판매 종료(과거 메뉴)" : ""}
                                 </option>)}
                             </select>
                         </label>
