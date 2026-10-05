@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CartSummary } from "@/components/customer/CartSummary";
 import { BACK_LINK_CLASS, PageHeader } from "@/components/customer/PageHeader";
+import { RollingNumber } from "@/components/motion/RollingNumber";
 import { BottomBar } from "@/components/ui/BottomBar";
 import { CTA_DISABLED, CTA_ENABLED } from "@/components/ui/cta";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -38,13 +39,13 @@ export default function CartPage() {
                         <ChevronLeftIcon />
                     </Link>
                 }
-                right={hydrated && items.length > 0 ? <span className="text-sm text-stone-500">{count}개</span> : undefined}
+                right={hydrated && items.length > 0 ? <span className="font-num text-sm text-syrup">{count}개</span> : undefined}
             />
 
             <div className="flex flex-col gap-3 px-4 pt-4">
                 {hydrated && items.length === 0 && (
                     <EmptyState title="장바구니가 비어 있습니다">
-                        <Link href="/" className="rounded-full bg-orange-700 px-5 py-2 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-deep">
+                        <Link href="/" className="iron-card rounded-full px-5 py-2.5 text-sm font-bold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup">
                             메뉴판으로 돌아가기
                         </Link>
                     </EmptyState>
@@ -52,15 +53,15 @@ export default function CartPage() {
                 {hydrated && items.length > 0 && (
                     <>
                         {menu.status === "error" && (
-                            <div className="flex items-center justify-between gap-3 rounded-2xl border border-badge bg-peach px-4 py-3 text-sm">
-                                <p className="font-bold text-brand-deep">메뉴 정보를 확인하지 못했어요.</p>
-                                <button type="button" onClick={menu.reload} className="shrink-0 rounded-full bg-white px-3 py-1 font-bold text-brand-deep shadow-sm">
+                            <div className="iron-card flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm">
+                                <p className="font-bold text-dough">메뉴 정보를 확인하지 못했어요.</p>
+                                <button type="button" onClick={menu.reload} className="shrink-0 rounded-full bg-syrup px-3 py-1 font-bold text-molasses">
                                     다시 확인
                                 </button>
                             </div>
                         )}
                         {hasIssue && (
-                            <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                            <p role="alert" className="rounded-2xl border border-chili/40 bg-chili/10 px-4 py-3 text-sm font-bold text-chili">
                                 주문할 수 없는 항목이 있어요. 표시된 항목을 고쳐 주세요.
                             </p>
                         )}
@@ -72,11 +73,12 @@ export default function CartPage() {
             <BottomBar>
                 {hydrated && items.length > 0 && (
                     <div className="mb-3 flex items-center justify-between">
-                        <span id="cart-total-label" className="text-sm text-stone-600">
+                        <span id="cart-total-label" className="text-sm text-dough-dim">
                             합계
                         </span>
-                        <output aria-labelledby="cart-total-label" className="text-2xl font-extrabold text-brand-deep">
-                            {formatWon(total)}
+                        <output aria-labelledby="cart-total-label" className="font-num relative text-3xl text-syrup">
+                            <span key={total} aria-hidden="true" className="heat-pulse pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-lg" />
+                            <RollingNumber value={formatWon(total)} />
                         </output>
                     </div>
                 )}

@@ -105,13 +105,25 @@ describe("/orders/[token]?new=1 — 주문 완료 보기 (T-09, F-09)", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문이 접수됐어요!");
   });
 
-  it("계좌이체 주문이면 '계좌이체'만 보이고 현금 안내·계좌 안내·송금 버튼은 없다 (T-31·T-32는 P2)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true })));
+  it("계좌이체 주문이면 계좌 안내와 송금 신고 버튼을 보여준다 (T-31·T-32)", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true })))
+      .mockResolvedValueOnce(jsonResponse({
+        configured: true,
+        bankName: "테스트은행",
+        accountNumber: "123-456-7890",
+        accountHolder: "테스트예금주",
+      }));
     await renderPage({ new: "1" });
 
     expect(screen.getByText("계좌이체")).toBeTruthy();
     expect(screen.queryByText("부스에서 현금으로 결제해 주세요.")).toBeNull();
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["주문 현황 보기 →"]);
+    expect(screen.getByRole("heading", { name: "계좌이체 안내" })).toBeTruthy();
+    expect(screen.getByText("테스트은행")).toBeTruthy();
+    expect(screen.getByText("123-456-7890")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "송금했어요" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /주문 현황 보기/ })).toBeTruthy();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("/api/settings/transfer");
   });
 
   it("현금 주문이라도 이미 결제가 확인됐으면(cooking) 현금 결제 안내를 숨긴다", async () => {
@@ -195,14 +207,19 @@ describe("/orders/[token] — 주문 현황 보기 (T-11, F-10·F-11·F-14)", ()
     expect(screen.queryByText(/내 앞 대기|대기 없음/)).toBeNull();
   });
 
-  it("canTransferReport·canCancelRequest가 true여도 송금·취소 요청 버튼은 만들지 않고 T-27 직원 호출 버튼만 제공한다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true, canCancelRequest: true })));
+  it("canCancelRequest가 false면 취소 요청 버튼이 없다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
+    await renderPage();
+
+    expect(screen.queryByRole("button", { name: /취소 요청/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "메뉴로 돌아가기" }).getAttribute("href")).toBe("/");
+  });
+
+  it("T-27 직원 호출 버튼을 제공한다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
     await renderPage();
 
     expect(screen.getByRole("button", { name: /직원 호출/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /송금/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /취소/ })).toBeNull();
-    expect(screen.getByRole("link", { name: "메뉴로 돌아가기" }).getAttribute("href")).toBe("/");
   });
 });
 

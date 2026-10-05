@@ -2,7 +2,7 @@
 export function BottomBar({ children }: { children: React.ReactNode }) {
     return (
         <div className="fixed inset-x-0 bottom-0 z-30">
-            <div className="mx-auto max-w-md border-t border-line bg-cream/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
+            <div className="mx-auto max-w-md bg-linear-to-t from-iron via-iron/95 to-transparent px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 {children}
             </div>
         </div>

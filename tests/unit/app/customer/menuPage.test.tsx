@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -107,7 +107,8 @@ describe("메뉴판(/) — PRD 화면 표 111행", () => {
         expect(add.textContent).toContain("6,000원");
         fireEvent.click(add);
 
-        expect(screen.queryByRole("dialog")).toBeNull();
+        // 시트는 아래로 내려가는 퇴장 모션 뒤에 사라진다.
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
         const cartLink = screen.getByRole("link", { name: /장바구니 보기/ });
         expect(cartLink.getAttribute("href")).toBe("/cart");
         expect(cartLink.getAttribute("aria-label")).toBe("장바구니 보기 (2개, 6,000원)");

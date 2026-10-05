@@ -126,13 +126,15 @@ describe("useCheckout.submit — 성공", () => {
         expect(result.current.canSubmit).toBe(false);
     });
 
-    it("P1은 현금만: selectPaymentMethod('transfer')는 무시되고 제출할 수 없다(Tasks T-31 P2)", async () => {
-        const { result } = setup();
+    it("계좌이체도 고를 수 있고 paymentMethod 'transfer'로 제출한다 (T-31, 2026-10-05 결정)", async () => {
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        const { result, onSuccess } = setup();
         act(() => result.current.selectPaymentMethod("transfer"));
-        expect(result.current.paymentMethod).toBeNull();
-        expect(result.current.canSubmit).toBe(false);
-        await act(async () => { await result.current.submit(); });
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(result.current.paymentMethod).toBe("transfer");
+        expect(result.current.canSubmit).toBe(true);
+        await submitAndSettle(result);
+        expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).paymentMethod).toBe("transfer");
+        expect(onSuccess).toHaveBeenCalledTimes(1);
     });
 
     it("T-10: 첫 요청이 8초 타임아웃 → 같은 멱등키로 자동 재시도 성공 → 주문 1건(onSuccess 1회)", async () => {

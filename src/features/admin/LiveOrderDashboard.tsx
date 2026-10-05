@@ -46,6 +46,19 @@ export function LiveOrderDashboard() {
                 const updated = AdminOrderDtoSchema.parse(await response.json());
                 setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
             }}
+            onCancelRequestDecision={async (id, decision, reason) => {
+                const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/cancel-request`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ decision, reason }),
+                });
+                if (!response.ok) {
+                    if (response.status === 409) await feed.reload().catch(() => undefined);
+                    throw new Error("Cancel request decision failed");
+                }
+                const updated = AdminOrderDtoSchema.parse(await response.json());
+                setConfirmed(previous => ({ ...previous, [updated.id]: updated }));
+            }}
             onTransition={async (id, action, input) => {
                 const response = await fetch(`/api/admin/orders/${encodeURIComponent(id)}/transition`, {
                     method: "POST",
