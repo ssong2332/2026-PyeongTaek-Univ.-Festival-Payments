@@ -2,7 +2,7 @@
 
 import { LayoutGroup, motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, XCircle } from "lucide-react";
+import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, UtensilsCrossed, XCircle } from "lucide-react";
 import { sharedLayoutId } from "@/components/motion/presets";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
@@ -41,13 +41,15 @@ export interface OrderDashboardProps {
     onLoadStats: (date: string) => Promise<StatsDto>;
     onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
     settingsPanel?: ReactNode;
+    // T-20 메뉴·재고 관리 화면. 없으면 탭을 숨긴다.
+    menuPanel?: ReactNode;
     // T-35 고객 취소 요청 승인·거절. 없으면(미리보기 등) 요청 표시만 한다.
     onCancelRequestDecision?: (id: string, decision: CancelRequestDecisionKind, reason: string) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel, onCancelRequestDecision }: OrderDashboardProps) {
-    const [page, setPage] = useState<"dashboard" | "orders" | "stats" | "settings">("dashboard");
+    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel, menuPanel, onCancelRequestDecision }: OrderDashboardProps) {
+    const [page, setPage] = useState<"dashboard" | "orders" | "menus" | "stats" | "settings">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
     const [searchNumber, setSearchNumber] = useState<number | null>(null);
@@ -159,7 +161,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     }
 
     const columns = COLUMNS.map(column => ({ ...column, orders: visible.filter(order => column.statuses.includes(order.status)) }));
-    const pageTitle = page === "dashboard" ? "대시보드" : page === "stats" ? "매출 통계" : page === "settings" ? "운영 설정" : "주문 관리";
+    const pageTitle = page === "dashboard" ? "대시보드" : page === "stats" ? "매출 통계" : page === "settings" ? "운영 설정" : page === "menus" ? "메뉴·재고" : "주문 관리";
 
     return <div className={styles.shell}>
         {/* 새 주문이 들어오면(미확인 수 증가) 화면 위 가장자리로 시럽빛 섬광이 훑고 지나간다 */}
@@ -173,10 +175,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             </div>
             <nav aria-label="관리자 메뉴" className={styles.tabs}>
                 {([
-                    ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList], ["stats", "매출 통계", BarChart3],
+                    ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
+                    ...(menuPanel ? [["menus", "메뉴·재고", UtensilsCrossed] as const] : []),
+                    ["stats", "매출 통계", BarChart3],
                     ...(settingsPanel ? [["settings", "운영 설정", Settings2] as const] : []),
                 ] as const).map(([id, label, Icon]) => <button key={id} type="button" aria-current={page === id ? "page" : undefined}
-                    onClick={() => { setPage(id); if (id !== "settings") { setFilter("all"); clearSearch(); } }}>
+                    onClick={() => { setPage(id); if (id !== "settings" && id !== "menus") { setFilter("all"); clearSearch(); } }}>
                     {page === id && <motion.span layoutId={sharedLayoutId("admin-tab")} className={styles.tabPill} transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
                     <Icon size={16} /><span>{label}</span>
                     {id === "orders" && unacknowledged > 0 && <span className={styles.tabCount}>{unacknowledged}</span>}
@@ -184,13 +188,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             </nav>
             <div className={styles.live}>
                 <span className={styles.liveDot} /> 실시간 <Clock3Text />
-                {page !== "stats" && page !== "settings" && <button type="button" onClick={reload} disabled={isLoading} className={styles.refresh}>새로고침</button>}
+                {page !== "stats" && page !== "settings" && page !== "menus" && <button type="button" onClick={reload} disabled={isLoading} className={styles.refresh}>새로고침</button>}
             </div>
         </header>
         {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
 
         <div className={styles.content}>
-            {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : <>
+            {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : page === "menus" ? menuPanel : <>
                 <div className={styles.heading}>
                     <div>
                         <p className={styles.eyebrow}>{pageTitle}</p>

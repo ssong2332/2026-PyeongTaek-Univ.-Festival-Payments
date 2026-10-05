@@ -1,0 +1,70 @@
+/* 메뉴·재고 관리 — 야간 철판(관리자 다른 패널과 같은 색) */
+.panel { display:grid; gap:16px; color:#f7e8d0; }
+.heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.heading h2 { margin:0; font-family:var(--font-display); font-weight:400; font-size:28px; }
+.heading p { margin:6px 0 0; color:#b3a497; font-size:13px; line-height:1.5; max-width:560px; }
+.muted { color:#b3a497; font-size:14px; }
+.summary { margin:0; color:#b3a497; font-size:13px; }
+.summary strong { color:#ff6a55; font-family:var(--font-mono); font-weight:500; }
+.errorBox { color:#ff6a55; background:rgba(255,106,85,.1); border:1px solid rgba(255,106,85,.4); padding:12px; border-radius:12px; }
+.errorBox button { margin-left:8px; border:1px solid currentColor; border-radius:8px; background:transparent; padding:4px 10px; color:inherit; }
+.notice { color:#ffd58a; background:rgba(255,181,71,.08); border:1px solid rgba(255,181,71,.35); padding:14px; border-radius:12px; font-size:14px; line-height:1.5; }
+.list { display:grid; gap:14px; margin:0; padding:0; list-style:none; grid-template-columns:repeat(auto-fill,minmax(min(100%,520px),1fr)); }
+
+.card { display:grid; gap:14px; border:1px solid #3a3140; border-radius:20px; padding:18px; background:linear-gradient(155deg,#2d2631,#211c25 60%); }
+.card.inactive, .optionRow.inactive { opacity:.6; }
+.cardHead { display:flex; align-items:center; gap:12px; }
+.thumb { width:56px; height:56px; border-radius:999px; box-shadow:0 6px 14px rgba(0,0,0,.4); }
+.cardTitle { flex:1; min-width:0; display:grid; gap:6px; }
+.cardTitle h3 { margin:0; font-family:var(--font-display); font-weight:400; font-size:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.badge { justify-self:start; border-radius:999px; padding:3px 10px; font-size:12px; font-weight:700; border:1px solid; }
+.badge[data-tone="ok"] { color:#a6db86; border-color:rgba(166,219,134,.4); background:rgba(166,219,134,.1); }
+.badge[data-tone="out"] { color:#ff6a55; border-color:rgba(255,106,85,.45); background:rgba(255,106,85,.12); }
+.badge[data-tone="off"] { color:#b3a497; border-color:#3a3140; background:#15121a; }
+
+/* 품절 처리 스위치: 켜지면 고추색으로 */
+.soldOut { position:relative; display:flex; align-items:center; gap:6px; border:1px solid #3a3140; border-radius:999px; padding:9px 14px; background:#15121a; color:#f7e8d0; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; transition:background .2s, border-color .2s; }
+.soldOut[data-on] { background:#ff6a55; border-color:#ff6a55; color:#3b1a08; }
+.soldOut input { position:absolute; inset:0; opacity:0; cursor:pointer; margin:0; }
+.soldOut:has(input:focus-visible) { outline:2px solid #ffb547; outline-offset:3px; }
+.soldOut:has(input:disabled) { opacity:.6; cursor:not-allowed; }
+
+.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.field { display:grid; gap:6px; min-width:0; }
+.field.wide { grid-column:1 / -1; }
+.field label { color:#b3a497; font-size:12px; font-weight:700; }
+.field input { box-sizing:border-box; width:100%; min-width:0; padding:10px 12px; border:1px solid #3a3140; border-radius:10px; background:#15121a; color:#f7e8d0; font:inherit; font-size:14px; }
+.field input[aria-invalid="true"] { border-color:#ff6a55; }
+.field input:focus-visible, .stepper button:focus-visible, .saveButton:focus-visible, .smallSave:focus-visible, .ghostButton:focus-visible, .options summary:focus-visible { outline:2px solid #ffb547; outline-offset:2px; }
+.stepper { display:flex; gap:6px; }
+.stepper input { text-align:center; font-family:var(--font-mono); }
+.stepper button { flex:none; display:grid; place-items:center; width:40px; border:1px solid #3a3140; border-radius:10px; background:#211c25; color:#f7e8d0; }
+.stepper .plusTen { width:auto; padding:0 10px; color:#ffb547; font-weight:700; font-family:var(--font-mono); }
+
+.cardActions { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+.cardActions > p { margin:0 auto 0 0; }
+.saveButton { border:0; border-radius:12px; background:linear-gradient(100deg,#ffd58a,#ffb547 45%,#f08a2c); color:#3b1a08; padding:11px 22px; font:inherit; font-weight:800; }
+.saveButton:disabled, .smallSave:disabled, .ghostButton:disabled { opacity:.45; cursor:not-allowed; }
+.ghostButton { display:inline-flex; align-items:center; gap:6px; border:1px solid #3a3140; border-radius:12px; background:transparent; color:#f7e8d0; padding:9px 14px; font:inherit; font-size:13px; }
+.smallSave { align-self:end; border:1px solid rgba(255,181,71,.55); border-radius:10px; background:rgba(255,181,71,.1); color:#ffb547; padding:9px 12px; font:inherit; font-size:13px; font-weight:700; white-space:nowrap; }
+.successText { margin:0; color:#a6db86; font-size:13px; }
+.errorText { margin:0; color:#ff6a55; font-size:13px; }
+
+.options { border-top:1px solid #3a3140; padding-top:12px; }
+.options summary { cursor:pointer; color:#ffb547; font-size:14px; font-weight:700; }
+.group { display:grid; gap:10px; margin-top:12px; padding:12px; border:1px dashed #3a3140; border-radius:14px; }
+.groupRow, .optionRow { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 84px 84px auto; gap:8px; align-items:end; }
+.optionRow { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 92px auto auto; }
+.field.narrow input { font-family:var(--font-mono); }
+.optionList { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.optionToggle { display:flex; align-items:center; gap:6px; align-self:end; padding-bottom:10px; color:#f7e8d0; font-size:12px; white-space:nowrap; }
+.optionToggle input { width:18px; height:18px; accent-color:#ffb547; }
+.rowMessage { grid-column:1 / -1; }
+
+@media (max-width:640px) {
+    .card { padding:14px; }
+    .grid { grid-template-columns:1fr; }
+    .groupRow, .optionRow { grid-template-columns:1fr 1fr; }
+    .smallSave, .optionToggle { grid-column:span 1; }
+    .cardHead { flex-wrap:wrap; }
+}

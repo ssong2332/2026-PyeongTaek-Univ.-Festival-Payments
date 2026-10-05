@@ -191,6 +191,12 @@
     .tabs { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
     .tabs button { flex: 1; justify-content: center; padding: 8px 10px; font-size: 13px; }
     .content { padding: 16px 14px 40px; }
+}
+/* 폭 좁은 휴대폰: 탭이 5개(메뉴·재고 포함)여도 한 줄에 들어가게 아이콘을 빼고 여백을 줄인다 */
+@media (max-width: 420px) {
+    .tabs button { padding: 8px 4px; font-size: 12px; white-space: nowrap; gap: 3px; }
+    .tabs .tabCount { min-width: 16px; height: 16px; font-size: 10px; }
+    .tabs button svg { display: none; }
     .heading h1 { font-size: 26px; }
     .stats { grid-template-columns: repeat(2, 1fr); }
     .columns { grid-template-columns: repeat(4, 78%); }
