@@ -202,9 +202,13 @@ export function FestivalStage() {
 
         const launch = (fx: number) => {
             // 휴대폰에서는 카드가 폭을 거의 채우므로 주로 위쪽(제목 옆 빈 하늘)에서 터지게 하고, 가끔 더 낮게도 터진다.
-            const side = Math.random() < 0.5;
-            const x = side ? width * (0.04 + Math.random() * 0.3) : width * (0.66 + Math.random() * 0.3);
-            const peakY = height * (Math.random() < 0.75 ? 0.06 + Math.random() * 0.22 : 0.3 + Math.random() * 0.25);
+            // 왼쪽 위는 메뉴판 머리 글씨(대동제 표시·제목·부제) 자리라 대부분 오른쪽 하늘에서 터지게 하고,
+            // 가끔 왼쪽에서 터질 때는 카드 뒤 낮은 곳에서 터져 은은하게만 비치게 한다(글씨 뒤 불꽃 금지).
+            const left = Math.random() < 0.2;
+            const x = left ? width * (0.04 + Math.random() * 0.3) : width * (0.62 + Math.random() * 0.34);
+            const peakY = left
+                ? height * (0.4 + Math.random() * 0.2)
+                : height * (Math.random() < 0.75 ? 0.06 + Math.random() * 0.22 : 0.3 + Math.random() * 0.25);
             rockets.push({
                 x,
                 y: height + 10,
