@@ -157,3 +157,55 @@ export interface MenuRepository {
     // 비활성 메뉴·그룹·옵션과 모든 언어의 번역을 포함한 전체.
     listMenuItems(): Promise<MenuItemRecord[]>;
 }
+
+// 관리자 메뉴·재고 관리(T-20, F-25·F-26·F-27). 쓰기는 서버(service_role)에서만 한다(0003 RLS — authenticated는 SELECT만).
+// 번역은 언어별 한 행을 넣거나 고친다(upsert). description이 undefined면 기존 설명을 그대로 두고, null이면 지운다.
+export interface MenuItemPatch {
+    basePrice?: number;
+    stock?: number;
+    isSoldOutManual?: boolean;
+}
+
+export interface MenuTranslationWrite {
+    locale: string;
+    name: string;
+    description?: string | null;
+}
+
+export interface NameTranslationWrite {
+    locale: string;
+    name: string;
+}
+
+export interface OptionGroupPatch {
+    minSelect?: number;
+    maxSelect?: number;
+    isActive?: boolean;
+}
+
+export interface OptionPatch {
+    extraPrice?: number;
+    isActive?: boolean;
+}
+
+export interface OptionGroupRef {
+    menuItemId: string;
+    minSelect: number;
+    maxSelect: number;
+}
+
+export interface AdminMenuRepository {
+    // 비활성 포함 전체(GET /api/admin/menus).
+    listMenuItems(): Promise<MenuItemRecord[]>;
+    getMenuItem(id: string): Promise<MenuItemRecord | null>;
+    // 값이 없는 칸은 건드리지 않고 updated_at만 갱신한다. 메뉴가 없으면 false.
+    updateMenuItem(id: string, patch: MenuItemPatch): Promise<boolean>;
+    upsertMenuTranslation(menuItemId: string, translation: MenuTranslationWrite): Promise<void>;
+    findOptionGroup(id: string): Promise<OptionGroupRef | null>;
+    updateOptionGroup(id: string, patch: OptionGroupPatch): Promise<void>;
+    upsertOptionGroupTranslation(optionGroupId: string, translation: NameTranslationWrite): Promise<void>;
+    // 옵션이 속한 메뉴 id. 옵션이 없으면 null.
+    findOptionMenuItemId(id: string): Promise<string | null>;
+    updateOption(id: string, patch: OptionPatch): Promise<void>;
+    upsertOptionTranslation(optionId: string, translation: NameTranslationWrite): Promise<void>;
+}

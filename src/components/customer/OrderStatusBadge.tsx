@@ -23,23 +23,21 @@ const TONES: Record<OrderStatus, Tone> = {
   expired: "closed",
 };
 
-// 헤더 그라데이션의 가장 밝은 쪽 위에서도 글씨 대비 4.5:1 이상이 되도록 배경을 거의 불투명하게 깐다.
-// active는 캡처 12의 연두 글씨·점·테두리, closed는 같은 모양의 회색.
+// 상태 알약: 진행 중이면 연두 점이 맥박처럼 뛰고, 끝난 주문은 식은 회색.
 const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {
-  active: { pill: "border-[#C2DFA7]/60 bg-brand-deep/90 text-[#C2DFA7]", dot: "bg-[#C2DFA7]" },
-  closed: { pill: "border-neutral-400 bg-neutral-600 text-white", dot: "bg-neutral-300" },
+  active: { pill: "border-ok/40 bg-ok/10 text-ok", dot: "pulse-ok bg-ok" },
+  closed: { pill: "border-iron-line bg-iron-2 text-dough-dim", dot: "bg-dough-dim" },
 };
 
-// 주문 현황 헤더(갈색 그라데이션) 위에 놓이는 알약. 상태별 색을 더 나누려면 data-status를 쓴다.
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   const tone = TONES[status];
   return (
     <span
       data-status={status}
       data-tone={tone}
-      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${TONE_CLASS[tone].pill}`}
+      className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-bold ${TONE_CLASS[tone].pill}`}
     >
-      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONE_CLASS[tone].dot}`} />
+      <span aria-hidden="true" className={`size-2 rounded-full ${TONE_CLASS[tone].dot}`} />
       {ORDER_STATUS_LABELS[status]}
     </span>
   );

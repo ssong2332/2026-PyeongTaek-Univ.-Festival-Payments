@@ -55,6 +55,34 @@ test("T-21 DB aggregate applies KST dates, refund rules, menu ratios, and RPC pe
             { menuItemId: menuA, nameKo: "기본호떡", quantity: 2, ratio: 0.4 },
         ]);
 
+        const cooking = await service.rpc("transition_order", {
+            p_order_id: orderIds[0], p_from: "paid", p_to: "cooking", p_action: "start_cooking",
+            p_actor_type: "admin", p_actor_id: randomUUID(), p_reason: null, p_refund_channel: null,
+        });
+        expect(cooking.error).toBeNull();
+        const refund = await service.rpc("transition_order", {
+            p_order_id: orderIds[0], p_from: "cooking", p_to: "refunded", p_action: "refund",
+            p_actor_type: "admin", p_actor_id: randomUUID(), p_reason: "고객 요청", p_refund_channel: "cash",
+        });
+        expect(refund.error).toBeNull();
+        const afterRefund = await service.rpc("get_stats", { p_date: "2099-02-01" });
+        expect(afterRefund.error).toBeNull();
+        expect(afterRefund.data).toMatchObject({
+            sales: 15000, orderCount: 3, refundedAmount: 15000, refundedCount: 2,
+            totals: { paid: 0, completed: 1, refunded: 2 },
+        });
+        expect(afterRefund.data.byMenu).toEqual([
+            { menuItemId: menuB, nameKo: "꿀호떡", quantity: 3, ratio: 1 },
+        ]);
+
+        const all = await service.rpc("get_stats", { p_date: "all" });
+        expect(all.error).toBeNull();
+        expect(all.data.date).toBe("all");
+        expect(all.data.sales).toBeGreaterThanOrEqual(24000);
+        expect(all.data.orderCount).toBeGreaterThanOrEqual(4);
+        expect(all.data.refundedAmount).toBeGreaterThanOrEqual(15000);
+        expect(all.data.refundedCount).toBeGreaterThanOrEqual(2);
+
         const empty = await service.rpc("get_stats", { p_date: "2099-02-02" });
         expect(empty.error).toBeNull();
         expect(empty.data).toMatchObject({ sales: 0, orderCount: 0, byMenu: [] });

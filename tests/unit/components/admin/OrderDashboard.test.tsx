@@ -7,9 +7,38 @@ import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardP
 afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
     onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []),
+    onLoadStats: vi.fn(async () => ({ date: "all", sales: 0, orderCount: 0, refundedAmount: 0,
+        refundedCount: 0, byMenu: [], totals: { pending: 0, paid: 0, cooking: 0, completed: 0,
+            cancelled: 0, refunded: 0, expired: 0 } })),
     onTransition: vi.fn(async () => {}) });
 
 describe("T-15 order dashboard", () => {
+    it("keeps sales statistics and operating settings available in the same menu", async () => {
+        const props = base();
+        render(<OrderDashboard {...props} settingsPanel={<section>설정 입력 화면</section>} />);
+        const menu = screen.getByRole("navigation", { name: "관리자 메뉴" });
+        fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
+        await waitFor(() => expect(props.onLoadStats).toHaveBeenCalled());
+        expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
+        fireEvent.click(within(menu).getByRole("button", { name: "운영 설정" }));
+        expect(screen.getByText("설정 입력 화면")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "새로고침" })).toBeNull();
+        fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
+        expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
+    });
+    it("T-20: 메뉴·재고 화면이 있으면 탭을 보여 주고, 없으면(미리보기) 탭을 숨긴다", () => {
+        const props = base();
+        const { unmount } = render(<OrderDashboard {...props} menuPanel={<section>메뉴 수정 화면</section>} />);
+        const menu = screen.getByRole("navigation", { name: "관리자 메뉴" });
+        fireEvent.click(within(menu).getByRole("button", { name: "메뉴·재고" }));
+        expect(within(menu).getByRole("button", { name: "메뉴·재고" }).getAttribute("aria-current")).toBe("page");
+        expect(screen.getByText("메뉴 수정 화면")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "새로고침" })).toBeNull();
+        unmount();
+
+        render(<OrderDashboard {...base()} />);
+        expect(within(screen.getByRole("navigation", { name: "관리자 메뉴" })).queryByRole("button", { name: "메뉴·재고" })).toBeNull();
+    });
     it("acknowledges without changing payment status, removing the unread count", async () => {
         render(<DashboardPreview />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
@@ -257,5 +286,48 @@ describe("T-17 cancel and refund controls", () => {
         });
         await waitFor(() => expect(screen.getByText("픽업 #003 주문 상태를 변경했습니다.")).toBeTruthy());
         expect(screen.queryByRole("alert")).toBeNull();
+    });
+});
+
+describe("T-35 고객 취소 요청 승인·거절", () => {
+    const requested = () => {
+        const [first, ...rest] = makePreviewOrders();
+        return [{ ...first, status: "pending" as const, cancelRequestedAt: "2026-10-07T03:10:00.000Z", cancelRejectedAt: null }, ...rest];
+    };
+
+    it("요청된 주문에 [승인]/[거절]이 있고, 사유를 적어야 확정할 수 있다", async () => {
+        const props = base();
+        const onCancelRequestDecision = vi.fn(async () => {});
+        const orders = requested();
+        render(<OrderDashboard {...props} orders={orders} onCancelRequestDecision={onCancelRequestDecision} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "고객 취소 요청" });
+        fireEvent.click(within(panel).getByRole("button", { name: "거절" }));
+        const confirm = within(panel).getByRole("button", { name: "거절 확정" }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        fireEvent.change(within(panel).getByLabelText(/거절 사유/), { target: { value: "  이미 굽는 중  " } });
+        fireEvent.click(confirm);
+        await waitFor(() => expect(onCancelRequestDecision).toHaveBeenCalledWith(orders[0].id, "reject", "이미 굽는 중"));
+        await waitFor(() => expect(screen.getByText("픽업 #001 취소 요청을 거절했습니다.")).toBeTruthy());
+    });
+
+    it("실패하면 오류를 알린다", async () => {
+        const props = base();
+        const onCancelRequestDecision = vi.fn(async () => { throw new Error("409"); });
+        render(<OrderDashboard {...props} orders={requested()} onCancelRequestDecision={onCancelRequestDecision} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "고객 취소 요청" });
+        fireEvent.click(within(panel).getByRole("button", { name: "승인" }));
+        fireEvent.change(within(panel).getByLabelText(/승인 사유/), { target: { value: "고객 요청" } });
+        fireEvent.click(within(panel).getByRole("button", { name: "승인 확정" }));
+        await waitFor(() => expect(within(panel).getByRole("alert").textContent).toContain("처리하지 못했습니다"));
+    });
+
+    it("처리 함수가 없거나(미리보기) 거절된 요청이면 버튼을 그리지 않는다", () => {
+        const props = base();
+        const [first, ...rest] = requested();
+        render(<OrderDashboard {...props} orders={[{ ...first, cancelRejectedAt: "2026-10-07T03:12:00.000Z" }, ...rest]} onCancelRequestDecision={vi.fn()} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
+        expect(screen.queryByRole("region", { name: "고객 취소 요청" })).toBeNull();
     });
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { getTransferSettings } from "@/services/settingsService";
+import {
+    getTransferSettings,
+    getAllAdminSettings,
+    updateAdminSettings,
+} from "@/services/settingsService";
 import { SettingsRepository } from "@/services/ports";
 import { TRANSFER_SETTING_KEYS } from "@/lib/dto/settings";
 import type { Logger } from "@/lib/logger";
@@ -29,6 +33,10 @@ class FakeSettingsRepository implements SettingsRepository {
             }
         }
         return result;
+    }
+
+    async setMany(settings: Record<string, string>): Promise<void> {
+        this.data = { ...this.data, ...settings };
     }
 }
 
@@ -179,3 +187,75 @@ describe("T-33: getTransferSettings (계좌이체 전용)", () => {
         checkDir(srcDir);
     });
 });
+
+describe("T-52: getAllAdminSettings & updateAdminSettings", () => {
+    it("getAllAdminSettings()는 저장소의 모든 키를 그대로 반환한다", async () => {
+        const fakeRepo = new FakeSettingsRepository({
+            "transfer.bank_name": "카카오뱅크",
+            "payment.expire_minutes": "10",
+        });
+
+        const settings = await getAllAdminSettings(fakeRepo);
+        expect(settings).toEqual({
+            "transfer.bank_name": "카카오뱅크",
+            "payment.expire_minutes": "10",
+        });
+    });
+
+    it("updateAdminSettings()는 허용된 키만 부분 갱신하고 전체 설정을 반환한다", async () => {
+        const fakeRepo = new FakeSettingsRepository({
+            "transfer.bank_name": "신한은행",
+            "transfer.account_number": "111-222",
+            "payment.expire_minutes": "10",
+            "auto_complete.enabled": "false",
+        });
+
+        const result = await updateAdminSettings(fakeRepo, {
+            "transfer.bank_name": "국민은행",
+            "payment.expire_minutes": "20",
+        });
+
+        expect(result).toEqual({
+            "transfer.bank_name": "국민은행",
+            "transfer.account_number": "111-222",
+            "payment.expire_minutes": "20",
+            "auto_complete.enabled": "false",
+        });
+    });
+
+    it("허용되지 않은 알 수 없는 키가 포함되면 400 VALIDATION_ERROR를 던진다", async () => {
+        const fakeRepo = new FakeSettingsRepository();
+
+        await expect(
+            updateAdminSettings(fakeRepo, {
+                "invalid.key": "foo",
+            }),
+        ).rejects.toMatchObject({
+            code: "VALIDATION_ERROR",
+            status: 400,
+        });
+    });
+
+    it("키별 zod 범위 밖의 값이 포함되면 400 VALIDATION_ERROR를 던진다", async () => {
+        const fakeRepo = new FakeSettingsRepository();
+
+        await expect(
+            updateAdminSettings(fakeRepo, {
+                "payment.expire_minutes": "0", // 1..120 범위 밖
+            }),
+        ).rejects.toMatchObject({
+            code: "VALIDATION_ERROR",
+            status: 400,
+        });
+
+        await expect(
+            updateAdminSettings(fakeRepo, {
+                "auto_complete.enabled": "invalid",
+            }),
+        ).rejects.toMatchObject({
+            code: "VALIDATION_ERROR",
+            status: 400,
+        });
+    });
+});
+
