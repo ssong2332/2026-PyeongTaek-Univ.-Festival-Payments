@@ -5,6 +5,7 @@ import { useState } from "react";
 import { SPRING, SPRING_BOUNCY } from "@/components/motion/presets";
 import { BanIcon, ClockIcon } from "@/components/ui/icons";
 import { useCancelRequest } from "@/features/customer/useCancelRequest";
+import { useT } from "@/lib/i18n/locale";
 
 const KST_TIME = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const CARD = "iron-card rounded-3xl p-5";
@@ -22,6 +23,7 @@ export interface CancelRequestPanelProps {
 // T-35 (F-45) 고객 취소 요청: 결제대기·결제확인에서만 버튼(canCancelRequest). 누르면 한 번 더 확인한 뒤 요청한다.
 // 요청됨 → "직원이 확인 중", 거절됨 → "주문은 그대로 진행". 승인되면 주문이 취소 상태가 되어 화면이 바뀐다.
 export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt, cancelRejectedAt, onRequested }: CancelRequestPanelProps) {
+  const t = useT();
   const cancel = useCancelRequest(token, cancelRequestedAt, onRequested);
   const [confirming, setConfirming] = useState(false);
 
@@ -30,9 +32,9 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
       <section aria-labelledby="cancel-heading" className={`${CARD} flex items-center gap-3`}>
         <div>
           <h2 id="cancel-heading" className="font-bold text-dough">
-            취소 요청이 거절됐어요
+            {t("cancel.rejected.title")}
           </h2>
-          <p className="mt-0.5 text-sm text-dough-dim">이미 준비를 시작해서 주문은 그대로 진행돼요.</p>
+          <p className="mt-0.5 text-sm text-dough-dim">{t("cancel.rejected.body")}</p>
         </div>
       </section>
     );
@@ -51,9 +53,9 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
         <div>
           <h2 id="cancel-heading" className="flex items-center gap-1.5 font-bold text-dough">
             <ClockIcon className="size-4 text-syrup" />
-            취소 요청됨 {KST_TIME.format(new Date(cancel.requestedAt))}
+            {t("cancel.requested.title", { time: KST_TIME.format(new Date(cancel.requestedAt)) })}
           </h2>
-          <p className="mt-0.5 text-sm text-dough-dim">직원이 확인하고 있어요. 승인되면 이 화면이 바뀌어요.</p>
+          <p className="mt-0.5 text-sm text-dough-dim">{t("cancel.requested.body")}</p>
         </div>
       </motion.section>
     );
@@ -64,15 +66,15 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
   return (
     <section aria-labelledby="cancel-heading" className={CARD}>
       <h2 id="cancel-heading" className="sr-only">
-        주문 취소
+        {t("cancel.heading")}
       </h2>
       <AnimatePresence mode="wait" initial={false}>
         {confirming ? (
           <motion.div key="confirm" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={SPRING}>
             <div className="flex items-center gap-3">
               <p className="text-sm font-bold text-dough">
-                정말 취소를 요청할까요?
-                <span className="mt-0.5 block font-normal text-dough-dim">직원이 확인한 뒤 취소돼요.</span>
+                {t("cancel.confirm.title")}
+                <span className="mt-0.5 block font-normal text-dough-dim">{t("cancel.confirm.body")}</span>
               </p>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -81,7 +83,7 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
                 onClick={() => setConfirming(false)}
                 className={`h-12 rounded-2xl border border-iron-line bg-iron-2 font-bold text-dough-dim transition-transform active:scale-95 ${FOCUS_RING}`}
               >
-                그만두기
+                {t("cancel.confirm.keep")}
               </button>
               <button
                 type="button"
@@ -89,7 +91,7 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
                 disabled={cancel.submitting}
                 className={`h-12 rounded-2xl bg-chili font-bold text-white transition-transform active:scale-95 disabled:opacity-60 ${FOCUS_RING}`}
               >
-                {cancel.submitting ? "요청하는 중…" : "취소 요청하기"}
+                {cancel.submitting ? t("cancel.submitting") : t("cancel.submit")}
               </button>
             </div>
           </motion.div>
@@ -104,13 +106,13 @@ export function CancelRequestPanel({ token, canCancelRequest, cancelRequestedAt,
             className={`flex w-full items-center justify-center gap-2 py-1 text-sm font-bold text-dough-dim ${FOCUS_RING}`}
           >
             <BanIcon className="size-4" />
-            주문 취소 요청
+            {t("cancel.open")}
           </motion.button>
         )}
       </AnimatePresence>
       {cancel.error && (
         <p role="alert" className="mt-3 text-sm text-chili">
-          {cancel.error === "notAllowed" ? "지금은 취소를 요청할 수 없어요. 이미 굽기 시작했을 수 있어요." : "요청하지 못했어요. 네트워크를 확인하고 다시 눌러 주세요."}
+          {cancel.error === "notAllowed" ? t("cancel.notAllowed") : t("cancel.failed")}
         </p>
       )}
     </section>

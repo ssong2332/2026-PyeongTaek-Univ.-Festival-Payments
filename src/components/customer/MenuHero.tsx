@@ -8,6 +8,8 @@ import { SPRING } from "@/components/motion/presets";
 import { CartIcon } from "@/components/ui/icons";
 import { FESTIVAL_ART } from "@/features/festival/festivalArt";
 import { FestivalHorizon } from "@/features/festival/FestivalHorizon";
+import { useT } from "@/lib/i18n/locale";
+import { LanguageToggle } from "./LanguageToggle";
 
 // 제목 위 연기 덩어리: 시작 위치·크기·흐르는 방향을 고정값으로 흩어 둔다(다시 그려도 같다).
 const SMOKE_PUFFS = Array.from({ length: 9 }, (_, index) => ({
@@ -27,6 +29,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
     const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
     const titleY = useTransform(scrollY, [0, 260], [0, 60]);
     const titleOpacity = useTransform(scrollY, [0, 220], [1, 0.15]);
+    const t = useT();
     const [compact, setCompact] = useState(false);
     const [dropKey, setDropKey] = useState(0);
     useMotionValueEvent(scrollY, "change", (y) => setCompact(y > 240));
@@ -44,12 +47,15 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                 >
                     <span className="fest-lights fest-swing fest-twinkle block size-full" style={{ "--src": `url(${FESTIVAL_ART.lightsString})` } as React.CSSProperties} />
                 </span>
-                <div className="relative flex items-center justify-between">
-                    <p className="font-num flex items-center gap-2 text-xs text-dough-dim">
-                        <span className="pulse-dot size-2 rounded-full bg-syrup" />
-                        2026 평택대학교 대동제
+                <div className="relative flex items-center justify-between gap-3">
+                    <p className="font-num flex min-w-0 items-center gap-2 text-xs leading-tight text-dough-dim">
+                        <span className="pulse-dot size-2 shrink-0 rounded-full bg-syrup" />
+                        {t("hero.festival")}
                     </p>
-                    <CartButton count={cartCount} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <LanguageToggle />
+                        <CartButton count={cartCount} />
+                    </div>
                 </div>
 
                 <motion.div style={{ y: titleY, opacity: titleOpacity }} className="relative mt-6">
@@ -142,7 +148,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                             className="font-display anim-stick mb-3 inline-block -rotate-6 rounded-xl bg-[#f7e8d0] px-3 py-1 text-2xl text-molasses shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
                             style={{ animationDelay: "0.75s" }}
                         >
-                            부스
+                            {t("hero.sticker")}
                         </span>
                     </h1>
                     <motion.p
@@ -151,7 +157,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                         transition={{ delay: 0.9, type: "spring", stiffness: 300, damping: 26 }}
                         className="mt-3 text-sm text-dough-dim"
                     >
-                        바삭하게 구워낸 따끈한 호떡
+                        {t("hero.tagline")}
                     </motion.p>
                 </motion.div>
                 <FestivalHorizon />
@@ -162,7 +168,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                 {compact && (
                     <motion.div initial={{ y: -72 }} animate={{ y: 0 }} exit={{ y: -72 }} transition={SPRING} className="fixed inset-x-0 top-0 z-30">
                         <div className="mx-auto flex max-w-md items-center gap-3 border-b border-iron-line bg-iron/85 px-5 py-2.5 backdrop-blur-xl">
-                            <p className="font-display syrup-text flex-1 text-xl">호떡 부스</p>
+                            <p className="font-display syrup-text flex-1 text-xl">{t("hero.compactTitle")}</p>
                             <CartButton count={cartCount} compact />
                         </div>
                     </motion.div>
@@ -174,11 +180,12 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
 
 function CartButton({ count, compact = false }: { count: number; compact?: boolean }) {
     const bump = useCartBump();
+    const t = useT();
     return (
         <motion.div animate={bump} whileTap={{ scale: 0.9 }}>
             <Link
                 href="/cart"
-                aria-label={`장바구니 ${count}개`}
+                aria-label={t("hero.cartLabel", { count })}
                 data-cart-target={compact ? "compact" : "hero"}
                 className={`iron-card relative flex items-center justify-center rounded-2xl text-dough focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup ${
                     compact ? "size-10" : "size-12"

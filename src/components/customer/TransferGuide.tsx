@@ -7,6 +7,7 @@ import { BankIcon, CheckIcon } from "@/components/ui/icons";
 import { useTransferReport } from "@/features/customer/useTransferReport";
 import { useTransferSettings } from "@/features/customer/useTransferSettings";
 import { formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
 import { formatPickupNumber } from "./PickupNumberDisplay";
 
 const CARD = "iron-card rounded-3xl p-5";
@@ -47,6 +48,8 @@ export function TransferGuide({
   canTransferReport,
   onReported,
 }: TransferGuideProps) {
+  const locale = useLocale();
+  const t = useT();
   const settings = useTransferSettings();
   const transfer = useTransferReport(token, transferReportedAt, onReported);
 
@@ -55,28 +58,28 @@ export function TransferGuide({
       <div className="flex items-center justify-between">
         <h2 id="transfer-guide" className="font-display flex items-center gap-2 text-xl text-dough">
           <BankIcon className="size-5 text-syrup" />
-          계좌이체 안내
+          {t("transfer.title")}
         </h2>
       </div>
 
       {settings.status === "loading" && (
         <p role="status" className="mt-3 text-sm text-dough-dim">
-          계좌 정보를 불러오는 중이에요…
+          {t("transfer.loading")}
         </p>
       )}
 
       {settings.status === "error" && (
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-sm text-dough-dim">계좌 정보를 불러오지 못했어요.</p>
+          <p className="text-sm text-dough-dim">{t("transfer.loadFailed")}</p>
           <button type="button" onClick={settings.retry} className={SECONDARY_BUTTON}>
-            다시 시도
+            {t("common.retry")}
           </button>
         </div>
       )}
 
       {settings.status === "ready" && !settings.settings.configured && (
         <p className="mt-3 rounded-2xl bg-syrup/10 px-4 py-3 text-sm font-bold text-dough">
-          계좌 정보를 준비 중이에요. 부스 직원에게 문의해 주세요.
+          {t("transfer.notConfigured")}
         </p>
       )}
 
@@ -84,11 +87,11 @@ export function TransferGuide({
         <>
           <dl className="mt-4 flex flex-col gap-3">
             <div>
-              <dt className="text-xs text-dough-dim">은행</dt>
+              <dt className="text-xs text-dough-dim">{t("transfer.bank")}</dt>
               <dd className="mt-0.5 text-lg font-bold text-dough">{settings.settings.bankName}</dd>
             </div>
             <div>
-              <dt className="text-xs text-dough-dim">계좌번호</dt>
+              <dt className="text-xs text-dough-dim">{t("transfer.accountNumber")}</dt>
               <dd className="mt-0.5">
                 {/* 클립보드를 못 쓰는 브라우저에서 길게 눌러 한 번에 선택되도록 select-all. 하이픈에서 줄이 갈리지 않게 nowrap */}
                 <span className="font-display block select-all whitespace-nowrap text-3xl tabular-nums text-dough">
@@ -98,18 +101,19 @@ export function TransferGuide({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-dough-dim">예금주</dt>
+              <dt className="text-xs text-dough-dim">{t("transfer.holder")}</dt>
               <dd className="mt-0.5 text-lg font-bold text-dough">{settings.settings.accountHolder}</dd>
             </div>
             <div>
-              <dt className="text-xs text-dough-dim">입금할 금액</dt>
-              <dd className="font-display mt-0.5 text-3xl text-syrup">{formatWon(totalAmount)}</dd>
+              <dt className="text-xs text-dough-dim">{t("transfer.amount")}</dt>
+              <dd className="font-display mt-0.5 text-3xl text-syrup">{formatWon(totalAmount, locale)}</dd>
             </div>
           </dl>
 
           <p className="mt-4 rounded-2xl border border-syrup/40 bg-syrup/10 px-4 py-3 text-sm font-bold text-dough">
-            입금자명은 픽업 번호 <span className="tabular-nums">{formatPickupNumber(pickupNumber)}</span>
-            {withRo(pickupNumber)} 적어 주세요.
+            {t("transfer.depositorBefore")}
+            <span className="tabular-nums">{formatPickupNumber(pickupNumber)}</span>
+            {t("transfer.depositorAfter", { ro: withRo(pickupNumber) })}
           </p>
 
           <TransferReport
@@ -126,6 +130,7 @@ export function TransferGuide({
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT();
   const [result, setResult] = useState<"copied" | "failed" | null>(null);
 
   useEffect(() => {
@@ -147,7 +152,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <div className="mt-2 flex items-center gap-3">
       <button type="button" onClick={() => void copy()} className={`${SECONDARY_BUTTON} whitespace-nowrap`}>
-        계좌번호 복사
+        {t("transfer.copy")}
       </button>
       <p aria-live="polite" className="text-sm text-dough-dim">
         <AnimatePresence mode="wait">
@@ -160,7 +165,7 @@ function CopyButton({ text }: { text: string }) {
               transition={SPRING_BOUNCY}
               className={`inline-block ${result === "copied" ? "font-bold text-ok" : ""}`}
             >
-              {result === "copied" ? "복사했어요" : "계좌번호를 길게 눌러 복사해 주세요"}
+              {result === "copied" ? t("transfer.copied") : t("transfer.copyFailed")}
             </motion.span>
           )}
         </AnimatePresence>
@@ -182,6 +187,7 @@ function TransferReport({
   error: "stateChanged" | "failed" | null;
   onReport: () => void;
 }) {
+  const t = useT();
   if (reportedAt) {
     return (
       <motion.p
@@ -193,9 +199,9 @@ function TransferReport({
       >
         <CheckIcon className="mt-0.5 size-4 shrink-0 text-syrup" />
         <span>
-          <span className="font-bold">송금 신고 완료 {KST_TIME.format(new Date(reportedAt))}</span>
+          <span className="font-bold">{t("transfer.reported", { time: KST_TIME.format(new Date(reportedAt)) })}</span>
           <br />
-          직원이 입금을 확인하면 조리를 시작해요.
+          {t("transfer.reportedBody")}
         </span>
       </motion.p>
     );
@@ -204,13 +210,13 @@ function TransferReport({
   return (
     <div className="mt-4 flex flex-col gap-2">
       <button type="button" onClick={onReport} disabled={submitting} className={PRIMARY_BUTTON}>
-        {submitting ? "신고하는 중…" : "송금했어요"}
+        {submitting ? t("transfer.reporting") : t("transfer.report")}
       </button>
       {error && (
         <p role="alert" className="text-sm text-dough">
           {error === "stateChanged"
-            ? "주문 상태가 바뀌었어요. 화면이 곧 새로 고쳐져요."
-            : "신고하지 못했어요. 네트워크를 확인하고 다시 눌러 주세요."}
+            ? t("transfer.stateChanged")
+            : t("transfer.reportFailed")}
         </p>
       )}
     </div>

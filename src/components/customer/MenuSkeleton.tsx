@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useT } from "@/lib/i18n/locale";
 
 // 로딩: 원형 스피너 대신 철판 위 반죽 세 덩이가 차례로 눌려 노릇해졌다가 다시 반죽이 되는 반복 + 카드 자리표시.
 export function MenuSkeleton({ count = 3 }: { count?: number }) {
+    const t = useT();
     return (
         <div role="status" className="flex flex-col gap-3">
-            <span className="sr-only">메뉴를 불러오는 중</span>
+            <span className="sr-only">{t("menu.loading")}</span>
             <div aria-hidden="true" className="flex items-end justify-center gap-4 py-5">
                 {[0, 1, 2].map((index) => (
                     <motion.span
@@ -30,7 +32,7 @@ export function MenuSkeleton({ count = 3 }: { count?: number }) {
                 ))}
             </div>
             <p aria-hidden="true" className="-mt-2 text-center text-xs text-dough-dim">
-                철판 데우는 중…
+                {t("menu.loadingFlavor")}
             </p>
             {Array.from({ length: count }, (_, index) => (
                 <div key={index} aria-hidden="true" className="iron-card grid grid-cols-[96px_1fr] items-center gap-3.5 rounded-3xl py-3 pr-4 pl-3">

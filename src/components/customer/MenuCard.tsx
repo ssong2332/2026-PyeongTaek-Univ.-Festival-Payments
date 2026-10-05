@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from "motion/react";
 import { PlusIcon } from "@/components/ui/icons";
 import { formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
 import { MenuThumbnail } from "./MenuThumbnail";
 
 export interface MenuCardProps {
@@ -18,6 +19,8 @@ export interface MenuCardProps {
 
 // 가로형 철판 카드. 누르면 카드 전체가 살짝 눌리고 호떡 사진이 누르개에 눌린 듯 납작해졌다가 탄성 있게 돌아온다.
 export function MenuCard({ name, description, price, imageUrl, soldOut, onSelect, layoutId }: MenuCardProps) {
+    const locale = useLocale();
+    const t = useT();
     // 스크롤하면 둥근 호떡 사진이 철판 위에서 돌듯 천천히 회전한다.
     const { scrollY } = useScroll();
     const spin = useTransform(scrollY, (y) => (soldOut ? 0 : y * 0.12));
@@ -55,15 +58,15 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, onSelect
                 </motion.span>
                 {soldOut && (
                     <span className="absolute inset-0 flex items-center justify-center bg-iron/60">
-                        <span className="rounded-md border border-dough/60 px-2 py-0.5 text-xs font-bold tracking-widest text-dough">품절</span>
+                        <span className="rounded-md border border-dough/60 px-2 py-0.5 text-xs font-bold tracking-widest text-dough">{t("menu.soldOut")}</span>
                     </span>
                 )}
             </motion.span>
             <span className="flex min-w-0 flex-col">
-                <span className="font-display truncate text-[19px] leading-tight text-dough">{name}</span>
+                <span className="font-display line-clamp-2 text-[19px] leading-tight text-dough">{name}</span>
                 {description && <span className="mt-1 line-clamp-2 text-[13px] leading-snug text-dough-dim">{description}</span>}
                 <span className="mt-2 flex items-center justify-between">
-                    <span className={`font-num text-lg ${soldOut ? "text-dough-dim" : "text-syrup"}`}>{formatWon(price)}</span>
+                    <span className={`font-num text-lg ${soldOut ? "text-dough-dim" : "text-syrup"}`}>{formatWon(price, locale)}</span>
                     {!soldOut && (
                         <motion.span
                             aria-hidden="true"

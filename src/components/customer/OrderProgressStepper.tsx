@@ -1,18 +1,15 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useT } from "@/lib/i18n/locale";
 
 // 취소·환불·만료는 이 단계에 없다 — 화면이 스테퍼 대신 상태 안내를 보여 준다.
 export type ProgressStatus = "pending" | "paid" | "cooking" | "completed";
 
 type StepState = "done" | "current" | "upcoming";
 
-const STEPS: readonly { status: ProgressStatus; label: string }[] = [
-  { status: "pending", label: "주문 접수됨" },
-  { status: "paid", label: "결제 완료" },
-  { status: "cooking", label: "호떡 굽는 중" },
-  { status: "completed", label: "완성! 수령해주세요" },
-];
+// 단계 이름은 사전 progress.{상태}
+const STEPS: readonly { status: ProgressStatus }[] = [{ status: "pending" }, { status: "paid" }, { status: "cooking" }, { status: "completed" }];
 
 const LABEL_CLASS: Record<StepState, string> = {
   done: "text-dough/80",
@@ -23,6 +20,7 @@ const LABEL_CLASS: Record<StepState, string> = {
 // 현금 주문은 pending → cooking으로 바로 넘어가므로, 현재 단계보다 앞은 거쳤는지와 관계없이 완료로 표시한다.
 // 왼쪽 열선이 현재 단계까지 캐러멜→시럽빛으로 차오르고, 지난 단계의 원은 숫자가 체크로 그려지며 바뀐다.
 export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
+  const t = useT();
   const currentIndex = STEPS.findIndex((step) => step.status === status);
   const fill = currentIndex / (STEPS.length - 1);
 
@@ -72,8 +70,8 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
               </span>
               <span className="flex flex-col">
                 <span className={`text-[15px] transition-colors duration-500 ${LABEL_CLASS[state]}`}>
-                  {step.label}
-                  {state === "done" && <span className="sr-only"> (완료)</span>}
+                  {t(`progress.${step.status}` as const)}
+                  {state === "done" && <span className="sr-only">{t("progress.doneSuffix")}</span>}
                 </span>
                 {state === "current" && !isLast && (
                   <motion.span
@@ -81,7 +79,7 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
                     transition={{ duration: 1.6, repeat: Infinity }}
                     className="text-xs font-medium text-syrup"
                   >
-                    진행 중...
+                    {t("progress.inProgress")}
                   </motion.span>
                 )}
               </span>
