@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError } from "@/lib/api/errors";
 import { logger } from "@/lib/logger";
+import { toUtcIsoString } from "@/domain/time/utcIso";
 
 export interface StaffCallCreateResult {
   accepted: boolean;
@@ -36,7 +37,7 @@ export class SupabaseStaffCallRepository implements StaffCallRepository {
     type Row = { accepted: boolean; retry_after_seconds: number; call_id: string | null; call_called_at: string | null };
     const row = ((data ?? []) as unknown as Row[])[0];
     if (!row) throw new AppError("INTERNAL_ERROR", 500);
-    return { accepted: row.accepted, retryAfterSeconds: row.retry_after_seconds, callId: row.call_id, calledAt: row.call_called_at };
+    return { accepted: row.accepted, retryAfterSeconds: row.retry_after_seconds, callId: row.call_id, calledAt: toUtcIsoString(row.call_called_at) };
   }
 
   async listCalls(options?: { unacknowledgedOnly?: boolean; limit?: number }): Promise<StaffCallWithPickup[]> {
@@ -54,7 +55,7 @@ export class SupabaseStaffCallRepository implements StaffCallRepository {
     return ((data || []) as unknown as Row[]).map((row) => ({
       id: row.id, orderId: row.order_id,
       pickupNumber: Array.isArray(row.orders) ? row.orders[0]?.pickup_number ?? 0 : row.orders?.pickup_number ?? 0,
-      calledAt: row.called_at, acknowledgedAt: row.acknowledged_at, acknowledgedBy: row.acknowledged_by,
+      calledAt: toUtcIsoString(row.called_at), acknowledgedAt: toUtcIsoString(row.acknowledged_at), acknowledgedBy: row.acknowledged_by,
     }));
   }
 
@@ -74,7 +75,7 @@ export class SupabaseStaffCallRepository implements StaffCallRepository {
     return {
       id: row.id, orderId: row.order_id,
       pickupNumber: Array.isArray(row.orders) ? row.orders[0]?.pickup_number ?? 0 : row.orders?.pickup_number ?? 0,
-      calledAt: row.called_at, acknowledgedAt: row.acknowledged_at, acknowledgedBy: row.acknowledged_by,
+      calledAt: toUtcIsoString(row.called_at), acknowledgedAt: toUtcIsoString(row.acknowledged_at), acknowledgedBy: row.acknowledged_by,
     };
   }
 }
