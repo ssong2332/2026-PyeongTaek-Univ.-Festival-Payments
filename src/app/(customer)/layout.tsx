@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CustomerMotion } from "@/components/motion/CustomerMotion";
+import { DemoBadge } from "@/features/demo/DemoBadge";
 
 // 고객 화면 공통 틀(모바일 폭) — 야간 철판. 화면별 머리는 각 페이지가 그린다.
 // 푸터 아래 여백은 하단 고정 행동 바(BottomBar)에 본문이 가리지 않게 하는 몫이다.
@@ -16,6 +17,7 @@ const EMBERS = Array.from({ length: 24 }, (_, index) => ({
 export default function CustomerLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <CustomerMotion>
+            <DemoBadge />
             <div className="iron-bg relative min-h-dvh overflow-x-clip text-dough">
                 <div aria-hidden="true" className="iron-grain pointer-events-none fixed inset-0 overflow-hidden">
                     {/* 바닥에 깔린 숯불 연기 */}
