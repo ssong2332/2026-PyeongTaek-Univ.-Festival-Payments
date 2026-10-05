@@ -1,6 +1,7 @@
 import type { CartLineView } from "@/components/customer/CartSummary";
 import { lineTotal } from "@/domain/order/pricing";
 import type { MenuItemDto } from "@/lib/dto/menu";
+import { menuImageUrl } from "./menuImages";
 import { MAX_ITEM_QUANTITY, findCartIssues, maxLineQuantity } from "./menuRules";
 import { cartIssueMessage } from "./messages";
 import type { CartItem } from "./useCart";
@@ -30,7 +31,7 @@ export function buildCartLines(items: readonly CartItem[], menus: readonly MenuI
             quantity: item.quantity,
             maxQuantity,
             lineTotal: lineTotal(item),
-            imageUrl: current?.imageUrl ?? null,
+            imageUrl: menuImageUrl(item.menuItemId, current?.imageUrl ?? null),
             warning: issue ? cartIssueMessage(issue) : null,
         };
     });

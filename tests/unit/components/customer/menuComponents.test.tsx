@@ -46,6 +46,7 @@ describe("MenuCard", () => {
         expect(image?.getAttribute("src")).toBe("https://example.com/a.jpg");
         expect(image?.getAttribute("alt")).toBe("");
         rerender(<MenuCard {...base} onSelect={() => {}} />);
+        // 사진이 없으면 사진 대신 호떡이 스티커(장식)를 그린다.
         const images = container.querySelectorAll("img");
         expect(images).toHaveLength(1);
         expect(images[0].getAttribute("src")).toBe("/mascot/hotteoki/hello.webp");
