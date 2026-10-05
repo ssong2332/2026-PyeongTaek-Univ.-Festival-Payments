@@ -81,12 +81,14 @@ describe("PaymentMethodPicker — 결제 방법 (F-06)", () => {
         expect((screen.getByRole("radio", { name: "현금" }) as HTMLInputElement).disabled).toBe(false);
     });
 
-    it("현금이면 '부스에서 현금으로 결제해 주세요.' 안내만, 계좌이체면 안내 없음", () => {
+    it("현금이면 현금 결제 안내, 계좌이체면 계좌 안내 예고만 보인다", () => {
         const { rerender } = render(<PaymentMethodPicker value="cash" onChange={() => {}} enabledMethods={["cash", "transfer"]} />);
         expect(screen.getByText("부스에서 현금으로 결제해 주세요.")).toBeTruthy();
+        expect(screen.queryByText("주문하면 입금할 계좌를 안내해 드려요.")).toBeNull();
         expect(document.body.textContent).not.toContain("거스름돈");
         rerender(<PaymentMethodPicker value="transfer" onChange={() => {}} enabledMethods={["cash", "transfer"]} />);
         expect(screen.queryByText("부스에서 현금으로 결제해 주세요.")).toBeNull();
+        expect(screen.getByText("주문하면 입금할 계좌를 안내해 드려요.")).toBeTruthy();
     });
 
     it("제출 중에는 바꿀 수 없다", () => {

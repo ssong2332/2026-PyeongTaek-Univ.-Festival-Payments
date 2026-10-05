@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { Flame } from "lucide-react";
 import { createAdminBrowserClient } from "@/infra/supabase/browser";
 
 export default function AdminLoginPage() {
@@ -45,14 +45,14 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-cream bg-[radial-gradient(circle_at_85%_8%,#ffe9dc,transparent_45%)] px-4 py-16">
-            <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_18px_45px_rgba(91,55,39,0.1)] border border-line px-8 pt-14 pb-8 space-y-6">
-                <HotteokMascot variant="chef" size={84} motion="bob" className="absolute -top-11 left-1/2 -ml-[42px]" />
+        <main className="iron-bg flex min-h-screen items-center justify-center px-4 py-16 text-dough">
+            <div className="iron-card relative w-full max-w-md space-y-6 rounded-3xl px-8 pt-10 pb-8 shadow-[0_30px_70px_rgba(0,0,0,0.55)]">
+                <span aria-hidden="true" className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-[#ffd58a] via-syrup to-syrup-2 text-molasses shadow-[0_0_30px_rgba(255,181,71,0.4)]"><Flame size={26} /></span>
                 <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-extrabold text-brand-deep tracking-tight">
+                    <h1 className="font-display text-3xl text-dough">
                         관리자 로그인
                     </h1>
-                    <p className="text-sm text-stone-500">
+                    <p className="text-sm text-dough-dim">
                         평택대 축제 부스 주문·결제 관리 시스템
                     </p>
                 </div>
@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
                     <div
                         role="alert"
                         aria-live="assertive"
-                        className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg"
+                        className="rounded-lg border border-chili/45 bg-chili/10 p-3 text-sm text-chili"
                     >
                         {errorMessage}
                     </div>
@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-email"
-                            className="block text-sm font-semibold text-brand-deep"
+                            className="block text-sm font-semibold text-dough"
                         >
                             이메일
                         </label>
@@ -85,14 +85,14 @@ export default function AdminLoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="admin@ptu.ac.kr"
-                            className="w-full px-3 py-2.5 border border-line rounded-xl bg-[#fffaf7] focus:outline-hidden focus:ring-2 focus:ring-brand focus:border-brand text-sm disabled:bg-stone-100 disabled:cursor-not-allowed"
+                            className="w-full rounded-xl border border-iron-line bg-iron px-3 py-3 text-sm text-dough placeholder:text-dough-dim/60 focus:border-syrup/70 focus:ring-4 focus:ring-syrup/15 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
 
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-password"
-                            className="block text-sm font-semibold text-brand-deep"
+                            className="block text-sm font-semibold text-dough"
                         >
                             비밀번호
                         </label>
@@ -106,19 +106,19 @@ export default function AdminLoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full px-3 py-2.5 border border-line rounded-xl bg-[#fffaf7] focus:outline-hidden focus:ring-2 focus:ring-brand focus:border-brand text-sm disabled:bg-stone-100 disabled:cursor-not-allowed"
+                            className="w-full rounded-xl border border-iron-line bg-iron px-3 py-3 text-sm text-dough placeholder:text-dough-dim/60 focus:border-syrup/70 focus:ring-4 focus:ring-syrup/15 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={!isFormValid || submitting}
-                        className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-xl text-sm font-bold text-white bg-linear-to-r from-[#b4432a] to-orange-700 shadow-[0_12px_26px_rgba(180,67,42,0.22)] hover:brightness-105 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        className="syrup-btn sheen flex w-full items-center justify-center rounded-xl px-4 py-3.5 text-sm font-bold transition-transform active:scale-[0.98] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-syrup disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {submitting ? (
                             <span className="inline-flex items-center gap-2">
                                 <svg
-                                    className="animate-spin h-4 w-4 text-white"
+                                    className="h-4 w-4 animate-spin"
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
                                     viewBox="0 0 24 24"
@@ -145,7 +145,7 @@ export default function AdminLoginPage() {
                     </button>
                 </form>
 
-                <div className="pt-2 text-center text-xs text-stone-500">
+                <div className="pt-2 text-center text-xs text-dough-dim">
                     관리자 계정 발급 및 비밀번호 재설정은 총관리자에게 문의하세요.
                 </div>
             </div>

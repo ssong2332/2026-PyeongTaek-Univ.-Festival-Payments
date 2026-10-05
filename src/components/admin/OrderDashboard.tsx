@@ -1,13 +1,16 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
-import { BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, XCircle } from "lucide-react";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { LayoutGroup, motion } from "motion/react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, XCircle } from "lucide-react";
+import { sharedLayoutId } from "@/components/motion/presets";
+import { RollingNumber } from "@/components/motion/RollingNumber";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
 import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { CancelRequestDecision, type CancelRequestDecisionKind } from "./CancelRequestDecision";
 import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
 
@@ -24,6 +27,8 @@ const time = (value: string) => new Date(value).toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
 });
 const pickup = (value: number) => String(value).padStart(3, "0");
+// 주문표의 짧은 시각(KST HH:MM)
+const clockOf = (value: string) => new Date(value).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 export interface OrderDashboardProps {
     orders: AdminOrderDto[];
@@ -36,10 +41,12 @@ export interface OrderDashboardProps {
     onLoadStats: (date: string) => Promise<StatsDto>;
     onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
     settingsPanel?: ReactNode;
+    // T-35 고객 취소 요청 승인·거절. 없으면(미리보기 등) 요청 표시만 한다.
+    onCancelRequestDecision?: (id: string, decision: CancelRequestDecisionKind, reason: string) => Promise<void>;
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel }: OrderDashboardProps) {
+    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel, onCancelRequestDecision }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders" | "stats" | "settings">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -55,7 +62,9 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     const searchVersion = useRef(0);
     const acknowledging = useRef(false);
     const transitioning = useRef(false);
+    const now = useNow(1000);
     const unacknowledged = orders.filter(isUnacknowledged).length;
+    const newOrderFlash = useIncreaseKey(unacknowledged);
     const source = searchNumber === null ? orders : searchResults.map(order => {
         const live = orders.find(item => item.id === order.id);
         return live && live.updatedAt >= order.updatedAt ? live : order;
@@ -149,67 +158,101 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         try { await onReload(); } catch { setActionError("새로고침에 실패했습니다."); }
     }
 
+    const columns = COLUMNS.map(column => ({ ...column, orders: visible.filter(order => column.statuses.includes(order.status)) }));
+    const pageTitle = page === "dashboard" ? "대시보드" : page === "stats" ? "매출 통계" : page === "settings" ? "운영 설정" : "주문 관리";
+
     return <div className={styles.shell}>
-        <aside className={styles.sidebar}>
-            <nav aria-label="관리자 메뉴" className={settingsPanel ? styles.fourTabs : undefined}>{([
-                ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList],
-                ["stats", "매출 통계", BarChart3],
-            ] as const).map(([id, label, Icon]) => <button key={id} aria-current={page === id ? "page" : undefined}
-                onClick={() => { setPage(id); setFilter("all"); clearSearch(); }}><Icon size={18} />{label}</button>)}
-                {settingsPanel && <button aria-current={page === "settings" ? "page" : undefined}
-                    onClick={() => setPage("settings")}><Settings2 size={18} />운영 설정</button>}
-            </nav>
-            <p className={styles.sideNote}><Bell size={16} /> 미확인 주문 {unacknowledged}건</p>
-            <div className={styles.sideMascots}>
-                <HotteokMascot variant="chef" size={58} motion="bob" />
-                <HotteokMascot variant="wave" size={46} />
-                <HotteokMascot variant="coin" size={36} motion="sway" />
+        {/* 새 주문이 들어오면(미확인 수 증가) 화면 위 가장자리로 시럽빛 섬광이 훑고 지나간다 */}
+        {newOrderFlash > 0 && <motion.div key={newOrderFlash} aria-hidden="true" className={styles.newOrderFlash}
+            initial={{ opacity: 0, scaleX: 0.2 }} animate={{ opacity: [0, 1, 0], scaleX: [0.2, 1, 1] }} transition={{ duration: 1.4, ease: "easeOut" }} />}
+        {/* 머리: 로고 · 화면 탭(시럽색 알약이 미끄러짐) · 실시간 상태 · 시계 */}
+        <header className={styles.topbar}>
+            <div className={styles.brand}>
+                <span className={styles.brandMark}><Flame size={20} /></span>
+                <span><small>2026 평택대학교 대동제</small><b>호떡 부스 운영</b></span>
             </div>
-        </aside>
-        <div className={styles.main}>
-            <header className={styles.topbar}><strong>{page === "dashboard" ? "대시보드" : page === "stats" ? "매출 통계" : page === "settings" ? "운영 설정" : "주문 관리"}</strong>
-                {page !== "stats" && page !== "settings" && <button onClick={reload} disabled={isLoading}>새로고침</button>}</header>
-            {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
-            <div className={styles.content}>
-                {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : <>
-                <div className={styles.heading}><span className={styles.logo}><HotteokMascot variant="chef" size={44} /></span><div>
-                    <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1><p>축제 현장 주문을 한눈에 확인하세요</p></div></div>
+            <nav aria-label="관리자 메뉴" className={styles.tabs}>
+                {([
+                    ["dashboard", "대시보드", LayoutDashboard], ["orders", "주문 관리", ClipboardList], ["stats", "매출 통계", BarChart3],
+                    ...(settingsPanel ? [["settings", "운영 설정", Settings2] as const] : []),
+                ] as const).map(([id, label, Icon]) => <button key={id} type="button" aria-current={page === id ? "page" : undefined}
+                    onClick={() => { setPage(id); if (id !== "settings") { setFilter("all"); clearSearch(); } }}>
+                    {page === id && <motion.span layoutId={sharedLayoutId("admin-tab")} className={styles.tabPill} transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
+                    <Icon size={16} /><span>{label}</span>
+                    {id === "orders" && unacknowledged > 0 && <span className={styles.tabCount}>{unacknowledged}</span>}
+                </button>)}
+            </nav>
+            <div className={styles.live}>
+                <span className={styles.liveDot} /> 실시간 <Clock3Text />
+                {page !== "stats" && page !== "settings" && <button type="button" onClick={reload} disabled={isLoading} className={styles.refresh}>새로고침</button>}
+            </div>
+        </header>
+        {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
+
+        <div className={styles.content}>
+            {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : <>
+                <div className={styles.heading}>
+                    <div>
+                        <p className={styles.eyebrow}>{pageTitle}</p>
+                        <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1>
+                    </div>
+                    <form className={styles.search} onSubmit={search}>
+                        <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
+                        <Search size={16} aria-hidden="true" />
+                        <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
+                        <button type="submit" aria-label="검색"><ArrowRight size={16} /></button>
+                        {searchNumber !== null && <button type="button" onClick={clearSearch} className={styles.reset}>초기화</button>}
+                    </form>
+                </div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
                 {(error || actionError) && <div role="alert" className={styles.error}>{actionError || "주문을 불러오지 못했습니다. 새로고침해 주세요."}</div>}
+
                 {page === "dashboard" && <section className={styles.stats} aria-label="오늘 주문 요약">
-                    {stats.map(s => <button key={s.label} className={styles.stat} onClick={() => { setPage("orders"); setFilter(s.filter); clearSearch(); }}>
-                        <s.icon size={20} /><strong>{isLoading ? "—" : s.value}</strong><span>{s.label}</span></button>)}
+                    {stats.map((s, index) => <motion.button key={s.label} type="button" className={styles.stat} data-tone={s.filter}
+                        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05, type: "spring", stiffness: 320, damping: 26 }}
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => { setPage("orders"); setFilter(s.filter); clearSearch(); }}>
+                        <span className={styles.statLabel}><s.icon size={15} />{s.label}</span>
+                        <strong>{isLoading ? "—" : <RollingNumber value={String(s.value)} />}</strong>
+                    </motion.button>)}
                 </section>}
+
                 <section className={`${styles.board} ${selected ? styles.hasSelection : ""}`} aria-label="주문 목록과 상세">
-                    <div className={styles.list}>
-                        <h2>{searchNumber === null ? "오늘 주문" : `픽업 #${pickup(searchNumber)} 검색 결과`}</h2>
-                        <form className={styles.search} onSubmit={search}>
-                            <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
-                            <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
-                            <button type="submit" aria-label="검색"><Search size={18} /></button>
-                            {searchNumber !== null && <button type="button" onClick={clearSearch}>초기화</button>}
-                        </form>
-                        <div className={styles.filters} aria-label="주문 상태 필터">{([
-                            ["all", "전체"], ["unacknowledged", "미확인"], ...Object.entries(LABELS),
-                        ] as [Filter, string][]).map(([id, label]) => <button key={id} aria-pressed={filter === id} onClick={() => { setFilter(id); setSelectedId(null); }}>{label}</button>)}</div>
+                    <div className={styles.rail}>
+                        <div className={styles.railHead}>
+                            <h2>{searchNumber === null ? "오늘 주문" : `픽업 #${pickup(searchNumber)} 검색 결과`}</h2>
+                            <span className={styles.unreadChip} data-active={unacknowledged > 0 || undefined}><Bell size={13} />{`미확인 주문 ${unacknowledged}건`}</span>
+                            <div className={styles.filters} aria-label="주문 상태 필터">{([
+                                ["all", "전체"], ["unacknowledged", "미확인"], ...Object.entries(LABELS),
+                            ] as [Filter, string][]).map(([id, label]) => <button key={id} type="button" aria-pressed={filter === id} onClick={() => { setFilter(id); setSelectedId(null); }}>{label}</button>)}</div>
+                        </div>
                         {isLoading || searching ? <p role="status" className={styles.empty}>주문을 불러오는 중입니다…</p> : visible.length === 0 ?
                             <p className={styles.empty}>{searchNumber !== null ? "해당 픽업 번호의 주문이 없습니다." : filter !== "all" ? "조건에 맞는 주문이 없습니다." : error ? "주문 목록을 확인할 수 없습니다." : "아직 주문이 없습니다."}</p> :
-                            <ul className={styles.cards}>{visible.map(order => <li key={order.id}>
-                                <button className={`${styles.card} ${isUnacknowledged(order) ? styles.unread : ""}`} aria-pressed={selectedId === order.id}
-                                    onClick={() => setSelectedId(order.id)} aria-label={`픽업 ${pickup(order.pickupNumber)} 주문 상세`}>
-                                    <div className={styles.cardTop}><strong>#{pickup(order.pickupNumber)}</strong><span className={styles.badge}>{LABELS[order.status]}</span></div>
-                                    <p>{order.items.map(item => `${item.menuNameKo} × ${item.quantity}`).join(", ")}</p>
-                                    <div className={styles.cardMeta}><span>{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><time>{time(order.createdAt)}</time></div>
-                                    {isUnacknowledged(order) && <span className={styles.unreadLabel}>● 새 주문 · 미확인</span>}
-                                    {order.transferReportedAt && <span className={styles.reported}>송금 신고됨</span>}
-                                </button>
-                            </li>)}</ul>}
+                            <LayoutGroup>
+                                <div className={styles.columns}>{columns.map(column => <div key={column.id} className={styles.column} data-column={column.id}>
+                                    <div className={styles.columnHead}><b>{column.title}</b><span className={styles.columnCount}>{column.orders.length}</span><small>{column.hint}</small></div>
+                                    {/* 주문표를 매다는 레일(장식) */}
+                                    <span aria-hidden="true" className={styles.railBar} />
+                                    <ul className={styles.cards}>
+                                        {column.orders.length === 0 && <li className={styles.columnEmpty}>비어 있음</li>}
+                                        {column.orders.map(order => <motion.li key={order.id} layout layoutId={sharedLayoutId(`ticket-${order.id}`)}
+                                            initial={{ opacity: 0, y: -36, rotate: -4 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
+                                            transition={{ type: "spring", stiffness: 300, damping: 24 }}>
+                                            <Ticket order={order} now={now} selected={selectedId === order.id} onSelect={() => setSelectedId(order.id)} />
+                                        </motion.li>)}
+                                    </ul>
+                                </div>)}</div>
+                            </LayoutGroup>}
                     </div>
+
                     <section className={styles.detail} aria-label="주문 상세">
-                        {selected ? <>
-                            <button className={styles.back} onClick={() => setSelectedId(null)}>목록으로</button>
-                            <div className={styles.pickup}><span>픽업 번호</span><strong>#{pickup(selected.pickupNumber)}</strong><span>{LABELS[selected.status]}</span>
-                                <HotteokMascot variant="wave" size={72} className={styles.pickupMascot} /></div>
+                        {selected ? <motion.div key={selected.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}>
+                            <button type="button" className={styles.back} onClick={() => setSelectedId(null)}>목록으로</button>
+                            <div className={styles.pickup}>
+                                <span>픽업 번호</span>
+                                <strong>#{pickup(selected.pickupNumber)}</strong>
+                                <span className={styles.pickupStatus} data-status={selected.status}>{LABELS[selected.status]}</span>
+                            </div>
                             <div className={styles.info}><div>주문 시각<strong>{time(selected.createdAt)}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
                             <div className={styles.items}><h2>주문 내역</h2>{selected.items.map((item, index) => <div key={index}>
                                 <p><span>{item.menuNameKo} × {item.quantity}</span><strong>{money(item.lineTotal)}</strong></p>
@@ -217,9 +260,17 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                             </div>)}<p className={styles.total}><span>합계</span><strong>{money(selected.totalAmount)}</strong></p></div>
                             {selected.transferReportedAt && <p className={styles.reported}>송금 신고됨 · {time(selected.transferReportedAt)}</p>}
                             {selected.cancelRequestedAt && !selected.cancelRejectedAt && <p className={styles.reported}>취소 요청됨 · {time(selected.cancelRequestedAt)}</p>}
-                            {selected.lastReason && <p>처리 사유: {selected.lastReason}</p>}
+                            {selected.cancelRequestedAt && !selected.cancelRejectedAt && onCancelRequestDecision
+                                && (selected.status === "pending" || selected.status === "paid")
+                                && <CancelRequestDecision key={`cr-${selected.id}`} requestedAtLabel={time(selected.cancelRequestedAt)}
+                                    disabled={pendingId !== null}
+                                    onDecide={async (decision, reason) => {
+                                        await onCancelRequestDecision(selected.id, decision, reason);
+                                        setNotice(`픽업 #${pickup(selected.pickupNumber)} 취소 요청을 ${decision === "approve" ? "승인" : "거절"}했습니다.`);
+                                    }} />}
+                            {selected.lastReason && <p className={styles.reason}>처리 사유: {selected.lastReason}</p>}
                             {isUnacknowledged(selected) ? <div className={styles.confirm}><strong>새 주문 · 미확인</strong><p>주문 확인은 입금 확인과 별개의 처리입니다.</p>
-                                <button onClick={() => acknowledge(selected)} disabled={pendingId !== null}>{pendingId === selected.id && pendingAction === null ? "확인 처리 중…" : "확인 처리"}</button></div> : <p className={styles.notice}>{selected.acknowledgedAt ? "확인한 주문입니다." : "처리가 종료된 주문입니다."}</p>}
+                                <button type="button" onClick={() => acknowledge(selected)} disabled={pendingId !== null}>{pendingId === selected.id && pendingAction === null ? "확인 처리 중…" : "확인 처리"}</button></div> : <p className={styles.notice}>{selected.acknowledgedAt ? "확인한 주문입니다." : "처리가 종료된 주문입니다."}</p>}
                             <OrderActionButtons availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
                                 disabled={pendingId !== null}
@@ -230,11 +281,84 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
                                 disabled={pendingId !== null}
                                 onAction={(action, input) => transitionOrder(selected, action, input)} />
-                        </> : <div className={styles.empty}><HotteokMascot variant="heart" size={56} /><h2>주문을 선택해 주세요</h2><p>픽업 번호와 주문 내역을 확인할 수 있습니다.</p></div>}
+                        </motion.div> : <div className={styles.detailEmpty}>
+                            <span className={styles.detailEmptyIcon}><ClipboardList size={26} /></span>
+                            <h2>주문을 선택해 주세요</h2><p>주문표를 누르면 픽업 번호와 주문 내역, 처리 버튼이 여기에 나와요.</p>
+                        </div>}
                     </section>
                 </section>
-                </>}
-            </div>
+            </>}
         </div>
     </div>;
+}
+
+// 레일 칸: 결제대기 → 조리(결제확인·조리중) → 완료 → 종료. 상태가 바뀌면 주문표가 옆 칸으로 날아가 옮겨 붙는다(layoutId).
+const COLUMNS: readonly { id: string; title: string; hint: string; statuses: readonly OrderStatus[] }[] = [
+    { id: "pending", title: "결제대기", hint: "현금·입금 확인 전 · 10분 뒤 만료", statuses: ["pending"] },
+    { id: "cooking", title: "조리", hint: "결제확인 · 철판 위", statuses: ["paid", "cooking"] },
+    { id: "completed", title: "완료", hint: "수령 안내", statuses: ["completed"] },
+    { id: "closed", title: "종료", hint: "취소·환불·만료", statuses: ["cancelled", "refunded", "expired"] },
+];
+const EXPIRE_MS = 10 * 60 * 1000;
+const STAMP: Partial<Record<OrderStatus, string>> = { completed: "완료", cancelled: "취소", refunded: "환불", expired: "만료" };
+
+// 값이 커질 때마다 1씩 늘어나는 키(새 주문 섬광을 다시 재생하는 데 쓴다). 처음 값은 세지 않는다.
+function useIncreaseKey(value: number) {
+    const previous = useRef(value);
+    const [key, setKey] = useState(0);
+    useEffect(() => {
+        if (value > previous.current) {
+            // 외부 데이터(실시간 주문)가 늘어난 순간 한 번 반응한다.
+            setKey((current) => current + 1);
+            try {
+                navigator.vibrate?.([40, 60, 40]);
+            } catch {
+                // 진동이 없어도 화면 연출은 그대로다.
+            }
+        }
+        previous.current = value;
+    }, [value]);
+    return key;
+}
+
+// 1초마다 바뀌는 지금 시각(만료 막대·"N분 전"용)
+function useNow(intervalMs = 1000) {
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), intervalMs);
+        return () => clearInterval(timer);
+    }, [intervalMs]);
+    return now;
+}
+
+function Clock3Text() {
+    const now = useNow(1000);
+    const kst = new Date(now + 9 * 3600 * 1000);
+    const pad = (value: number) => String(value).padStart(2, "0");
+    return <span className={styles.clock}>{`${pad(kst.getUTCHours())}:${pad(kst.getUTCMinutes())}:${pad(kst.getUTCSeconds())}`}</span>;
+}
+
+// 반죽색 종이 주문표: 집게 · 큰 픽업 번호 · 몇 분 전 · 메뉴 · 결제 · (결제대기면) 만료 막대 · (끝났으면) 도장
+function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now: number; selected: boolean; onSelect: () => void }) {
+    const minutesAgo = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
+    const left = EXPIRE_MS - (now - new Date(order.createdAt).getTime());
+    const stamp = STAMP[order.status];
+    const unread = isUnacknowledged(order);
+    return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
+        onClick={onSelect} aria-label={`픽업 ${pickup(order.pickupNumber)} 주문 상세`} data-status={order.status}>
+        <span aria-hidden="true" className={styles.clip} />
+        <div className={styles.cardTop}><strong>#{pickup(order.pickupNumber)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(order.createdAt)}</span></div>
+        <ul className={styles.lines}>{order.items.map((item, index) => <li key={index}><span>{item.menuNameKo}</span><span>×{item.quantity}</span></li>)}</ul>
+        <div className={styles.cardMeta}><span>{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><span className={styles.badge}>{LABELS[order.status]}</span></div>
+        {order.status === "pending" && left > 0 && <span className={styles.expiry} data-urgent={left < 2 * 60 * 1000 || undefined}>
+            <span className={styles.expiryTrack}><span className={styles.expiryFill} style={{ width: `${(left / EXPIRE_MS) * 100}%` }} /></span>
+            <span>만료까지 {Math.floor(left / 60000)}:{String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}</span>
+        </span>}
+        {unread && <span className={styles.unreadLabel}>● 새 주문 · 미확인</span>}
+        {order.transferReportedAt && <span className={styles.reported}>송금 신고됨</span>}
+        {order.cancelRequestedAt && !order.cancelRejectedAt && <span className={styles.reported}>취소 요청</span>}
+        {stamp && <motion.span aria-hidden="true" className={styles.stamp} data-status={order.status}
+            initial={{ scale: 2.4, opacity: 0, rotate: -30 }} animate={{ scale: 1, opacity: 1, rotate: -12 }}
+            transition={{ type: "spring", stiffness: 520, damping: 18 }}>{stamp}</motion.span>}
+    </button>;
 }
