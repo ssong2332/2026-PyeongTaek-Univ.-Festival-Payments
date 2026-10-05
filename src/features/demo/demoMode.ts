@@ -43,7 +43,6 @@ function itemsFor(lang: string) {
         optionGroups: [{ id: "10000000-0000-0000-0000-000000000001", name: en ? "Extra Seasoning" : "시즈닝 추가", minSelect: 0, maxSelect: 1, options }],
     }));
 }
-const ITEMS = itemsFor("ko");
 
 // 데모 주문: 만든 시각부터 결제대기 → (15초) 결제확인 → (25초) 조리중 → (45초) 완료로 저절로 넘어간다.
 type DemoOrder = {
@@ -92,10 +91,12 @@ function handle(url: URL, init?: RequestInit): Response | null {
     if (path === "/api/queue") return json({ waitingCount: 3 });
     if (path === "/api/settings/transfer") return json({ configured: true, bankName: "데모은행", accountNumber: "000-0000-0000", accountHolder: "호떡 부스" });
     if (path === "/api/orders" && init?.method === "POST") {
-        const body = JSON.parse(String(init.body)) as { paymentMethod: "cash" | "transfer"; items: { menuItemId: string; quantity: number; optionIds: string[] }[] };
+        const body = JSON.parse(String(init.body)) as { paymentMethod: "cash" | "transfer"; locale?: string; items: { menuItemId: string; quantity: number; optionIds: string[] }[] };
+        // 서버처럼 주문 언어로 이름을 남긴다(orders.locale)
+        const menuItems = itemsFor(body.locale ?? "ko");
         const lines = body.items.map((line) => {
-            const menu = ITEMS.find((item) => item.id === line.menuItemId);
-            const options = ITEMS[0].optionGroups[0].options.filter((option) => line.optionIds.includes(option.id));
+            const menu = menuItems.find((item) => item.id === line.menuItemId);
+            const options = menuItems[0].optionGroups[0].options.filter((option) => line.optionIds.includes(option.id));
             const unit = (menu?.price ?? 0) + options.reduce((sum, option) => sum + option.extraPrice, 0);
             return { name: menu?.name ?? "호떡", quantity: line.quantity, options: options.map((option) => option.name), lineTotal: unit * line.quantity };
         });
