@@ -20,6 +20,12 @@ vi.mock("@/features/admin/useOrdersFeed", async () => {
         },
     };
 });
+vi.mock("@/features/admin/useStaffCallsFeed", () => ({
+    useStaffCallsFeed: () => ({
+        calls: [], unacknowledgedCount: 0, isLoading: false, isAcknowledging: false,
+        error: null, reload: vi.fn(async () => {}), acknowledge: vi.fn(async () => {}),
+    }),
+}));
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null; });
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {
