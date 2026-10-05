@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
+import { MenuManagementPanel } from "@/components/admin/MenuManagementPanel";
 import { SettingsPanel } from "@/components/admin/SettingsPanel";
 import { StaffCallAlert } from "@/components/admin/StaffCallAlert";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
@@ -32,6 +33,7 @@ export function LiveOrderDashboard() {
             isLoading={staffFeed.isLoading} error={staffFeed.error} onReload={staffFeed.reload} />
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
+            menuPanel={<MenuManagementPanel />}
             onReload={feed.reload}
             onLoadStats={fetchStats}
             onSearch={async pickupNumber => {

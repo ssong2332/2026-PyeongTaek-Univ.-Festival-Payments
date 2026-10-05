@@ -26,6 +26,19 @@ describe("T-15 order dashboard", () => {
         fireEvent.click(within(menu).getByRole("button", { name: "매출 통계" }));
         expect(within(menu).getByRole("button", { name: "매출 통계" }).getAttribute("aria-current")).toBe("page");
     });
+    it("T-20: 메뉴·재고 화면이 있으면 탭을 보여 주고, 없으면(미리보기) 탭을 숨긴다", () => {
+        const props = base();
+        const { unmount } = render(<OrderDashboard {...props} menuPanel={<section>메뉴 수정 화면</section>} />);
+        const menu = screen.getByRole("navigation", { name: "관리자 메뉴" });
+        fireEvent.click(within(menu).getByRole("button", { name: "메뉴·재고" }));
+        expect(within(menu).getByRole("button", { name: "메뉴·재고" }).getAttribute("aria-current")).toBe("page");
+        expect(screen.getByText("메뉴 수정 화면")).toBeTruthy();
+        expect(screen.queryByRole("button", { name: "새로고침" })).toBeNull();
+        unmount();
+
+        render(<OrderDashboard {...base()} />);
+        expect(within(screen.getByRole("navigation", { name: "관리자 메뉴" })).queryByRole("button", { name: "메뉴·재고" })).toBeNull();
+    });
     it("acknowledges without changing payment status, removing the unread count", async () => {
         render(<DashboardPreview />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
