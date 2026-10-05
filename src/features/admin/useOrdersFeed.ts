@@ -165,20 +165,33 @@ export function mergeOrdersSnapshot(
     return next;
 }
 
+export interface UseOrdersFeedOptions {
+    initialDate?: string;
+}
+
 export interface UseOrdersFeedReturn {
     orders: AdminOrderDto[];
     ordersMap: Map<string, AdminOrderDto>;
     unacknowledgedCount: number;
     isLoading: boolean;
     error: string | null;
+    channelStatus: string | null;
     acknowledge: (id: string) => Promise<void>;
     reload: () => Promise<void>;
+    refresh: () => Promise<void>;
 }
 
-export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
+export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): UseOrdersFeedReturn {
+    const options: UseOrdersFeedOptions = typeof optionsOrDate === "string"
+        ? { initialDate: optionsOrDate }
+        : optionsOrDate ?? {};
+
+    const { initialDate } = options;
+
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [channelStatus, setChannelStatus] = useState<string | null>(null);
     const dateRef = useRef(initialDate);
     useEffect(() => {
         dateRef.current = initialDate;
@@ -308,12 +321,26 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
                     }
                 },
             )
-            .subscribe();
+            .subscribe((status) => {
+                setChannelStatus(status);
+            });
 
         return () => {
             supabase.removeChannel(channel);
         };
     }, [hydrateOrder, markLive]);
+
+    // 연결 끊김 중 대체 조회와 복구 시에는 기존 주문판을 가리지 않는다.
+    const refresh = useCallback(async () => {
+        const loadStartSeq = liveSeqRef.current;
+        const result = await loadOrders();
+        if (result.map) {
+            applySnapshot(result.map, loadStartSeq);
+            setError(null);
+        } else {
+            setError(result.error);
+        }
+    }, [loadOrders, applySnapshot]);
 
     const reload = useCallback(async () => {
         setIsLoading(true);
@@ -340,7 +367,9 @@ export function useOrdersFeed(initialDate?: string): UseOrdersFeedReturn {
         unacknowledgedCount,
         isLoading,
         error,
+        channelStatus,
         acknowledge,
         reload,
+        refresh,
     };
 }
