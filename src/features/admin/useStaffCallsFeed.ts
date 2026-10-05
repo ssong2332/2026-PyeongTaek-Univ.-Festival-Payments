@@ -23,7 +23,6 @@ export function useStaffCallsFeed(pollIntervalMs = 5000): UseStaffCallsFeedRetur
 
   const acknowledge = useCallback(async (id: string) => {
     setIsAcknowledging(true);
-    setError(null);
     try {
       const response = await fetch(`/api/admin/staff-calls/${encodeURIComponent(id)}/acknowledge`, { method: "POST", headers: { "Content-Type": "application/json" } });
       if (!response.ok) throw new Error("Failed to acknowledge staff call");
@@ -31,7 +30,6 @@ export function useStaffCallsFeed(pollIntervalMs = 5000): UseStaffCallsFeedRetur
       setUnacknowledgedCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       const failure = err instanceof Error ? err : new Error("Error acknowledging staff call");
-      setError(failure.message);
       throw failure;
     } finally {
       setIsAcknowledging(false);

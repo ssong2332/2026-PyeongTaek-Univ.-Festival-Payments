@@ -28,7 +28,8 @@ export function LiveOrderDashboard() {
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <>
-        <StaffCallAlert calls={staffFeed.calls} onAcknowledge={staffFeed.acknowledge} />
+        <StaffCallAlert calls={staffFeed.calls} onAcknowledge={staffFeed.acknowledge}
+            isLoading={staffFeed.isLoading} error={staffFeed.error} onReload={staffFeed.reload} />
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
             onReload={feed.reload}

@@ -7,9 +7,12 @@ import type { StaffCallDto } from "@/lib/dto/staffCall";
 interface StaffCallAlertProps {
   calls: StaffCallDto[];
   onAcknowledge: (id: string) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
+  onReload?: () => Promise<void>;
 }
 
-export function StaffCallAlert({ calls, onAcknowledge }: StaffCallAlertProps) {
+export function StaffCallAlert({ calls, onAcknowledge, isLoading = false, error = null, onReload }: StaffCallAlertProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
   const [errorId, setErrorId] = useState<string | null>(null);
@@ -36,7 +39,15 @@ export function StaffCallAlert({ calls, onAcknowledge }: StaffCallAlertProps) {
 
   return (
     <aside aria-label="직원 호출 알림" className="mb-4 flex flex-col gap-2">
-      {unacknowledged.length === 0 ? (
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <span>직원 호출 목록을 불러오지 못했습니다. 다시 확인해 주세요.</span>
+          {onReload && <button type="button" onClick={() => void onReload()} className="rounded-lg border border-red-500 px-3 py-1.5 font-semibold hover:bg-red-100">다시 확인</button>}
+        </div>
+      )}
+      {isLoading && unacknowledged.length === 0 && !error ? (
+        <div className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">직원 호출 확인 중…</div>
+      ) : unacknowledged.length === 0 && !error ? (
         <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">
           <Bell className="h-4 w-4" aria-hidden="true" /> 직원 호출 알림 없음
         </div>
