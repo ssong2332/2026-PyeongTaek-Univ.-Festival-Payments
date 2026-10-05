@@ -30,7 +30,7 @@ describe("supabaseMenuRepository.listMenuItems", () => {
         expect(from).toHaveBeenCalledTimes(1);
         expect(from).toHaveBeenCalledWith("menu_items");
         expect(select).toHaveBeenCalledTimes(1);
-        expect(String(select.mock.calls[0][0])).not.toContain("is_recommended");
+        expect(String(select.mock.calls[0][0])).toContain("is_recommended");
     });
 
     it("임베드된 번역·옵션 그룹·옵션을 필드 단위로 옮기고, 모르는 컬럼은 버린다", async () => {
@@ -38,6 +38,7 @@ describe("supabaseMenuRepository.listMenuItems", () => {
             id: MENU_ID,
             base_price: 2500,
             stock: 4,
+            is_recommended: true,
             is_sold_out_manual: true,
             is_active: false,
             sort_order: 3,
@@ -73,7 +74,7 @@ describe("supabaseMenuRepository.listMenuItems", () => {
             id: MENU_ID,
             basePrice: 2500,
             stock: 4,
-            isRecommended: false,
+            isRecommended: true,
             isSoldOutManual: true,
             isActive: false,
             sortOrder: 3,

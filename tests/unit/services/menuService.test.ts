@@ -84,6 +84,7 @@ describe("menuService.getMenu — GET /api/menu", () => {
                 description: "꿀이 든 호떡",
                 price: 2000,
                 stock: 10,
+                isRecommended: false,
                 isAvailable: true,
                 isSoldOut: false,
                 imageUrl: "https://example.com/hotteok.png",
@@ -103,6 +104,14 @@ describe("menuService.getMenu — GET /api/menu", () => {
     });
 
     describe("메뉴 목록 범위", () => {
+        it("추천 플래그를 고객 DTO에 전달하고 추천 0개도 허용한다", async () => {
+            const items = [menu({ id: MENU_ID, isRecommended: true }), menu({ id: MENU_ID_2 })];
+            const result = await menuFor(items);
+            expect(result.items.map((item) => item.isRecommended)).toEqual([true, false]);
+            expect((await menuFor(items.map((item) => ({ ...item, isRecommended: false })))).items
+                .every((item) => item.isRecommended === false)).toBe(true);
+        });
+
         it("비활성 메뉴는 뺀다", async () => {
             const result = await menuFor([menu({ id: MENU_ID }), menu({ id: MENU_ID_2, isActive: false })]);
 
@@ -153,6 +162,7 @@ describe("menuService.getMenu — GET /api/menu", () => {
                 description: "Sweet pancake with honey",
                 price: 2000,
                 stock: 10,
+                isRecommended: false,
                 isAvailable: true,
                 isSoldOut: false,
                 imageUrl: null,

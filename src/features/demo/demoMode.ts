@@ -27,6 +27,7 @@ const ITEMS = MENU.map(([id, price, name, description]) => ({
     name,
     description,
     stock: 30,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,

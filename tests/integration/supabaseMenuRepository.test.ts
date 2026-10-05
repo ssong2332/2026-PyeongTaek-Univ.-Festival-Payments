@@ -49,7 +49,7 @@ function normalized(record: MenuItemRecord): MenuItemRecord {
 
 beforeAll(async () => {
     await insert("menu_items", [
-        { id: ids.menu, base_price: 3000, stock: 5, is_sold_out_manual: false, is_active: true, sort_order: 1, image_url: "https://example.com/hotteok.png" },
+        { id: ids.menu, base_price: 3000, stock: 5, is_recommended: true, is_sold_out_manual: false, is_active: true, sort_order: 1, image_url: "https://example.com/hotteok.png" },
         { id: ids.inactiveMenu, base_price: 1000, stock: 5, is_sold_out_manual: false, is_active: false, sort_order: 2, image_url: null },
     ]);
     await insert("menu_item_translations", [
@@ -93,7 +93,7 @@ describe("supabaseMenuRepository.listMenuItems — 실제 DB", () => {
             id: ids.menu,
             basePrice: 3000,
             stock: 5,
-            isRecommended: false,
+            isRecommended: true,
             isSoldOutManual: false,
             isActive: true,
             sortOrder: 1,
@@ -141,6 +141,7 @@ describe("supabaseMenuRepository.listMenuItems — 실제 DB", () => {
             description: "통합 설명",
             price: 3000,
             stock: 5,
+            isRecommended: true,
             isAvailable: true,
             isSoldOut: false,
             imageUrl: "https://example.com/hotteok.png",
