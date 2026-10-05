@@ -13,6 +13,7 @@ export type ErrorCode =
     | "REVIEW_NOT_ALLOWED"
     | "REVIEW_ALREADY_SUBMITTED"
     | "RATE_LIMITED"
+    | "CALL_COOLDOWN"
     | "INTERNAL_ERROR";
 
 export interface ErrorResponseEnvelope {
@@ -38,6 +39,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     REVIEW_NOT_ALLOWED: "Reviews are only allowed for completed orders.",
     REVIEW_ALREADY_SUBMITTED: "A review has already been submitted for this order.",
     RATE_LIMITED: "Rate limit exceeded.",
+    CALL_COOLDOWN: "Please wait before calling staff again.",
     INTERNAL_ERROR: "An internal server error occurred.",
 };
 
@@ -68,7 +70,7 @@ export function toErrorResponse(error: unknown): {
 
         const headers: Record<string, string> = {};
         if (
-            error.code === "RATE_LIMITED" &&
+            (error.code === "RATE_LIMITED" || error.code === "CALL_COOLDOWN") &&
             error.details &&
             typeof error.details === "object" &&
             "retryAfterSeconds" in error.details &&
