@@ -50,7 +50,7 @@ function normalized(record: MenuItemRecord): MenuItemRecord {
 beforeAll(async () => {
     await insert("menu_items", [
         { id: ids.menu, base_price: 3000, stock: 5, is_recommended: true, is_sold_out_manual: false, is_active: true, sort_order: 1, image_url: "https://example.com/hotteok.png" },
-        { id: ids.inactiveMenu, base_price: 1000, stock: 5, is_sold_out_manual: false, is_active: false, sort_order: 2, image_url: null },
+        { id: ids.inactiveMenu, base_price: 1000, stock: 5, is_recommended: false, is_sold_out_manual: false, is_active: false, sort_order: 2, image_url: null },
     ]);
     await insert("menu_item_translations", [
         { menu_item_id: ids.menu, locale: "ko", name: "통합 호떡", description: "통합 설명" },
