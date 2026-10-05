@@ -4,7 +4,8 @@ import type { MenuRepository } from "@/services/ports";
 import { toMenuItemRecord } from "./mappers";
 
 // 메뉴 → 번역·옵션 그룹(→ 번역·옵션(→ 번역))을 한 번에 가져온다(PostgREST 임베드). 거르기·정렬은 menuService가 한다.
-const MENU_SELECT = `
+// 관리자 메뉴 저장소(adminMenuRepository)도 같은 모양으로 읽는다.
+export const MENU_SELECT = `
   id, base_price, stock, is_sold_out_manual, is_active, sort_order, image_url,
   menu_item_translations ( locale, name, description ),
   option_groups (

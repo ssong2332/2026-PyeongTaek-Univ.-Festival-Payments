@@ -10,8 +10,8 @@ import { MenuManagementPanel, type MenuAdminApi } from "@/components/admin/MenuM
 import { MenuAdminRequestError } from "@/features/admin/useMenuAdmin";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 
-// T-20 메뉴·재고 관리 화면(F-25·F-26·F-27). API는 백엔드 담당 — 여기서는 화면이 Architecture 7절 계약대로
-// 요청을 보내고 응답·실패를 보여 주는지만 가짜 api로 확인한다.
+// T-20 메뉴·재고 관리 화면(F-25·F-26·F-27). 서버 쪽 규칙은 adminMenuService·라우트 테스트가 확인하고,
+// 여기서는 화면이 Architecture 7절 계약대로 요청을 보내고 응답·실패를 보여 주는지만 가짜 api로 확인한다.
 const MENU_ID = "11111111-1111-4111-8111-111111111111";
 const MENU_ID_2 = "22222222-2222-4222-8222-222222222222";
 const GROUP_ID = "33333333-3333-4333-8333-333333333333";
@@ -224,11 +224,11 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         expect(api.load).toHaveBeenCalledTimes(2);
     });
 
-    it("메뉴 API가 아직 배포되지 않았으면(404) 오류 대신 준비 중 안내", async () => {
+    it("메뉴 API가 없는 배포(404)면 오류 대신 연결 안내", async () => {
         const api = fakeApi();
         vi.mocked(api.load).mockRejectedValueOnce(new MenuAdminRequestError(404));
         render(<MenuManagementPanel api={api} />);
-        expect(await screen.findByText(/아직 연결되지 않았어요/)).toBeTruthy();
+        expect(await screen.findByText(/연결하지 못했어요/)).toBeTruthy();
         expect(screen.queryByRole("alert")).toBeNull();
     });
 

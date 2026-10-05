@@ -19,7 +19,7 @@ import styles from "./MenuManagementPanel.module.css";
 export type { MenuAdminApi } from "@/features/admin/useMenuAdmin";
 
 // T-20 메뉴·재고 관리 화면(1차 = 수정만, F-25·F-26·F-27). 메뉴 추가·삭제 버튼은 없다(2차 T-37).
-// 저장은 Architecture 7절의 관리자 메뉴 API를 부른다(백엔드 담당 구현).
+// 저장은 Architecture 7절의 관리자 메뉴 API(PATCH /api/admin/menus·option-groups·options)를 부른다.
 // 축제 당일 가장 자주 쓰는 "품절 처리"와 옵션 "판매 중지"는 누르는 즉시 저장하고,
 // 이름·가격·재고는 고친 뒤 [저장]으로 한 번에 보낸다. 재고가 0이면 따로 누르지 않아도 고객 메뉴판에서 품절로 보인다.
 
@@ -102,7 +102,7 @@ export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
             )}
             {admin.status === "unavailable" && (
                 <div role="status" className={styles.notice}>
-                    메뉴 수정 기능(서버 API)이 아직 연결되지 않았어요. 백엔드 배포 후 이 화면에서 바로 수정할 수 있어요.
+                    메뉴 수정 기능(서버 API)에 연결하지 못했어요. 최신 버전이 배포됐는지 확인해 주세요.
                 </div>
             )}
             {admin.status === "ready" && admin.menus.length === 0 && (

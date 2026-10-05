@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-// T-20 (F-25·F-26·F-27): 관리자 메뉴·재고 관리 API의 요청·응답 형태 — Architecture 7절 계약을 그대로 옮겼다.
-// 화면(useMenuAdmin)이 응답을 검사하고 요청 모양을 맞추는 데 쓴다. API 구현(백엔드 담당)도 이 스키마를 그대로 쓰거나 고쳐 써도 된다.
+// T-20 (F-25·F-26·F-27): 관리자 메뉴·재고 관리 API의 요청·응답 형태 — Architecture 7절 계약.
+// 라우트(src/app/api/admin/menus…)는 요청을 이 스키마로 검사하고, 화면(useMenuAdmin)은 응답을 검사한다.
 // 1차는 기존 메뉴 수정만 — 메뉴 추가·삭제(활성 끄기)는 2차(T-37)라 메뉴 PATCH에 isActive가 없다.
 
 export const ADMIN_MENU_LOCALES = ["ko", "en"] as const;

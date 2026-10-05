@@ -12,7 +12,7 @@ import {
 } from "@/lib/dto/adminMenu";
 
 // T-20 관리자 메뉴·재고 관리 화면 — GET/PATCH /api/admin/menus·option-groups·options (Architecture 7절 계약, 8절 "useMenuAdmin").
-// API는 백엔드 담당이 만든다. 아직 배포되지 않아 목록 조회가 404면 "준비 중"으로 보여 준다(status "unavailable").
+// 메뉴 API가 없는 이전 배포를 만나 목록 조회가 404면 오류 대신 "연결하지 못함"으로 보여 준다(status "unavailable").
 // 세션이 끝나 401이 오면 로그인 화면으로 보낸다(PRD 화면 절 "권한없음: 로그인 화면으로 리다이렉트").
 
 export class MenuAdminRequestError extends Error {
