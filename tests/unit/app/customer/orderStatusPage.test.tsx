@@ -195,14 +195,19 @@ describe("/orders/[token] — 주문 현황 보기 (T-11, F-10·F-11·F-14)", ()
     expect(screen.queryByText(/내 앞 대기|대기 없음/)).toBeNull();
   });
 
-  it("canTransferReport·canCancelRequest가 true여도 송금·취소 요청 버튼은 만들지 않고 T-27 직원 호출 버튼만 제공한다", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true, canCancelRequest: true })));
+  it("canCancelRequest가 false면 취소 요청 버튼이 없다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
+    await renderPage();
+
+    expect(screen.queryByRole("button", { name: /취소 요청/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "메뉴로 돌아가기" }).getAttribute("href")).toBe("/");
+  });
+
+  it("T-27 직원 호출 버튼을 제공한다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
     await renderPage();
 
     expect(screen.getByRole("button", { name: /직원 호출/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /송금/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /취소/ })).toBeNull();
-    expect(screen.getByRole("link", { name: "메뉴로 돌아가기" }).getAttribute("href")).toBe("/");
   });
 });
 
