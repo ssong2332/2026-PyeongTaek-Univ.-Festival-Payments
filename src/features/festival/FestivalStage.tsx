@@ -27,7 +27,9 @@ type Rocket = { x: number; y: number; vy: number; vx: number; peakY: number; col
 // 그림 불꽃: 터진 자리에서 확 피었다가 천천히 흘러내리며 사라진다
 type Bloom = { img: CanvasImageSource; x: number; y: number; size: number; life: number; max: number; rot: number; spin: number };
 type Glint = { img: CanvasImageSource | null; x: number; y: number; life: number; max: number; size: number; rot: number };
-type Shooting = { img: CanvasImageSource; x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; flip: boolean };
+type Shooting = { img: CanvasImageSource; x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; rot: number; flip: boolean };
+// 별똥별 그림(SHOOTING_STARS 순서)마다 별머리가 향하는 각도(라디안, 화면 좌표 — 오른쪽 0, 아래 +). 날아가는 방향에 맞춰 돌려 그린다.
+const SHOOTING_HEADINGS = [-0.15, 2.85, -0.85];
 type Dust = { x: number; y: number; vy: number; phase: number; size: number };
 type Person = { sprite: number; x: number; front: boolean; h: number; phase: number; speed: number; jump: boolean; phone: boolean; flip: boolean };
 
@@ -293,22 +295,27 @@ export function FestivalStage() {
         };
 
         const launchShooting = () => {
-            const imgs = shootingImgs.filter(ready);
-            if (!imgs.length) return;
-            // 별 그림은 오른쪽 위를 향한다 — 왼쪽 아래에서 오른쪽 위로, 또는 뒤집어 반대로 가로지른다
-            const flip = Math.random() < 0.5;
-            const size = 64 + Math.random() * 40;
-            const speed = 5 + Math.random() * 3;
+            const choices = shootingImgs.map((img, index) => ({ img, heading: SHOOTING_HEADINGS[index] ?? 0 })).filter((choice) => ready(choice.img));
+            if (!choices.length) return;
+            // 하늘 위쪽에서 비스듬히 아래로 떨어지며 가로지른다 — 왼쪽→오른쪽 또는 오른쪽→왼쪽. 그림은 별머리가 진행 방향을 향하게 돌린다.
+            const pick = choices[Math.floor(Math.random() * choices.length)];
+            const fromLeft = Math.random() < 0.5;
+            const size = 40 + Math.random() * 26;
+            const speed = 6 + Math.random() * 3;
+            const dip = 0.3 + Math.random() * 0.25; // 아래로 기우는 각도(라디안)
+            const angle = fromLeft ? dip : Math.PI - dip;
             shootings.push({
-                img: imgs[Math.floor(Math.random() * imgs.length)],
-                x: flip ? width + size : -size,
-                y: height * (0.12 + Math.random() * 0.22),
-                vx: flip ? -speed : speed,
-                vy: -speed * 0.38,
+                img: pick.img,
+                x: fromLeft ? -size : width + size,
+                y: height * (0.04 + Math.random() * 0.16),
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
                 life: 0,
-                max: Math.ceil((width + size * 2) / speed),
+                max: Math.ceil((width + size * 2) / Math.abs(Math.cos(angle) * speed)),
                 size,
-                flip,
+                // 왼쪽으로 갈 때는 그림을 좌우로 뒤집어(머리 각도 π - heading) 위아래가 뒤집히지 않게 한다
+                rot: fromLeft ? angle - pick.heading : angle - Math.PI + pick.heading,
+                flip: !fromLeft,
             });
         };
 
@@ -401,7 +408,7 @@ export function FestivalStage() {
                 const k = Math.min(1, star.life / 12, (star.max - star.life) / 20);
                 ctx.save();
                 ctx.globalAlpha = Math.max(0, k);
-                drawSprite(star.img, star.x, star.y, star.size, 0, star.flip);
+                drawSprite(star.img, star.x, star.y, star.size, star.rot, star.flip);
                 ctx.restore();
                 // 꼬리에 흩날리는 작은 별가루
                 if (Math.random() < 0.6) sparks.push({ x: star.x - star.vx * 4, y: star.y - star.vy * 4, vx: -star.vx * 0.05, vy: 0.3, life: 0, max: 30, color: "#fff3c9", size: 1, glitter: true, gravity: 0.01, drag: 0.98 });
