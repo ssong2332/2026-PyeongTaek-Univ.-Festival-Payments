@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CartPage from "@/app/(customer)/cart/page";
 import { useCart } from "@/features/customer/useCart";
@@ -80,7 +80,8 @@ describe("장바구니(/cart) — PRD 화면 표 112행", () => {
         render(<CartPage />);
         await screen.findByRole("link", { name: /주문하기/ });
         fireEvent.click(screen.getByRole("button", { name: "치즈 호떡 삭제" }));
-        expect(screen.getAllByRole("listitem")).toHaveLength(1);
+        // 지운 줄은 옆으로 밀려나는 퇴장 모션 뒤에 사라진다.
+        await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(1));
         expect(screen.getByLabelText("합계").textContent).toBe("2,000원");
     });
 

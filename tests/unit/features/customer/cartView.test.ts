@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCartLines } from "@/features/customer/cartView";
+import { menuImageUrl } from "@/features/customer/menuImages";
 import type { CartItem } from "@/features/customer/useCart";
 import type { MenuItemDto } from "@/lib/dto/menu";
 
@@ -54,9 +55,9 @@ describe("buildCartLines — 장바구니 화면 줄 정보", () => {
         expect(lines[1]).toMatchObject({ optionSummary: "", maxQuantity: 3, lineTotal: 2500, warning: null });
     });
 
-    it("메뉴 정보를 아직 못 받았으면(null) 경고 없이 99개까지, 썸네일 없음", () => {
+    it("메뉴 정보를 아직 못 받았으면(null) 경고 없이 99개까지, 사진은 메뉴 ID로 찾은 기본 사진", () => {
         const [line] = buildCartLines([item("a", MENU_A, 2)], null);
-        expect(line).toMatchObject({ maxQuantity: 99, warning: null, imageUrl: null });
+        expect(line).toMatchObject({ maxQuantity: 99, warning: null, imageUrl: menuImageUrl(MENU_A, null) });
     });
 
     it("품절이면 경고, 수량을 늘릴 수 없다(상한 = 현재 수량)", () => {
