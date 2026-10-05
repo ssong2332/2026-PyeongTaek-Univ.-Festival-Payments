@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { MenuManagementPanel } from "@/components/admin/MenuManagementPanel";
 import { SettingsPanel } from "@/components/admin/SettingsPanel";
 import { StaffCallAlert } from "@/components/admin/StaffCallAlert";
+import { useConnectionMonitor } from "@/features/admin/useConnectionMonitor";
 import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { useStaffCallsFeed } from "@/features/admin/useStaffCallsFeed";
 import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
@@ -23,6 +25,11 @@ export function LiveOrderDashboard() {
     const feed = useOrdersFeed();
     const staffFeed = useStaffCallsFeed();
     useSweepHeartbeat(feed.reload);
+    const monitor = useConnectionMonitor({
+        channelStatus: feed.channelStatus,
+        onRecover: feed.refresh,
+        onDisconnectedTick: feed.refresh,
+    });
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map(order => {
         const response = confirmed[order.id];
@@ -31,6 +38,9 @@ export function LiveOrderDashboard() {
     return <>
         <StaffCallAlert calls={staffFeed.calls} onAcknowledge={staffFeed.acknowledge}
             isLoading={staffFeed.isLoading} error={staffFeed.error} onReload={staffFeed.reload} />
+        <ConnectionBanner disconnected={monitor.isDisconnected}
+            retrying={monitor.isChecking}
+            onRetry={async () => { await monitor.checkNow(); }} />
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
             menuPanel={<MenuManagementPanel />}

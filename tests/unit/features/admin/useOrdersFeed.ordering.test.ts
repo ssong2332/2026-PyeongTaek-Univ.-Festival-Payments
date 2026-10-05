@@ -163,4 +163,19 @@ describe("useOrdersFeed — 응답 순서가 뒤바뀌어도 최신 상태 유�
 
         expect(statusOf(result.current.orders)).toEqual({ [A]: "paid" });
     });
+
+    it("연결 끊김 중 대체 조회가 지연돼도 기존 주문판과 요약은 로딩 상태로 돌아가지 않는다", async () => {
+        const { result } = renderHook(() => useOrdersFeed());
+        await pendingTo("/api/admin/orders")[0].respond({ orders: [order(A, "pending", T0)] });
+
+        let refreshing!: Promise<void>;
+        act(() => { refreshing = result.current.refresh(); });
+        expect(result.current.isLoading).toBe(false);
+        expect(statusOf(result.current.orders)).toEqual({ [A]: "pending" });
+
+        await pendingTo("/api/admin/orders")[1].respond({ orders: [order(A, "paid", T1)] });
+        await act(async () => { await refreshing; });
+        expect(result.current.isLoading).toBe(false);
+        expect(statusOf(result.current.orders)).toEqual({ [A]: "paid" });
+    });
 });
