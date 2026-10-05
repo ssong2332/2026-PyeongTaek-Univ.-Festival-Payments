@@ -32,15 +32,21 @@ function fakeClient(responses: Record<string, Response>) {
 const call = (calls: Call[], table: string, method: string) => calls.find((entry) => entry.table === table && entry.method === method);
 
 describe("adminMenuRepository", () => {
+    it("관리자 조회는 추천 컬럼을 포함한다", async () => {
+        const { client, calls } = fakeClient({ menu_items: { data: [], error: null } });
+        await createSupabaseAdminMenuRepository(client).listMenuItems();
+        expect(String(call(calls, "menu_items", "select")!.args[0])).toContain("is_recommended");
+    });
+
     it("updateMenuItem: 보낸 칸만 DB 칸 이름으로 옮기고 updated_at을 갱신, 행이 없으면 false", async () => {
         const { client, calls } = fakeClient({ menu_items: { data: [{ id: MENU_ID }], error: null } });
         const repository = createSupabaseAdminMenuRepository(client);
 
-        await expect(repository.updateMenuItem(MENU_ID, { stock: 0, isSoldOutManual: true })).resolves.toBe(true);
+        await expect(repository.updateMenuItem(MENU_ID, { stock: 0, isSoldOutManual: true, isRecommended: true })).resolves.toBe(true);
 
         const row = call(calls, "menu_items", "update")!.args[0] as Record<string, unknown>;
-        expect(Object.keys(row).sort()).toEqual(["is_sold_out_manual", "stock", "updated_at"]);
-        expect(row).toMatchObject({ stock: 0, is_sold_out_manual: true });
+        expect(Object.keys(row).sort()).toEqual(["is_recommended", "is_sold_out_manual", "stock", "updated_at"]);
+        expect(row).toMatchObject({ stock: 0, is_sold_out_manual: true, is_recommended: true });
         expect(call(calls, "menu_items", "eq")!.args).toEqual(["id", MENU_ID]);
 
         const missing = fakeClient({ menu_items: { data: [], error: null } });

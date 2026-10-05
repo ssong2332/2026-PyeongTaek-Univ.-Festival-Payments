@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
+import { createSupabaseAdminMenuRepository } from "@/infra/repositories/adminMenuRepository";
+import { listAdminMenus, updateAdminMenu } from "@/services/adminMenuService";
 
 const db = createServiceClient();
 const ids = [randomUUID(), randomUUID()];
@@ -50,6 +52,16 @@ test("추천 ON/OFF는 가격·재고·활성·수동 품절 상태를 보존", 
             is_recommended: recommended, base_price: 3000, stock: 5, is_active: true, is_sold_out_manual: false,
         });
     }
+});
+
+test("관리자 메뉴 저장 서비스에서 추천 값을 저장하고 재조회한다", async () => {
+    const repository = createSupabaseAdminMenuRepository(db);
+    const enabled = await updateAdminMenu(ids[0], { isRecommended: true }, repository);
+    expect(enabled).toMatchObject({ isRecommended: true, basePrice: 3000, stock: 5, isSoldOutManual: false });
+    const listed = await listAdminMenus(repository);
+    expect(listed.menus.find((menu) => menu.id === ids[0])?.isRecommended).toBe(true);
+    const disabled = await updateAdminMenu(ids[0], { isRecommended: false }, repository);
+    expect(disabled.isRecommended).toBe(false);
 });
 
 test("추천 메뉴는 여러 개 또는 0개를 허용", async () => {

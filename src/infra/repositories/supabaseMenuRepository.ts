@@ -18,6 +18,9 @@ export const MENU_SELECT = `
   )
 `;
 
+// 추천 컬럼은 T-38 관리자 조회에서만 사용한다. 고객 메뉴 조회는 0101 적용 전에도 기존 계약을 유지한다.
+export const ADMIN_MENU_SELECT = `is_recommended, ${MENU_SELECT}`;
+
 export function createSupabaseMenuRepository(client: SupabaseClient): MenuRepository {
     return {
         async listMenuItems() {

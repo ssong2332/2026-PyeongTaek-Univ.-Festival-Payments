@@ -47,6 +47,7 @@ function menu(overrides: Partial<MenuItemRecord> = {}): MenuItemRecord {
         id: MENU_ID,
         basePrice: 2000,
         stock: 10,
+        isRecommended: false,
         isSoldOutManual: false,
         isActive: true,
         sortOrder: 0,

@@ -7,10 +7,11 @@ export interface RecommendedMenuToggleProps {
     menu: { id: string; name: string; isRecommended: boolean };
     onSave: (menuId: string, isRecommended: boolean) => Promise<void>;
     disabled?: boolean;
+    showName?: boolean;
 }
 
 /** T-20's menu editor supplies the saved value and persists changes through its API. */
-export function RecommendedMenuToggle({ menu, onSave, disabled = false }: RecommendedMenuToggleProps) {
+export function RecommendedMenuToggle({ menu, onSave, disabled = false, showName = true }: RecommendedMenuToggleProps) {
     const inFlight = useRef(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -31,7 +32,7 @@ export function RecommendedMenuToggle({ menu, onSave, disabled = false }: Recomm
     }
 
     return <div className={styles.control}>
-        <span className={styles.name}>{menu.name}</span>
+        {showName && <span className={styles.name}>{menu.name}</span>}
         <button type="button" role="switch" aria-label={`${menu.name} 추천 메뉴`}
             aria-checked={menu.isRecommended} aria-busy={saving}
             disabled={disabled || saving} onClick={toggle}>

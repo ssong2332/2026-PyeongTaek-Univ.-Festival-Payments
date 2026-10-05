@@ -93,6 +93,7 @@ describe("supabaseMenuRepository.listMenuItems — 실제 DB", () => {
             id: ids.menu,
             basePrice: 3000,
             stock: 5,
+            isRecommended: false,
             isSoldOutManual: false,
             isActive: true,
             sortOrder: 1,

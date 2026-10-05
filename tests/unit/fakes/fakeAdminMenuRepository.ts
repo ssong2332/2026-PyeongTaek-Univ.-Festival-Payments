@@ -45,6 +45,7 @@ export function createFakeAdminMenuRepository(initial: MenuItemRecord[] = []) {
             if (!item) return false;
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;
+            if (patch.isRecommended !== undefined) item.isRecommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) item.isSoldOutManual = patch.isSoldOutManual;
             return true;
         },
