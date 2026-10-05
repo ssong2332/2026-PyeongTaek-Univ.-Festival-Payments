@@ -51,7 +51,7 @@
 | 타입 검사 | `npm run typecheck` | 2026-10-02 |
 
 개발 서버는 Playwright가 위 명령으로 시작하고 종료한다. 일반 개발용 `npm run dev`(기본 포트 3000)는 별도 실행 가능하다.
-E2E 최초 실행 전 `npx playwright install chromium`이 필요하다. 현재 스모크는 DB 없이 실행된다.
+E2E 최초 실행 전 `npx playwright install chromium`이 필요하다. E2E는 로컬 Supabase(`supabase start`)와 `.env.test.local`이 있어야 실행된다 — `playwright.config.ts`가 주소(127.0.0.1·localhost)를 확인하고 아니면 중단한다(T-24, 2026-10-05).
 `customer-ios`도 설계의 Chromium 기반 기기 에뮬레이션이며 실제 Safari 검증을 뜻하지 않는다.
 `npx supabase start`는 팀원 전원 Docker 설치 불가 결정 때문에 검증하지 않았으며 성공 명령으로 등록하지 않는다. 통합 테스트와 Supabase 자동 검사 작업은 T-02에서 추가한다.
 
