@@ -9,6 +9,7 @@ import { menuSaveErrorMessage, useLoginRedirect, useMenuAdmin, type MenuAdminApi
 import {
     ADMIN_MENU_LIMITS,
     type AdminMenuDto,
+    type AdminMenuCreate,
     type AdminMenuOptionDto,
     type AdminMenuOptionGroupDto,
     type AdminMenuPatch,
@@ -82,6 +83,7 @@ function stockStatus(menu: AdminMenuDto): { label: string; tone: "ok" | "out" | 
 
 export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
     const admin = useMenuAdmin(api);
+    const [creating, setCreating] = useState(false);
     const soldOut = admin.menus.filter((menu) => menu.isActive && (menu.isSoldOutManual || menu.stock <= 0)).length;
 
     return (
@@ -91,9 +93,15 @@ export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
                     <h2>메뉴·재고 관리</h2>
                     <p>품절 처리·옵션 판매 중지는 누르는 즉시 고객 메뉴판에 반영돼요. 재고가 0이 되면 자동으로 품절돼요.</p>
                 </div>
-                <button type="button" className={styles.ghostButton} onClick={() => void admin.reload()} disabled={admin.status === "loading"}>
-                    <RotateCcw size={15} /> 새로고침
-                </button>
+                <div className={styles.headingActions}>
+                    <button type="button" className={styles.saveButton} onClick={() => setCreating((value) => !value)}
+                        disabled={admin.status !== "ready"}>
+                        <Plus size={15} /> {creating ? "추가 취소" : "메뉴 추가"}
+                    </button>
+                    <button type="button" className={styles.ghostButton} onClick={() => void admin.reload()} disabled={admin.status === "loading"}>
+                        <RotateCcw size={15} /> 새로고침
+                    </button>
+                </div>
             </div>
             {admin.status === "loading" && <p role="status" className={styles.muted}>메뉴를 불러오는 중입니다…</p>}
             {admin.status === "error" && (
@@ -106,8 +114,14 @@ export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
                     메뉴 수정 기능(서버 API)에 연결하지 못했어요. 최신 버전이 배포됐는지 확인해 주세요.
                 </div>
             )}
-            {admin.status === "ready" && admin.menus.length === 0 && (
-                <p className={styles.muted}>메뉴가 없습니다 — 시드 데이터를 확인하세요.</p>
+            {admin.status === "ready" && creating && (
+                <CreateMenuForm api={admin.api} onCreated={(menu) => {
+                    admin.addMenu(menu);
+                    setCreating(false);
+                }} />
+            )}
+            {admin.status === "ready" && admin.menus.length === 0 && !creating && (
+                <p className={styles.muted}>메뉴가 없습니다. [메뉴 추가]로 첫 메뉴를 등록해 주세요.</p>
             )}
             {admin.status === "ready" && admin.menus.length > 0 && (
                 <>
@@ -126,6 +140,113 @@ export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
         </section>
     );
 }
+
+
+type NewOption = { key: string; nameKo: string; nameEn: string; extraPrice: string };
+type NewGroup = { key: string; nameKo: string; nameEn: string; min: string; max: string; options: NewOption[] };
+
+function CreateMenuForm({ api, onCreated }: { api: MenuAdminApi; onCreated: (menu: AdminMenuDto) => void }) {
+    const redirectIfExpired = useLoginRedirect();
+    const [nameKo, setNameKo] = useState("");
+    const [nameEn, setNameEn] = useState("");
+    const [descriptionKo, setDescriptionKo] = useState("");
+    const [descriptionEn, setDescriptionEn] = useState("");
+    const [price, setPrice] = useState("");
+    const [stock, setStock] = useState("");
+    const [groups, setGroups] = useState<NewGroup[]>([]);
+    const [state, setState] = useState<SaveState>(IDLE);
+
+    const addGroup = () => setGroups((current) => [...current, {
+        key: crypto.randomUUID(), nameKo: "", nameEn: "", min: "0", max: "1", options: [],
+    }]);
+    const updateGroup = (key: string, change: (group: NewGroup) => NewGroup) =>
+        setGroups((current) => current.map((group) => group.key === key ? change(group) : group));
+    const addOption = (groupKey: string) => updateGroup(groupKey, (group) => ({
+        ...group,
+        options: [...group.options, { key: crypto.randomUUID(), nameKo: "", nameEn: "", extraPrice: "0" }],
+    }));
+
+    const basePrice = parseWhole(price, ADMIN_MENU_LIMITS.priceMax);
+    const initialStock = parseWhole(stock, ADMIN_MENU_LIMITS.stockMax);
+    const groupInvalid = groups.some((group) => {
+        const min = parseWhole(group.min, ADMIN_MENU_LIMITS.selectMax);
+        const max = parseWhole(group.max, ADMIN_MENU_LIMITS.selectMax);
+        return !group.nameKo.trim() || !group.nameEn.trim() || min === null || max === null || max < 1 || max < min
+            || group.options.some((option) => !option.nameKo.trim() || !option.nameEn.trim()
+                || parseWhole(option.extraPrice, ADMIN_MENU_LIMITS.extraPriceMax) === null);
+    });
+    const valid = Boolean(nameKo.trim() && nameEn.trim() && basePrice !== null && initialStock !== null && !groupInvalid);
+
+    async function create() {
+        if (!valid || basePrice === null || initialStock === null || state.saving) return;
+        const input: AdminMenuCreate = {
+            translations: {
+                ko: { name: nameKo.trim(), description: descriptionKo.trim() },
+                en: { name: nameEn.trim(), description: descriptionEn.trim() },
+            },
+            basePrice,
+            stock: initialStock,
+            optionGroups: groups.map((group) => ({
+                translations: { ko: { name: group.nameKo.trim() }, en: { name: group.nameEn.trim() } },
+                minSelect: Number(group.min),
+                maxSelect: Number(group.max),
+                options: group.options.map((option) => ({
+                    translations: { ko: { name: option.nameKo.trim() }, en: { name: option.nameEn.trim() } },
+                    extraPrice: Number(option.extraPrice),
+                })),
+            })),
+        };
+        setState({ saving: true, message: "", error: false });
+        try {
+            onCreated(await api.createMenu(input));
+            setState({ saving: false, message: "새 메뉴를 등록했어요.", error: false });
+        } catch (error) {
+            redirectIfExpired(error);
+            setState({ saving: false, message: menuSaveErrorMessage(error), error: true });
+        }
+    }
+
+    return <section className={styles.createBox} aria-label="새 메뉴 등록">
+        <h3>새 메뉴 등록</h3>
+        <div className={styles.grid}>
+            <Field id="new-menu-ko" label="이름(한국어)"><input id="new-menu-ko" value={nameKo} maxLength={ADMIN_MENU_LIMITS.nameMax} onChange={e => setNameKo(e.target.value)} /></Field>
+            <Field id="new-menu-en" label="이름(영어)"><input id="new-menu-en" value={nameEn} maxLength={ADMIN_MENU_LIMITS.nameMax} onChange={e => setNameEn(e.target.value)} /></Field>
+            <Field id="new-desc-ko" label="설명(한국어)" wide><input id="new-desc-ko" value={descriptionKo} maxLength={ADMIN_MENU_LIMITS.descriptionMax} onChange={e => setDescriptionKo(e.target.value)} /></Field>
+            <Field id="new-desc-en" label="설명(영어)" wide><input id="new-desc-en" value={descriptionEn} maxLength={ADMIN_MENU_LIMITS.descriptionMax} onChange={e => setDescriptionEn(e.target.value)} /></Field>
+            <Field id="new-price" label="가격(원)"><input id="new-price" inputMode="numeric" value={price} onChange={e => setPrice(e.target.value)} /></Field>
+            <Field id="new-stock" label="초기 재고"><input id="new-stock" inputMode="numeric" value={stock} onChange={e => setStock(e.target.value)} /></Field>
+        </div>
+        <div className={styles.createGroups}>
+            {groups.map((group, groupIndex) => <div className={styles.group} key={group.key}>
+                <div className={styles.groupTitle}><strong>옵션 그룹 {groupIndex + 1}</strong>
+                    <button type="button" className={styles.ghostButton} onClick={() => setGroups(current => current.filter(item => item.key !== group.key))}>그룹 삭제</button>
+                </div>
+                <div className={styles.groupRow}>
+                    <Field id={`new-group-${group.key}-ko`} label="그룹명(한국어)"><input id={`new-group-${group.key}-ko`} value={group.nameKo} onChange={e => updateGroup(group.key, item => ({ ...item, nameKo: e.target.value }))} /></Field>
+                    <Field id={`new-group-${group.key}-en`} label="그룹명(영어)"><input id={`new-group-${group.key}-en`} value={group.nameEn} onChange={e => updateGroup(group.key, item => ({ ...item, nameEn: e.target.value }))} /></Field>
+                    <Field id={`new-group-${group.key}-min`} label="최소"><input id={`new-group-${group.key}-min`} value={group.min} inputMode="numeric" onChange={e => updateGroup(group.key, item => ({ ...item, min: e.target.value }))} /></Field>
+                    <Field id={`new-group-${group.key}-max`} label="최대"><input id={`new-group-${group.key}-max`} value={group.max} inputMode="numeric" onChange={e => updateGroup(group.key, item => ({ ...item, max: e.target.value }))} /></Field>
+                    <button type="button" className={styles.smallSave} onClick={() => addOption(group.key)}>옵션 추가</button>
+                </div>
+                {group.options.map((option) => <div className={styles.optionRow} key={option.key}>
+                    <Field id={`new-option-${option.key}-ko`} label="옵션명(한국어)"><input id={`new-option-${option.key}-ko`} value={option.nameKo} onChange={e => updateGroup(group.key, item => ({ ...item, options: item.options.map(o => o.key === option.key ? { ...o, nameKo: e.target.value } : o) }))} /></Field>
+                    <Field id={`new-option-${option.key}-en`} label="옵션명(영어)"><input id={`new-option-${option.key}-en`} value={option.nameEn} onChange={e => updateGroup(group.key, item => ({ ...item, options: item.options.map(o => o.key === option.key ? { ...o, nameEn: e.target.value } : o) }))} /></Field>
+                    <Field id={`new-option-${option.key}-price`} label="추가 가격"><input id={`new-option-${option.key}-price`} value={option.extraPrice} inputMode="numeric" onChange={e => updateGroup(group.key, item => ({ ...item, options: item.options.map(o => o.key === option.key ? { ...o, extraPrice: e.target.value } : o) }))} /></Field>
+                    <button type="button" className={styles.ghostButton} onClick={() => updateGroup(group.key, item => ({ ...item, options: item.options.filter(o => o.key !== option.key) }))}>옵션 삭제</button>
+                </div>)}
+            </div>)}
+            <button type="button" className={styles.ghostButton} onClick={addGroup}><Plus size={15} /> 옵션 그룹 추가</button>
+        </div>
+        {!valid && <p className={styles.muted}>한국어·영어 이름, 가격, 초기 재고와 추가한 옵션 정보를 확인해 주세요.</p>}
+        <SaveMessage state={state} />
+        <div className={styles.cardActions}>
+            <button type="button" className={styles.saveButton} disabled={!valid || state.saving} onClick={() => void create()}>
+                {state.saving ? "등록 중…" : "메뉴 등록"}
+            </button>
+        </div>
+    </section>;
+}
+
 
 type MenuDraft = { nameKo: string; nameEn: string; descriptionKo: string; price: string; stock: string };
 
@@ -179,11 +300,12 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
     }
     const fields = useSaver(onUpdated);
     const soldOutToggle = useSaver(onUpdated);
+    const activeToggle = useSaver(onUpdated);
     const [recommendationSaving, setRecommendationSaving] = useState(false);
     const errors = validateMenuDraft(draft, menu);
     const patch = menuPatch(draft, menu);
     const dirty = Object.keys(patch).length > 0;
-    const busy = fields.state.saving || soldOutToggle.state.saving || recommendationSaving;
+    const busy = fields.state.saving || soldOutToggle.state.saving || activeToggle.state.saving || recommendationSaving;
     const canSave = dirty && Object.keys(errors).length === 0 && !busy;
     const status = stockStatus(menu);
     const id = (field: string) => `menu-${menu.id}-${field}`;
@@ -268,6 +390,14 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
 
             <div className={styles.cardActions}>
                 <SaveMessage state={fields.state} />
+                <SaveMessage state={activeToggle.state} />
+                <button type="button" className={styles.ghostButton} disabled={busy}
+                    onClick={() => void activeToggle.run(
+                        () => api.updateMenu(menu.id, { isActive: !menu.isActive }),
+                        menu.isActive ? "판매 종료했어요. 주문 이력은 유지돼요." : "다시 판매해요.",
+                    )}>
+                    {menu.isActive ? "판매 종료" : "다시 판매"}
+                </button>
                 {dirty && (
                     <button type="button" className={styles.ghostButton} disabled={fields.state.saving} onClick={() => setDraftState(toMenuDraft(menu))}>
                         되돌리기
