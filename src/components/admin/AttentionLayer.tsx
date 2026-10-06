@@ -122,6 +122,12 @@ function useBlinkingTitle(alerts: readonly AttentionAlert[]) {
     }, [count, staff]);
 }
 
+// 새 주문 알림(소리·화면)을 띄울 주문인가. 수기 주문(T-28)은 장애 복구 때 이미 완료된 종이 주문을 사후 입력하는 것이라
+// 새 조리 주문으로 오인하지 않게 알리지 않는다(내부 픽업 번호도 2100000000+M번호라 그대로 보이면 헷갈린다).
+export function shouldAlertNewOrder(order: { source?: "customer" | "manual" }): boolean {
+    return order.source !== "manual";
+}
+
 const won = new Intl.NumberFormat("ko-KR");
 const pad = (n: number) => String(n).padStart(3, "0");
 
