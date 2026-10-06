@@ -16,7 +16,7 @@
     "build:worker": "opennextjs-cloudflare build",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "test:load": "k6 run tests/load/order-create.js",
-    "test:load:cleanup": "node --env-file-if-exists=.env.local --env-file-if-exists=.env.test.local tests/load/cleanup.mjs"
+    "test:load:cleanup": "node tests/load/cleanup.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.9.0",

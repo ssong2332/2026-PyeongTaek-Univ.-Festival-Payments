@@ -30,13 +30,15 @@ describe('T-29 k6 Load Test Configuration & Helpers', () => {
     it('generates PASS summary report when metrics meet N-06 criteria', () => {
       const mockMetrics = {
         metrics: {
-          http_reqs: { values: { count: 900 } },
+          http_reqs: { values: { count: 2700 } },
+          completed_orders: { values: { count: 900 } },
+          checks: { values: { rate: 1 } },
           http_req_failed: { values: { rate: 0.0 } },
           http_req_duration: { values: { 'p(95)': 120.5 } },
           menu_duration: { values: { 'p(95)': 85.0 } },
           order_create_duration: { values: { 'p(95)': 180.2 } },
           order_status_duration: { values: { 'p(95)': 45.1 } },
-          order_created_count: { values: { count: 300 } },
+          order_created_count: { values: { count: 900 } },
           order_create_success: { values: { rate: 1.0 } },
         },
       };
@@ -53,14 +55,16 @@ describe('T-29 k6 Load Test Configuration & Helpers', () => {
       expect(result.passOrderSuccess).toBe(true);
       expect(result.reportText).toContain('T-29 k6 부하 검증 결과 요약');
       expect(result.reportText).toContain('PRD N-06 기준 통과 (ALL PASS)');
-      expect(result.reportText).toContain('생성된 주문 수: 300 건');
+      expect(result.reportText).toContain('생성된 주문 수: 900 건');
       expect(result.summaryJson).toBeDefined();
     });
 
     it('generates FAIL summary report when failure rate or latency exceeds threshold', () => {
       const mockFailMetrics = {
         metrics: {
-          http_reqs: { values: { count: 900 } },
+          http_reqs: { values: { count: 2700 } },
+          completed_orders: { values: { count: 900 } },
+          checks: { values: { rate: 1 } },
           http_req_failed: { values: { rate: 0.05 } }, // 5% 실패
           http_req_duration: { values: { 'p(95)': 1500.0 } }, // 1.5초 지연
           menu_duration: { values: { 'p(95)': 500.0 } },
@@ -84,3 +88,4 @@ describe('T-29 k6 Load Test Configuration & Helpers', () => {
     });
   });
 });
+

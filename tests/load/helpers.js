@@ -32,10 +32,17 @@ export function evaluateSummary(data, options = {}) {
   const ordersCreated = data.metrics.order_created_count ? data.metrics.order_created_count.values.count : 0;
   const orderSuccessRate = data.metrics.order_create_success ? data.metrics.order_create_success.values.rate : 0;
 
-  const passFailed = reqFailedRate < 0.01;
-  const passP95 = p95Total < 1000;
-  const passOrderSuccess = orderSuccessRate >= 0.99;
-  const isAllPassed = passFailed && passP95 && passOrderSuccess;
+  const expected = targetRps * parseInt(duration, 10);
+  const passFailed = reqTotal > 0 && reqFailedRate === 0 && !!data.metrics.http_req_failed;
+  const passP95 = ['http_req_duration', 'menu_duration', 'order_create_duration', 'order_status_duration']
+    .every((name) => Number.isFinite(data.metrics[name]?.values['p(95)']) && data.metrics[name].values['p(95)'] < 1000);
+  const passOrderSuccess = orderSuccessRate === 1 && ordersCreated >= expected;
+  const complete = data.metrics.completed_orders?.values.count >= expected;
+  const checks = data.metrics.checks?.values.rate === 1;
+  const noDrops = (data.metrics.dropped_iterations?.values.count ?? 0) === 0;
+  const thresholds = Object.values(data.metrics).every((metric) =>
+    Object.values(metric.thresholds || {}).every((threshold) => threshold.ok === true));
+  const isAllPassed = targetRps === 30 && passFailed && passP95 && passOrderSuccess && complete && checks && noDrops && thresholds;
 
   const reportText = `
 ================================================================================
