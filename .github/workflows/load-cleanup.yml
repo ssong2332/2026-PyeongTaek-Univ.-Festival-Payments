@@ -35,3 +35,4 @@ jobs:
           done
           psql -v ON_ERROR_STOP=1 -f tests/load/local-only.sql
           psql -v ON_ERROR_STOP=1 -f tests/load/cleanup.test.sql
+          node tests/load/cleanup-race.mjs
