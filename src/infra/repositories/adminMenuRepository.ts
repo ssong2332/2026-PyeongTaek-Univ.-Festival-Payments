@@ -27,12 +27,67 @@ export function createSupabaseAdminMenuRepository(client: SupabaseClient): Admin
             return data ? toMenuItemRecord(data) : null;
         },
 
+        async createMenuItem(input) {
+            const inserted = await client.from("menu_items").insert({
+                base_price: input.basePrice,
+                stock: input.stock,
+                is_sold_out_manual: false,
+                is_active: true,
+                sort_order: input.sortOrder,
+            }).select("id").single();
+            if (inserted.error || !inserted.data?.id) throw internal();
+            const menuId = inserted.data.id as string;
+            const cleanup = async () => { await client.from("menu_items").delete().eq("id", menuId); };
+            try {
+                for (const translation of input.translations) {
+                    const { error } = await client.from("menu_item_translations").insert({
+                        menu_item_id: menuId, locale: translation.locale, name: translation.name,
+                        description: translation.description ?? null,
+                    });
+                    if (error) throw internal();
+                }
+                for (const group of input.optionGroups) {
+                    const createdGroup = await client.from("option_groups").insert({
+                        menu_item_id: menuId, min_select: group.minSelect, max_select: group.maxSelect,
+                        sort_order: group.sortOrder, is_active: true,
+                    }).select("id").single();
+                    if (createdGroup.error || !createdGroup.data?.id) throw internal();
+                    const groupId = createdGroup.data.id as string;
+                    for (const translation of group.translations) {
+                        const { error } = await client.from("option_group_translations").insert({
+                            option_group_id: groupId, locale: translation.locale, name: translation.name,
+                        });
+                        if (error) throw internal();
+                    }
+                    for (const option of group.options) {
+                        const createdOption = await client.from("options").insert({
+                            option_group_id: groupId, extra_price: option.extraPrice,
+                            sort_order: option.sortOrder, is_active: true,
+                        }).select("id").single();
+                        if (createdOption.error || !createdOption.data?.id) throw internal();
+                        const optionId = createdOption.data.id as string;
+                        for (const translation of option.translations) {
+                            const { error } = await client.from("option_translations").insert({
+                                option_id: optionId, locale: translation.locale, name: translation.name,
+                            });
+                            if (error) throw internal();
+                        }
+                    }
+                }
+                return menuId;
+            } catch (error) {
+                await cleanup();
+                throw error;
+            }
+        },
+
         async updateMenuItem(id, patch) {
             const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
             if (patch.basePrice !== undefined) row.base_price = patch.basePrice;
             if (patch.stock !== undefined) row.stock = patch.stock;
             if (patch.isRecommended !== undefined) row.is_recommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) row.is_sold_out_manual = patch.isSoldOutManual;
+            if (patch.isActive !== undefined) row.is_active = patch.isActive;
             const { data, error } = await client.from("menu_items").update(row).eq("id", id).select("id");
             if (error) throw internal();
             return (data ?? []).length > 0;
