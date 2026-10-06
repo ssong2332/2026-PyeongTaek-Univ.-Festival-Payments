@@ -349,12 +349,12 @@ function Clock3Text() {
 
 // 반죽색 종이 주문표: 집게 · 큰 픽업 번호 · 몇 분 전 · 메뉴 · 결제 · (결제대기면) 만료 막대 · (끝났으면) 도장
 function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now: number; selected: boolean; onSelect: () => void }) {
-    const minutesAgo = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
+    const minutesAgo = Math.max(0, Math.floor((now - new Date(orderTime(order)).getTime()) / 60000));
     const left = EXPIRE_MS - (now - new Date(order.createdAt).getTime());
     const stamp = STAMP[order.status];
     const unread = isUnacknowledged(order);
     return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
-        onClick={onSelect} aria-label={`${order.source === "manual" ? "수기" : "픽업"} ${orderNumber(order)} 주문 상세`} data-status={order.status}>
+        onClick={onSelect} aria-label={order.source === "manual" && order.manualNumber ? `수기 ${manualNumber(order.manualNumber)} 주문 상세` : `픽업 ${pickup(order.pickupNumber)} 주문 상세`} data-status={order.status}>
         <span aria-hidden="true" className={styles.clip} />
         <div className={styles.cardTop}><strong>{orderNumber(order)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(orderTime(order))}</span></div>
         <ul className={styles.lines}>{order.items.map((item, index) => <li key={index}><span>{item.menuNameKo}</span><span>×{item.quantity}</span></li>)}</ul>
