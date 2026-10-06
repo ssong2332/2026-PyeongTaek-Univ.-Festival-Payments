@@ -13,6 +13,7 @@ import { availableActions, resolveTransition } from "@/domain/order/stateMachine
 import { summarizeRatings } from "@/domain/review/summary";
 import { kstDate } from "@/domain/time/kst";
 import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
+import { AttentionLayer, orderAlert, staffAlert, useAttention } from "@/components/admin/AttentionLayer";
 
 async function loadPreviewStats(date: string) {
     const orders = makePreviewOrders().map(order => ({
@@ -151,7 +152,24 @@ export function DashboardPreview() {
     });
     const [menuApi] = useState(createPreviewMenuApi);
     function replace(next: AdminOrderDto[]) { current.current = next; setOrders(next); }
-    return <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<><MenuLifecyclePanel api={menuApi} /><MenuManagementPanel api={menuApi} /></>}
+    // 화면 알림 미리보기: 새 주문·직원 호출이 들어온 것처럼 알림만 띄운다(주문판 데이터는 그대로)
+    const attention = useAttention();
+    const demoCount = useRef(44);
+    function demoAlert(kind: "order" | "staff") {
+        demoCount.current += 1;
+        const pickupNumber = demoCount.current;
+        attention.push(kind === "order"
+            ? orderAlert({ id: `demo-${pickupNumber}`, pickupNumber, paymentMethod: "cash", totalAmount: 7000, items: [{ menuNameKo: "기본 호떡", quantity: 2 }, { menuNameKo: "뿌링클 호떡", quantity: 1 }] })
+            : staffAlert({ id: `demo-${pickupNumber}`, pickupNumber }));
+    }
+    return <>
+    <AttentionLayer alerts={attention.alerts} onDismiss={attention.dismiss} />
+    <div className="flex flex-wrap justify-end gap-2 px-4 pt-3 text-sm font-bold sm:px-6">
+        <span className="mr-auto self-center text-xs text-dough-dim">알림 미리보기</span>
+        <button type="button" onClick={() => demoAlert("order")} className="rounded-lg border border-syrup/50 px-3 py-2 text-syrup">새 주문 알림 시험</button>
+        <button type="button" onClick={() => demoAlert("staff")} className="rounded-lg border border-chili/50 px-3 py-2 text-chili">직원 호출 알림 시험</button>
+    </div>
+    <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<><MenuLifecyclePanel api={menuApi} /><MenuManagementPanel api={menuApi} /></>}
         onReload={async () => replace(makePreviewOrders())}
         onLoadStats={loadPreviewStats}
         onLoadReviews={loadPreviewReviews}
@@ -171,5 +189,6 @@ export function DashboardPreview() {
                 closedAt: result.restoreStock ? new Date().toISOString() : item.closedAt,
                 availableActions: availableActions({ status: result.to, paymentMethod: item.paymentMethod }),
             } : item));
-        }} />;
+        }} />
+    </>;
 }
