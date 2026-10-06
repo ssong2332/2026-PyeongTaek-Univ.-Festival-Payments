@@ -36,7 +36,7 @@ describe("getOperationsReport", () => {
         expect(OperationsReportSchema.safeParse(report).success).toBe(true);
         expect(report).toMatchObject({
             from: "2026-10-07", to: "2026-10-08", isEmpty: false,
-            total: { sales: 7000, orderCount: 2, refundedCount: 1, refundedAmount: 3500 },
+            periodTotal: { sales: 7000, orderCount: 2, refundedCount: 1, refundedAmount: 3500 },
             reviews: { count: 1, averageRating: 5, items: [{ displayNumber: "M-007", text: "좋아요" }] },
         });
         expect(report.days.map(day => day.sales)).toEqual([7000, 0]);
@@ -46,7 +46,7 @@ describe("getOperationsReport", () => {
         const repo = repository();
         const report = await getOperationsReport({ from: "2026-10-08", to: "2026-10-08" }, repo);
         expect(vi.mocked(repo.loadDailyStats).mock.calls).toEqual([["2026-10-08"]]);
-        expect(report.total.sales).toBe(0);
+        expect(report.periodTotal.sales).toBe(0);
         expect(report.reviews.count).toBe(0);
     });
 

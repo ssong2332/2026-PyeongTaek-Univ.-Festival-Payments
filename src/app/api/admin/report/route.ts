@@ -9,7 +9,7 @@ import { getOperationsReport, resolveReportDates, type ReportDateRange } from "@
 
 export const dynamic = "force-dynamic";
 
-// 기본은 축제 전체(CSV와 같은 FESTIVAL_DATES). from·to는 함께만 받는다.
+// 기본은 축제 기간(CSV와 같은 FESTIVAL_DATES, 10-07~10-08). from·to는 함께만 받는다.
 function parseReportRange(request: NextRequest): ReportDateRange {
     const params = request.nextUrl.searchParams;
     const fromValues = params.getAll("from");

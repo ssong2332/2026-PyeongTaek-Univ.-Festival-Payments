@@ -39,7 +39,9 @@ export const OperationsReportSchema = z.strictObject({
     // 기간 안 주문이 상태 무관 0건이면 true — 화면·PDF는 "데이터 없음" 리포트를 보여 준다
     isEmpty: z.boolean(),
     days: z.array(ReportDaySchema),
-    total: ReportSummarySchema,
+    // 기간 합계(from~to, 기본은 축제 기간) — 일별 값의 합. 메뉴 비율·별점 평균은 기간 값으로 다시 계산한다.
+    // 화면·PDF에서는 "전체"가 아니라 "축제 기간 합계"나 실제 기간(from~to)으로 표시한다(T-21 [전체]와 값이 다를 수 있음).
+    periodTotal: ReportSummarySchema,
     reviews: z.strictObject({
         count,
         // 후기 0건이면 null("후기 없음"), 그 밖은 소수 첫째 자리 반올림

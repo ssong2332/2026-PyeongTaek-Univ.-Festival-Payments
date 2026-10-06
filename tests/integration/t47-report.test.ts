@@ -28,7 +28,7 @@ test("T-47 report reuses get_stats per day, matches the CSV total, and lists in-
 
     // 사전조건: 이 기간에 다른 실행의 주문이 남아 있으면 비교가 틀어지므로 여기서 바로 실패한다.
     const before = await getOperationsReport(range, repository);
-    expect(before).toMatchObject({ isEmpty: true, total: { sales: 0 }, reviews: { count: 0, averageRating: null } });
+    expect(before).toMatchObject({ isEmpty: true, periodTotal: { sales: 0 }, reviews: { count: 0, averageRating: null } });
 
     try {
         await must(db.from("menu_items").insert({ id: menuId, base_price: 3000, stock: 10 }));
@@ -73,11 +73,11 @@ test("T-47 report reuses get_stats per day, matches the CSV total, and lists in-
             expect(day.sales).toBe(csv.sales);
         }
         const csv = buildOrdersCsv(await loadCsvOrders(db, range), range);
-        expect(report.total.sales).toBe(csv.sales);
+        expect(report.periodTotal.sales).toBe(csv.sales);
 
         expect(report.days.map(day => [day.date, day.sales])).toEqual([["2099-05-01", 9000], ["2099-05-02", 9000]]);
         expect(report.isEmpty).toBe(false);
-        expect(report.total).toMatchObject({
+        expect(report.periodTotal).toMatchObject({
             sales: 18_000, orderCount: 4, refundedAmount: 3000,
             cancelledCount: 1, refundedCount: 1, expiredCount: 1,
             byMenu: [{ menuItemId: menuId, nameKo: "리포트 호떡", quantity: 6, ratio: 1 }],

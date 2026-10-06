@@ -50,7 +50,7 @@ describe("GET /api/admin/report", () => {
         const body = await response.json();
         expect(OperationsReportSchema.safeParse(body).success).toBe(true);
         expect(body).toMatchObject({
-            from: "2026-10-07", to: "2026-10-08", isEmpty: false, total: { sales: 7000 },
+            from: "2026-10-07", to: "2026-10-08", isEmpty: false, periodTotal: { sales: 7000 },
             reviews: { count: 0, averageRating: null, items: [] },
         });
         expect(vi.mocked(repository.loadDailyStats).mock.calls).toEqual([["2026-10-07"], ["2026-10-08"]]);
@@ -62,7 +62,7 @@ describe("GET /api/admin/report", () => {
         const response = await GET(request("?from=2026-10-08&to=2026-10-08"));
         expect(response.status).toBe(200);
         const body = await response.json();
-        expect(body).toMatchObject({ from: "2026-10-08", to: "2026-10-08", isEmpty: true, total: { sales: 0 } });
+        expect(body).toMatchObject({ from: "2026-10-08", to: "2026-10-08", isEmpty: true, periodTotal: { sales: 0 } });
         expect(body.days).toHaveLength(1);
         expect(vi.mocked(repository.loadDailyStats).mock.calls).toEqual([["2026-10-08"]]);
     });

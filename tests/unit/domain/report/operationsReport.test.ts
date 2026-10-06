@@ -118,14 +118,14 @@ describe("buildOperationsReport", () => {
             ],
         });
         expect(report.days.map(d => [d.date, d.sales])).toEqual([["2026-10-07", 100_000], ["2026-10-08", 150_000]]);
-        expect(report.total.sales).toBe(250_000);
-        expect(report.total.refundedCount).toBe(1);
+        expect(report.periodTotal.sales).toBe(250_000);
+        expect(report.periodTotal.refundedCount).toBe(1);
         expect(report.reviews.count).toBe(3);
         expect(report.reviews.averageRating).toBe(4.3);
         expect(report.isEmpty).toBe(false);
     });
 
-    it("keeps daily and total sales equal to the T-21 aggregate and the T-22 CSV for the same orders", () => {
+    it("keeps daily and period-total sales equal to the T-21 aggregate and the T-22 CSV for the same orders", () => {
         const report = buildOperationsReport({
             from: FESTIVAL_DATES.from, to: FESTIVAL_DATES.to, dailyStats: dailyStatsOf(statsOrders), reviews,
         });
@@ -136,12 +136,12 @@ describe("buildOperationsReport", () => {
             expect(day.sales).toBe(stats.sales);
             expect(day.sales).toBe(csv.sales);
         }
-        expect(report.total.sales).toBe(buildOrdersCsv(csvOrders, FESTIVAL_DATES).sales);
-        expect(report.total.sales).toBe(report.days.reduce((sum, d) => sum + d.sales, 0));
+        expect(report.periodTotal.sales).toBe(buildOrdersCsv(csvOrders, FESTIVAL_DATES).sales);
+        expect(report.periodTotal.sales).toBe(report.days.reduce((sum, d) => sum + d.sales, 0));
 
         // 실제 값: 10-07 = 7,000 + 5,000 + 수기 10,500 / 10-08 = 10,000 + 8,500. 범위 밖 주문 2건은 빠진다.
         expect(report.days.map(d => d.sales)).toEqual([22_500, 18_500]);
-        expect(report.total).toEqual({
+        expect(report.periodTotal).toEqual({
             sales: 41_000,
             orderCount: 6,
             refundedAmount: 3500,
@@ -185,11 +185,11 @@ describe("buildOperationsReport", () => {
         expect(report.isEmpty).toBe(true);
         expect(report.days).toHaveLength(2);
         expect(report.days.every(d => d.sales === 0 && d.byMenu.length === 0)).toBe(true);
-        expect(report.total).toEqual({
+        expect(report.periodTotal).toEqual({
             sales: 0, orderCount: 0, refundedAmount: 0, cancelledCount: 0, refundedCount: 0, expiredCount: 0,
             totals: zeroTotals, byMenu: [],
         });
-        expect(report.total.sales).toBe(buildOrdersCsv([], FESTIVAL_DATES).sales);
+        expect(report.periodTotal.sales).toBe(buildOrdersCsv([], FESTIVAL_DATES).sales);
         expect(report.reviews).toEqual({ count: 0, averageRating: null, items: [] });
     });
 
@@ -207,7 +207,7 @@ describe("buildOperationsReport", () => {
             from: "2026-10-07", to: "2026-10-07", dailyStats: dailyStatsOf(onlyCancelled, ["2026-10-07"]), reviews: [],
         });
         expect(report.isEmpty).toBe(false);
-        expect(report.total).toMatchObject({ sales: 0, orderCount: 0, cancelledCount: 1, byMenu: [] });
+        expect(report.periodTotal).toMatchObject({ sales: 0, orderCount: 0, cancelledCount: 1, byMenu: [] });
     });
 
     it.each([
@@ -233,7 +233,7 @@ describe("buildOperationsReport", () => {
         const report = buildOperationsReport({
             from: FESTIVAL_DATES.from, to: FESTIVAL_DATES.to, dailyStats: dailyStatsOf(renamed), reviews: [],
         });
-        expect(report.total.byMenu).toEqual([{ menuItemId: MENU_A, nameKo: "가 호떡", quantity: 4, ratio: 1 }]);
+        expect(report.periodTotal.byMenu).toEqual([{ menuItemId: MENU_A, nameKo: "가 호떡", quantity: 4, ratio: 1 }]);
     });
 
     it("rejects daily stats that do not cover every report date in order", () => {

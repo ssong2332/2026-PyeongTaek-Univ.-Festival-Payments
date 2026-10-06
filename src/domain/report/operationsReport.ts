@@ -45,7 +45,8 @@ export interface OperationsReport {
     to: string;
     isEmpty: boolean;
     days: ReportDay[];
-    total: ReportSummary;
+    // 기간 합계(from~to) — 일별 값의 합
+    periodTotal: ReportSummary;
     reviews: { count: number; averageRating: number | null; items: ReportReviewItem[] };
 }
 
@@ -81,7 +82,7 @@ function toReportDay(summary: StatsSummary): ReportDay {
     };
 }
 
-// 날짜별 get_stats 결과를 더한다. 날짜 구간이 겹치지 않으므로 합계가 곧 기간 전체 값이다.
+// 날짜별 get_stats 결과를 더한다. 날짜 구간이 겹치지 않으므로 일별 값의 합이 곧 기간 합계다.
 function sumDays(days: readonly ReportDay[]): ReportSummary {
     const totals = emptyTotals();
     const menus = new Map<string, { nameKo: string; quantity: number }>();
@@ -162,15 +163,15 @@ export function buildOperationsReport(input: {
         throw new RangeError("daily stats must cover every report date in order");
     }
     const days = input.dailyStats.map(toReportDay);
-    const total = sumDays(days);
-    const orderTotal = ORDER_STATUSES.reduce((sum, status) => sum + total.totals[status], 0);
+    const periodTotal = sumDays(days);
+    const orderTotal = ORDER_STATUSES.reduce((sum, status) => sum + periodTotal.totals[status], 0);
 
     return {
         from: input.from,
         to: input.to,
         isEmpty: orderTotal === 0,
         days,
-        total,
+        periodTotal,
         reviews: summarizeReviews(input.reviews, new Set(dates)),
     };
 }
