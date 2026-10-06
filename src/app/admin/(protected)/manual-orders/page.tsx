@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useMenuAdmin } from "@/features/admin/useMenuAdmin";
 import { ManualOrderForm } from "@/features/admin/ManualOrderForm";
 import {
-    ManualOrderSaveError, toManualOrderMenu,
+    ManualOrderSaveError, manualOrderErrorCode, toManualOrderMenu,
     type ManualOrderRequest, type ManualOrderSaveResult,
 } from "@/features/admin/manualOrder";
 
@@ -16,12 +16,7 @@ async function saveManualOrder(request: ManualOrderRequest): Promise<ManualOrder
         body: JSON.stringify(request),
     });
     const body: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
-        const code = body && typeof body === "object" && "code" in body && typeof body.code === "string"
-            ? body.code
-            : undefined;
-        throw new ManualOrderSaveError(code);
-    }
+    if (!response.ok) throw new ManualOrderSaveError(manualOrderErrorCode(body));
     return body as ManualOrderSaveResult;
 }
 
