@@ -27,6 +27,11 @@ const time = (value: string) => new Date(value).toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
 });
 const pickup = (value: number) => String(value).padStart(3, "0");
+const manualNumber = (value: number) => `M-${String(value).padStart(3, "0")}`;
+const orderNumber = (order: AdminOrderDto) =>
+    order.source === "manual" && order.manualNumber ? manualNumber(order.manualNumber) : `#${pickup(order.pickupNumber)}`;
+const orderTime = (order: AdminOrderDto) =>
+    order.source === "manual" && order.manualOrderedAt ? order.manualOrderedAt : order.createdAt;
 // 주문표의 짧은 시각(KST HH:MM)
 const clockOf = (value: string) => new Date(value).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
@@ -253,11 +258,11 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                         {selected ? <motion.div key={selected.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}>
                             <button type="button" className={styles.back} onClick={() => setSelectedId(null)}>목록으로</button>
                             <div className={styles.pickup}>
-                                <span>픽업 번호</span>
-                                <strong>#{pickup(selected.pickupNumber)}</strong>
+                                <span>{selected.source === "manual" ? "수기 번호" : "픽업 번호"}</span>
+                                <strong>{orderNumber(selected)}</strong>
                                 <span className={styles.pickupStatus} data-status={selected.status}>{LABELS[selected.status]}</span>
                             </div>
-                            <div className={styles.info}><div>주문 시각<strong>{time(selected.createdAt)}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
+                            <div className={styles.info}><div>주문 시각<strong>{time(orderTime(selected))}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
                             <div className={styles.items}><h2>주문 내역</h2>{selected.items.map((item, index) => <div key={index}>
                                 <p><span>{item.menuNameKo} × {item.quantity}</span><strong>{money(item.lineTotal)}</strong></p>
                                 {item.options.map((option, i) => <small key={i}>{option.nameKo} (+{money(option.extraPrice)})</small>)}
@@ -349,11 +354,11 @@ function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now:
     const stamp = STAMP[order.status];
     const unread = isUnacknowledged(order);
     return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
-        onClick={onSelect} aria-label={`픽업 ${pickup(order.pickupNumber)} 주문 상세`} data-status={order.status}>
+        onClick={onSelect} aria-label={`${order.source === "manual" ? "수기" : "픽업"} ${orderNumber(order)} 주문 상세`} data-status={order.status}>
         <span aria-hidden="true" className={styles.clip} />
-        <div className={styles.cardTop}><strong>#{pickup(order.pickupNumber)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(order.createdAt)}</span></div>
+        <div className={styles.cardTop}><strong>{orderNumber(order)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(orderTime(order))}</span></div>
         <ul className={styles.lines}>{order.items.map((item, index) => <li key={index}><span>{item.menuNameKo}</span><span>×{item.quantity}</span></li>)}</ul>
-        <div className={styles.cardMeta}><span>{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><span className={styles.badge}>{LABELS[order.status]}</span></div>
+        <div className={styles.cardMeta}><span>{order.source === "manual" ? "수기 입력 · " : ""}{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><span className={styles.badge}>{LABELS[order.status]}</span></div>
         {order.status === "pending" && left > 0 && <span className={styles.expiry} data-urgent={left < 2 * 60 * 1000 || undefined}>
             <span className={styles.expiryTrack}><span className={styles.expiryFill} style={{ width: `${(left / EXPIRE_MS) * 100}%` }} /></span>
             <span>만료까지 {Math.floor(left / 60000)}:{String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}</span>
