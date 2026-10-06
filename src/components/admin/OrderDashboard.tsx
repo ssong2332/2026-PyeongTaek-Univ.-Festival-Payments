@@ -6,6 +6,7 @@ import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, 
 import { sharedLayoutId } from "@/components/motion/presets";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import type { AdminReviewsResponse } from "@/lib/dto/review";
 import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
@@ -44,6 +45,8 @@ export interface OrderDashboardProps {
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onLoadStats: (date: string) => Promise<StatsDto>;
+    // T-42 매출 통계 화면의 후기 목록. 없으면 후기 영역을 숨긴다.
+    onLoadReviews?: (date: string) => Promise<AdminReviewsResponse>;
     onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
     settingsPanel?: ReactNode;
     // T-20 메뉴·재고 관리 화면. 없으면 탭을 숨긴다.
@@ -53,7 +56,7 @@ export interface OrderDashboardProps {
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel, menuPanel, onCancelRequestDecision }: OrderDashboardProps) {
+    onReload, onAcknowledge, onSearch, onLoadStats, onLoadReviews, onTransition, settingsPanel, menuPanel, onCancelRequestDecision }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders" | "menus" | "stats" | "settings">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -199,7 +202,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
 
         <div className={styles.content}>
-            {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : page === "menus" ? menuPanel : <>
+            {page === "stats" ? <StatsPanel loadStats={onLoadStats} loadReviews={onLoadReviews} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : page === "menus" ? menuPanel : <>
                 <div className={styles.heading}>
                     <div>
                         <p className={styles.eyebrow}>{pageTitle}</p>

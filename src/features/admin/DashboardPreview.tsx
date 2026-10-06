@@ -6,9 +6,12 @@ import { MenuManagementPanel, type MenuAdminApi } from "@/components/admin/MenuM
 import { SettingsPanel, type SettingsApi } from "@/components/admin/SettingsPanel";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
+import type { AdminReviewDto, AdminReviewsResponse } from "@/lib/dto/review";
 import { aggregateStats } from "@/domain/stats/aggregate";
 import { aggregateHourlyMenuSales } from "@/domain/stats/hourlySales";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
+import { summarizeRatings } from "@/domain/review/summary";
+import { kstDate } from "@/domain/time/kst";
 
 async function loadPreviewStats(date: string) {
     const orders = makePreviewOrders().map(order => ({
@@ -19,6 +22,19 @@ async function loadPreviewStats(date: string) {
         })),
     }));
     return { ...aggregateStats(orders, date), hourlyByMenu: aggregateHourlyMenuSales(orders, date) };
+}
+
+// 목업 후기(메모리) — 통계 화면의 후기 영역을 DB 없이 볼 수 있게 한다.
+async function loadPreviewReviews(date: string): Promise<AdminReviewsResponse> {
+    const reviews: AdminReviewDto[] = [
+        { orderId: "00000000-0000-4000-8000-000000000004", pickupNumber: 4, manualNumber: null, rating: 5,
+            text: "말차 화이트초코 호떡 최고예요! 또 올게요", createdAt: "2026-09-25T10:40:00.000Z" },
+        { orderId: "00000000-0000-4000-8000-000000000005", pickupNumber: 2_100_000_001, manualNumber: 1, rating: 4,
+            text: null, createdAt: "2026-09-25T10:35:00.000Z" },
+        { orderId: "00000000-0000-4000-8000-000000000006", pickupNumber: 6, manualNumber: null, rating: 4,
+            text: "줄이 조금 길었지만 맛있었어요", createdAt: "2026-09-25T10:20:00.000Z" },
+    ].filter(review => date === "all" || kstDate(review.createdAt) === date);
+    return { date, ...summarizeRatings(reviews.map(review => review.rating)), reviews };
 }
 
 export function makePreviewOrders(): AdminOrderDto[] {
@@ -117,6 +133,7 @@ export function DashboardPreview() {
     return <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<MenuManagementPanel api={menuApi} />}
         onReload={async () => replace(makePreviewOrders())}
         onLoadStats={loadPreviewStats}
+        onLoadReviews={loadPreviewReviews}
         onSearch={async number => current.current.filter(order => order.pickupNumber === number)}
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {
             ...order, acknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
