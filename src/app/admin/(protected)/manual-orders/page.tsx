@@ -4,7 +4,26 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { useMenuAdmin } from "@/features/admin/useMenuAdmin";
 import { ManualOrderForm } from "@/features/admin/ManualOrderForm";
-import { toManualOrderMenu } from "@/features/admin/manualOrder";
+import {
+    ManualOrderSaveError, toManualOrderMenu,
+    type ManualOrderRequest, type ManualOrderSaveResult,
+} from "@/features/admin/manualOrder";
+
+async function saveManualOrder(request: ManualOrderRequest): Promise<ManualOrderSaveResult> {
+    const response = await fetch("/api/admin/manual-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+        const code = body && typeof body === "object" && "code" in body && typeof body.code === "string"
+            ? body.code
+            : undefined;
+        throw new ManualOrderSaveError(code);
+    }
+    return body as ManualOrderSaveResult;
+}
 
 export default function ManualOrdersPage() {
     const admin = useMenuAdmin();
@@ -20,7 +39,7 @@ export default function ManualOrdersPage() {
                 관리자 메뉴를 불러오지 못했습니다. <button type="button" onClick={() => void admin.reload()} className="underline">다시 시도</button>
             </div>}
             {admin.status === "ready" && (items.length > 0
-                ? <ManualOrderForm menu={items} />
+                ? <ManualOrderForm menu={items} onSave={saveManualOrder} />
                 : <p role="status">입력할 수 있는 메뉴가 없습니다.</p>)}
         </div>
     );
