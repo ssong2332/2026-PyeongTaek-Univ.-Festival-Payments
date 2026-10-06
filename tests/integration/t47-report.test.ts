@@ -43,11 +43,14 @@ test("T-47 report reuses get_stats per day, matches the CSV total, and lists in-
             order(ids.expired, 3, "expired", "2099-05-01T07:00:00Z", 1),
             order(ids.completed, 4, "completed", "2099-05-01T15:00:00Z", 3), // KST 05-02 00:00
             order(ids.outside, 5, "completed", "2099-05-02T15:00:00Z", 1),   // KST 05-03 — 범위 밖
-            // 05-02에 입력한 05-01 종이 주문 — 매출 날짜는 manual_ordered_at(05-01)
-            { ...order(ids.manual, 0, "completed", "2099-05-02T03:00:00Z", 1),
-                pickup_number: 2_100_000_000 + manualNumber, source: "manual",
-                manual_ordered_at: "2099-05-01T03:00:00Z", manual_number: manualNumber },
         ]));
+        // 여러 행 insert는 키 합집합으로 보내 빠진 source가 NULL이 되므로 수기 주문은 따로 넣는다.
+        // 05-02에 입력한 05-01 종이 주문 — 매출 날짜는 manual_ordered_at(05-01)
+        await must(db.from("orders").insert({
+            ...order(ids.manual, 0, "completed", "2099-05-02T03:00:00Z", 1),
+            pickup_number: 2_100_000_000 + manualNumber, source: "manual",
+            manual_ordered_at: "2099-05-01T03:00:00Z", manual_number: manualNumber,
+        }));
         const quantities: [string, number][] = [[ids.paid, 2], [ids.refunded, 1], [ids.cancelled, 1],
             [ids.expired, 1], [ids.completed, 3], [ids.outside, 1], [ids.manual, 1]];
         await must(db.from("order_items").insert(quantities.map(([orderId, quantity]) => ({
