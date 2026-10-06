@@ -57,6 +57,9 @@
 
 - `npm run test` 1193 통과 · `npm run test:integration` 226 통과(T-28 23개 포함) · `typecheck` 0 · `build` 통과 · `lint` 오류 0(경고 1건은 기존 `src/app/api/admin/settings/route.ts` — 이 PR과 무관)
 - 운영 DB는 사용하지 않았다(로컬 DB만).
+- 운영 적용 순서 재현(로컬): 0104가 없는 상태의 DB에 상태별 고객 주문 6건을 넣고 0104를 적용 → 오류 없음, 기존 주문은 모두 `source='customer'`·수기 칸 NULL, `get_stats` 결과가 적용 전후 동일, `get_stats`·`create_manual_order` 실행 권한은 service_role만.
+- 실제 seed 메뉴·옵션으로 DB 함수 직접 호출: M-001 저장(재고 100 → 98, `pickup_number` 2100000001, 고객 픽업 카운터 0 그대로), 같은 번호의 다른 요청은 `MANUAL_NUMBER_TAKEN`, 어제 날짜로 넣은 주문이 어제 매출에만 잡힘.
+- 회귀: `npm run test:e2e`(T-24 시나리오) 5 passed·1 skipped — `AdminOrderDto`에 필드를 더한 뒤에도 대시보드 흐름이 그대로 동작.
 - Red-First: 0104를 적용하기 전 DB에서 통합 테스트 23개 중 21개가 "함수 없음"으로 실패하는 것을 확인한 뒤 적용했다(나머지 2개는 고객 주문 날짜·권한 거부라 적용 전에도 성립).
 - 일부러 망가뜨려 실패 확인(모두 원복, DB 함수는 본문 조회로 확인):
   - 재고를 0에서 멈추지 않게 함 → 재고 테스트 2개 실패
