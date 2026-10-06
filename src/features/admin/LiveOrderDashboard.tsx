@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AttentionLayer, orderAlert, staffAlert, useAttention } from "@/components/admin/AttentionLayer";
+import { AttentionLayer, orderAlert, shouldAlertNewOrder, staffAlert, useAttention } from "@/components/admin/AttentionLayer";
 import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
 import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
@@ -38,6 +38,7 @@ export function LiveOrderDashboard() {
 
     const feed = useOrdersFeed({
         onNewOrder: (order) => {
+            if (!shouldAlertNewOrder(order)) return;
             void sound.play();
             attention.push(orderAlert(order));
         },
