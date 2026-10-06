@@ -57,6 +57,7 @@ export function toAdminMenuDto(record: MenuItemRecord): AdminMenuDto {
         translations,
         basePrice: record.basePrice,
         stock: record.stock,
+        isRecommended: record.isRecommended,
         isSoldOutManual: record.isSoldOutManual,
         isActive: record.isActive,
         sortOrder: record.sortOrder,
@@ -93,6 +94,7 @@ export async function updateAdminMenu(menuItemId: string, patch: AdminMenuPatch,
     const exists = await repository.updateMenuItem(menuItemId, {
         basePrice: patch.basePrice,
         stock: patch.stock,
+        isRecommended: patch.isRecommended,
         isSoldOutManual: patch.isSoldOutManual,
     });
     if (!exists) throw new AppError("NOT_FOUND", 404);

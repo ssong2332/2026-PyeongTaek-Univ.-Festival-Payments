@@ -37,6 +37,7 @@ function menu(overrides: Partial<MenuItemRecord> = {}): MenuItemRecord {
         id: MENU_ID,
         basePrice: 2000,
         stock: 10,
+        isRecommended: false,
         isSoldOutManual: false,
         isActive: true,
         sortOrder: 1,
@@ -69,6 +70,7 @@ describe("listAdminMenus — GET /api/admin/menus", () => {
             translations: { ko: { name: "기본 호떡", description: "꿀 호떡" }, en: { name: "Original Hotteok", description: null } },
             basePrice: 2000,
             stock: 10,
+            isRecommended: false,
             isSoldOutManual: false,
             isActive: true,
             sortOrder: 1,
@@ -94,6 +96,14 @@ describe("listAdminMenus — GET /api/admin/menus", () => {
 });
 
 describe("updateAdminMenu — PATCH /api/admin/menus/{id}", () => {
+    it("추천 값만 바꾸고 가격·재고·품절 상태를 보존한다", async () => {
+        const { repository } = createFakeAdminMenuRepository([menu()]);
+        const enabled = await updateAdminMenu(MENU_ID, { isRecommended: true }, repository);
+        expect(enabled).toMatchObject({ isRecommended: true, basePrice: 2000, stock: 10, isSoldOutManual: false });
+        const disabled = await updateAdminMenu(MENU_ID, { isRecommended: false }, repository);
+        expect(disabled).toMatchObject({ isRecommended: false, basePrice: 2000, stock: 10, isSoldOutManual: false });
+    });
+
     it("가격·재고·수동 품절·이름/설명을 바꾸고 고친 뒤의 메뉴를 돌려준다", async () => {
         const { repository } = createFakeAdminMenuRepository([menu()]);
 

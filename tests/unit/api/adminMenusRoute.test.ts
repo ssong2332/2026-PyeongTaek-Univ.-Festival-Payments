@@ -28,6 +28,7 @@ const menu: AdminMenuDto = {
     translations: { ko: { name: "기본 호떡", description: null }, en: { name: "Original Hotteok", description: null } },
     basePrice: 2000,
     stock: 10,
+    isRecommended: false,
     isSoldOutManual: false,
     isActive: true,
     sortOrder: 0,
@@ -74,6 +75,12 @@ describe("GET /api/admin/menus", () => {
 
 describe("PATCH /api/admin/menus/[id]", () => {
     const patch = (body: unknown, id = MENU_ID) => send(patchMenu, "/api/admin/menus", id, body);
+
+    it("추천 ON/OFF 값을 관리자 메뉴 서비스에 전달한다", async () => {
+        const result = await patch({ isRecommended: true });
+        expect(result.status).toBe(200);
+        expect(updateAdminMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: true }, expect.anything());
+    });
 
     it("검사를 통과한 값(이름은 앞뒤 공백 제거)을 서비스에 넘기고 200 AdminMenuDto", async () => {
         const result = await patch({ basePrice: 2500, stock: 0, isSoldOutManual: true, translations: { ko: { name: "  꿀 호떡 " } } });

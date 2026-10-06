@@ -23,8 +23,8 @@ export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItem
                 <p className="text-xs text-dough-dim">밀어서 보기</p>
             </div>
             <div className="feat-track flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pt-1 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {items.map((item, index) => (
-                    <FeaturedCard key={item.id} item={item} rank={index + 1} onSelect={() => onSelect(item.id)} />
+                {items.map((item) => (
+                    <FeaturedCard key={item.id} item={item} onSelect={() => onSelect(item.id)} />
                 ))}
                 {/* 마지막 카드도 가운데까지 밀 수 있게 여백 */}
                 <span className="w-[14%] shrink-0" />
@@ -33,7 +33,7 @@ export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItem
     );
 }
 
-function FeaturedCard({ item, rank, onSelect }: { item: MenuItemDto; rank: number; onSelect: () => void }) {
+function FeaturedCard({ item, onSelect }: { item: MenuItemDto; onSelect: () => void }) {
     // 손가락·마우스 위치 → 카드 기울기(스프링) + 빛 위치
     const px = useMotionValue(0.5);
     const py = useMotionValue(0.5);
@@ -85,7 +85,7 @@ function FeaturedCard({ item, rank, onSelect }: { item: MenuItemDto; rank: numbe
                 <span className="sheen pointer-events-none absolute inset-0" />
                 <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-[#140a07]/70 px-2.5 py-1 text-[11px] font-bold tracking-wide text-[#ffd27a] backdrop-blur">
                     <FlameIcon className="size-3.5" />
-                    BEST {rank}
+                    오늘의 추천
                 </span>
                 <span className="absolute inset-x-0 bottom-0 flex items-end gap-2 p-4" style={{ transform: "translateZ(30px)" }}>
                     <span className="min-w-0 flex-1">

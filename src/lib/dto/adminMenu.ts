@@ -43,6 +43,7 @@ export const AdminMenuSchema = z.object({
     translations: z.record(z.string(), MenuTranslationSchema),
     basePrice: z.number().int(),
     stock: z.number().int(),
+    isRecommended: z.boolean(),
     isSoldOutManual: z.boolean(),
     isActive: z.boolean(),
     sortOrder: z.number().int(),
@@ -83,6 +84,7 @@ export const AdminMenuPatchSchema = z
     .strictObject({
         basePrice: z.number().int().min(0).max(ADMIN_MENU_LIMITS.priceMax).optional(),
         stock: z.number().int().min(0).max(ADMIN_MENU_LIMITS.stockMax).optional(),
+        isRecommended: z.boolean().optional(),
         isSoldOutManual: z.boolean().optional(),
         translations: translationsPatch(MenuTranslationPatchSchema).optional(),
     })

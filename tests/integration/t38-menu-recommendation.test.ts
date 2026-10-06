@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
+import { createSupabaseAdminMenuRepository } from "@/infra/repositories/adminMenuRepository";
+import { createSupabaseMenuRepository } from "@/infra/repositories/supabaseMenuRepository";
+import { listAdminMenus, updateAdminMenu } from "@/services/adminMenuService";
+import { getMenu } from "@/services/menuService";
 
 const db = createServiceClient();
 const ids = [randomUUID(), randomUUID()];
@@ -16,6 +20,10 @@ const admin = createClient(url, key, { auth });
 beforeAll(async () => {
     const inserted = await db.from("menu_items").insert(ids.map((id) => ({ id, base_price: 3000, stock: 5 })));
     if (inserted.error) throw inserted.error;
+    const translated = await db.from("menu_item_translations").insert(ids.map((id, index) => ({
+        menu_item_id: id, locale: "ko", name: `통합 추천 호떡 ${index + 1}`,
+    })));
+    if (translated.error) throw translated.error;
     const email = `${prefix}@example.test`;
     const password = randomUUID();
     const created = await db.auth.admin.createUser({ email, password, email_confirm: true });
@@ -50,6 +58,29 @@ test("추천 ON/OFF는 가격·재고·활성·수동 품절 상태를 보존", 
             is_recommended: recommended, base_price: 3000, stock: 5, is_active: true, is_sold_out_manual: false,
         });
     }
+});
+
+test("관리자 메뉴 저장 서비스에서 추천 값을 저장하고 재조회한다", async () => {
+    const repository = createSupabaseAdminMenuRepository(db);
+    const enabled = await updateAdminMenu(ids[0], { isRecommended: true }, repository);
+    expect(enabled).toMatchObject({ isRecommended: true, basePrice: 3000, stock: 5, isSoldOutManual: false });
+    const listed = await listAdminMenus(repository);
+    expect(listed.menus.find((menu) => menu.id === ids[0])?.isRecommended).toBe(true);
+    const disabled = await updateAdminMenu(ids[0], { isRecommended: false }, repository);
+    expect(disabled.isRecommended).toBe(false);
+});
+
+test("관리자 추천 ON/OFF가 고객 메뉴 조회에 반영되고 0개도 유지된다", async () => {
+    const adminRepository = createSupabaseAdminMenuRepository(db);
+    const customerRepository = createSupabaseMenuRepository(db);
+    const orderRepository = { countWaitingBefore: async () => 0 };
+    await updateAdminMenu(ids[0], { isRecommended: true }, adminRepository);
+    const enabled = await getMenu("ko", { menuRepository: customerRepository, orderRepository });
+    expect(enabled.items.find((item) => item.id === ids[0])?.isRecommended).toBe(true);
+    expect(enabled.items.find((item) => item.id === ids[1])?.isRecommended).toBe(false);
+    await updateAdminMenu(ids[0], { isRecommended: false }, adminRepository);
+    const disabled = await getMenu("ko", { menuRepository: customerRepository, orderRepository });
+    expect(disabled.items.filter((item) => ids.some((id) => id === item.id)).every((item) => !item.isRecommended)).toBe(true);
 });
 
 test("추천 메뉴는 여러 개 또는 0개를 허용", async () => {

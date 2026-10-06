@@ -16,6 +16,7 @@ function menu(id: string, overrides: Partial<MenuItemDto> = {}): MenuItemDto {
         description: null,
         price: id === CHEESE ? 2500 : 2000,
         stock: 10,
+        isRecommended: false,
         isAvailable: true,
         isSoldOut: false,
         imageUrl: null,

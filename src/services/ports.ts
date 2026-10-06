@@ -146,6 +146,7 @@ export interface MenuItemRecord {
     id: string;
     basePrice: number;
     stock: number;
+    isRecommended: boolean;
     isSoldOutManual: boolean;
     isActive: boolean;
     sortOrder: number;
@@ -164,6 +165,7 @@ export interface MenuRepository {
 export interface MenuItemPatch {
     basePrice?: number;
     stock?: number;
+    isRecommended?: boolean;
     isSoldOutManual?: boolean;
 }
 
