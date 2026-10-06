@@ -9,6 +9,8 @@
     color: var(--dough); font-family: inherit;
 }
 .shell * { box-sizing: border-box; }
+/* 한글은 낱말 중간에서 줄이 갈리지 않게("호출했습/니다" 방지) */
+.shell { word-break: keep-all; overflow-wrap: anywhere; }
 .shell button { cursor: pointer; font: inherit; color: inherit; }
 .shell button:disabled { cursor: not-allowed; opacity: .55; }
 .shell button:focus-visible, .shell input:focus-visible, .shell textarea:focus-visible, .shell select:focus-visible { outline: 2px solid var(--syrup); outline-offset: 3px; }
@@ -23,7 +25,7 @@
 .brand b { font-family: var(--font-display); font-weight: 400; font-size: 20px; letter-spacing: -.01em; }
 .brandMark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(140deg, #ffd58a, var(--syrup) 50%, var(--syrup2)); color: var(--molasses); box-shadow: 0 0 20px rgba(255, 181, 71, .35); }
 .tabs { display: flex; gap: 4px; padding: 4px; margin-left: 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--iron2); }
-.tabs button { position: relative; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--dim); transition: color .25s; }
+.tabs button { position: relative; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--dim); white-space: nowrap; transition: color .25s; }
 .tabs button[aria-current] { color: var(--molasses); }
 .tabs button > :not(.tabPill) { position: relative; }
 .tabPill { position: absolute; inset: 0; border-radius: 999px; background: var(--syrup); box-shadow: 0 0 18px rgba(255, 181, 71, .45); }
@@ -188,13 +190,19 @@
 }
 @media (max-width: 720px) {
     .topbar { flex-wrap: wrap; padding: 10px 14px; }
-    .tabs { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
-    .tabs button { flex: 1; justify-content: center; padding: 8px 10px; font-size: 13px; }
+    /* 탭 이름은 절대 두 줄로 깨지지 않는다 — 다 안 들어가면 탭 줄을 옆으로 밀어 넘긴다 */
+    .tabs { order: 3; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs button { flex: 1 0 auto; justify-content: center; padding: 8px 12px; font-size: 13px; scroll-snap-align: start; }
     .content { padding: 16px 14px 40px; }
 }
-/* 폭 좁은 휴대폰: 탭이 5개(메뉴·재고 포함)여도 한 줄에 들어가게 아이콘을 빼고 여백을 줄인다 */
+/* 휴대폰 폭: 탭 5개(메뉴·재고 포함)가 한 줄에 들어가게 아이콘을 빼고 여백을 줄인다 */
+@media (max-width: 560px) {
+    .tabs button { padding: 8px 8px; gap: 3px; }
+    .tabs button svg { display: none; }
+}
 @media (max-width: 420px) {
-    .tabs button { padding: 8px 4px; font-size: 12px; white-space: nowrap; gap: 3px; }
+    .tabs button { padding: 8px 6px; font-size: 12px; }
     .tabs .tabCount { min-width: 16px; height: 16px; font-size: 10px; }
     .tabs button svg { display: none; }
     .heading h1 { font-size: 26px; }
