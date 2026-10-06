@@ -52,17 +52,17 @@ describe("T-28 manual order input", () => {
     });
 
     it("builds a KST timestamp and calculates option price and cumulative shortage", () => {
-        const request = toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY);
+        const request = toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY, 1);
         expect(request?.manualOrderedAt).toBe("2026-10-03T11:00:00.000Z");
-        expect(request?.items).toEqual([{ menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] }]);
+        expect(request?.manualNumber).toBe(1);\n        expect(request?.items).toEqual([{ menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] }]);
         expect(manualOrderTotal([line], menu)).toBe(7000);
         expect(manualOrderShortages([line], menu)).toEqual(["호떡"]);
     });
 
     it("rejects missing required options, impossible dates, and future dates", () => {
-        expect(toManualOrderRequest([{ ...line, optionIds: [] }], menu, "cash", "2026-10-03T20:00", KEY)).toBeNull();
-        expect(toManualOrderRequest([line], menu, "cash", "2026-02-30T20:00", KEY)).toBeNull();
-        expect(toManualOrderRequest([line], menu, "cash", "2099-01-01T10:00", KEY)).toBeNull();
+        expect(toManualOrderRequest([{ ...line, optionIds: [] }], menu, "cash", "2026-10-03T20:00", KEY, 1)).toBeNull();
+        expect(toManualOrderRequest([line], menu, "cash", "2026-02-30T20:00", KEY, 1)).toBeNull();
+        expect(toManualOrderRequest([line], menu, "cash", "2099-01-01T10:00", KEY, 1)).toBeNull();
     });
 
     it("keeps save unavailable when backend is not connected", () => {
@@ -73,7 +73,7 @@ describe("T-28 manual order input", () => {
 
     it("allows one seasoning and an independent sauce in the finalized menu", () => {
         render(<ManualOrderForm menu={menu} />);
-        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
+        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });\n        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });\n        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
         fireEvent.click(screen.getByLabelText(/콩가루/));
         fireEvent.click(screen.getByLabelText(/불닭 소스 \(\+500원\)/));
@@ -88,7 +88,7 @@ describe("T-28 manual order input", () => {
         const onSave = vi.fn()
             .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }))
             .mockResolvedValueOnce(undefined);
-        render(<ManualOrderForm menu={menu} onSave={onSave} />);
+        render(<ManualOrderForm menu={menu} onSave={onSave as never} />);
         fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
         fireEvent.change(screen.getByLabelText("종이 주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
