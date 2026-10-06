@@ -52,7 +52,7 @@ export default function CheckoutPage() {
         );
     } else if (hydrated && items.length === 0 && !checkout.submitting) {
         body = (
-            <EmptyState title={t("cart.empty")} mascot="run">
+            <EmptyState title={t("cart.empty")} icon="bag">
                 <Link
                     href="/"
                     className="iron-card rounded-full px-5 py-2.5 text-sm font-bold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"

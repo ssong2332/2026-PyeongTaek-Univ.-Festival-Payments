@@ -4,8 +4,12 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { BACK_LINK_CLASS, PageHeader } from "@/components/customer/PageHeader";
 import { ChevronLeftIcon, ExternalLinkIcon, ImageIcon } from "@/components/ui/icons";
+import { CUSTOMER_ICON_CREDITS } from "@/features/customer/customerIcons";
 import { FESTIVAL_CREDITS } from "@/features/festival/festivalArt";
 import { useT } from "@/lib/i18n/locale";
+
+// 축제 장식 그림 + 고객 화면 일러스트 아이콘
+const CREDITS = [...FESTIVAL_CREDITS, ...CUSTOMER_ICON_CREDITS];
 
 // 축제 이펙트 그림(public/festival) 출처 — Flaticon 무료 라이선스의 출처 표기 의무를 지킨다. 화면 언어로 보인다.
 // 그림은 크림색 타일 위에 올려 검은 실루엣도 보이게 하고, 타일이 차례로 떠오른다.
@@ -39,11 +43,11 @@ export function CreditsList() {
                         </a>
                         {t("credits.introAfter")}
                     </p>
-                    <p className="fest-hint font-num mt-3">{t("credits.count", { count: FESTIVAL_CREDITS.length })}</p>
+                    <p className="fest-hint font-num mt-3">{t("credits.count", { count: CREDITS.length })}</p>
                 </section>
 
                 <ul className="grid grid-cols-2 gap-3">
-                    {FESTIVAL_CREDITS.map((credit, index) => (
+                    {CREDITS.map((credit, index) => (
                         <motion.li
                             key={credit.file}
                             initial={{ opacity: 0, y: 16 }}
@@ -54,7 +58,7 @@ export function CreditsList() {
                         >
                             <span aria-hidden="true" className="flex h-24 items-center justify-center bg-[radial-gradient(circle_at_50%_40%,#fff6e6,#f2dcbc)] p-3">
                                 {/* eslint-disable-next-line @next/next/no-img-element -- 작은 정적 그림 */}
-                                <img src={`/festival/${credit.file}.webp`} alt="" loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-[0_4px_8px_rgba(80,40,10,0.25)]" />
+                                <img src={credit.src ?? `/festival/${credit.file}.webp`} alt="" loading="lazy" className="max-h-full max-w-full object-contain drop-shadow-[0_4px_8px_rgba(80,40,10,0.25)]" />
                             </span>
                             <span className="flex flex-1 flex-col gap-1 p-3">
                                 <span className="font-display truncate text-[15px] leading-tight text-dough">{credit.title}</span>

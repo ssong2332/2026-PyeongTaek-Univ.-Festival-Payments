@@ -3,7 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { SPRING_BOUNCY } from "@/components/motion/presets";
-import { BankIcon, CheckIcon } from "@/components/ui/icons";
+import { ArtIcon } from "@/components/ui/ArtIcon";
+import { CheckIcon } from "@/components/ui/icons";
 import { useTransferReport } from "@/features/customer/useTransferReport";
 import { useTransferSettings } from "@/features/customer/useTransferSettings";
 import { formatWon } from "@/lib/format";
@@ -57,7 +58,7 @@ export function TransferGuide({
     <section aria-labelledby="transfer-guide" className={CARD}>
       <div className="flex items-center justify-between">
         <h2 id="transfer-guide" className="font-display flex items-center gap-2 text-xl text-dough">
-          <BankIcon className="size-5 text-syrup" />
+          <ArtIcon name="bank" size={30} motion="float" />
           {t("transfer.title")}
         </h2>
       </div>

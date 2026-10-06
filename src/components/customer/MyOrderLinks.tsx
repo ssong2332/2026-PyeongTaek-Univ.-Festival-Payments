@@ -6,6 +6,7 @@ import { SPRING } from "@/components/motion/presets";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { formatPickupNumber } from "./PickupNumberDisplay";
 import { useT } from "@/lib/i18n/locale";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 
 export interface MyOrderLink {
     statusToken: string;
@@ -26,7 +27,7 @@ export function MyOrderLinks({ orders }: { orders: readonly MyOrderLink[] }) {
             className="glow-border rounded-2xl border border-syrup/25 bg-iron-2 bg-[radial-gradient(120%_120%_at_0%_0%,rgba(255,181,71,0.16),transparent_60%)] px-4 py-3.5"
         >
             <h2 id="my-orders-title" className="flex items-center gap-2 text-sm font-bold text-syrup">
-                <span className="pulse-dot size-2 rounded-full bg-syrup" />
+                <ArtIcon name="receipt" size={24} motion="wiggle" />
                 {t("myOrders.title")}
             </h2>
             <ul className="mt-2.5 flex flex-col gap-2">

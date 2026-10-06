@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CartSummary } from "@/components/customer/CartSummary";
 import { OrderJourney } from "@/components/customer/OrderJourney";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { BACK_LINK_CLASS, PageHeader } from "@/components/customer/PageHeader";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import { BottomBar } from "@/components/ui/BottomBar";
@@ -49,7 +49,7 @@ export default function CartPage() {
             {hydrated && items.length > 0 && <OrderJourney step={0} />}
             <div className="flex flex-col gap-3 px-4 pt-4">
                 {hydrated && items.length === 0 && (
-                    <EmptyState title={t("cart.empty")} mascot="run">
+                    <EmptyState title={t("cart.empty")} icon="bag">
                         <Link href="/" className="iron-card rounded-full px-5 py-2.5 text-sm font-bold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup">
                             {t("cart.backToMenu")}
                         </Link>
@@ -72,12 +72,14 @@ export default function CartPage() {
                         )}
                         <CartSummary lines={lines} onQuantityChange={update} onRemove={remove} />
                         <p aria-hidden="true" className="fest-hint mx-auto">{t("cart.swipeHint")}</p>
-                        {/* 더 담기: 호떡이가 메뉴판 쪽으로 손짓한다 */}
+                        {/* 더 담기: 호떡 아이콘이 둥실 떠 있고, 누르면 메뉴판으로 */}
                         <Link
                             href="/"
                             className="group fest-glass relative mt-1 flex items-center gap-3 overflow-hidden rounded-3xl border-dashed p-3 pr-4 transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
                         >
-                            <HotteokMascot variant="hello" size={56} motion="sway" />
+                            <span className="flex size-14 items-center justify-center rounded-2xl bg-syrup/12">
+                                <ArtIcon name="hotteok" size={42} motion="float" />
+                            </span>
                             <span className="flex flex-1 flex-col">
                                 <span className="font-display text-lg text-dough">{t("cart.addMore")}</span>
                                 <span className="text-xs text-dough-dim">{t("cart.addMoreHint")}</span>

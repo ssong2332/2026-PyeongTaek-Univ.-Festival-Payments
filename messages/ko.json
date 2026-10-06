@@ -251,5 +251,12 @@
     "journey.pickup": "픽업",
     "cart.swipeHint": "← 왼쪽으로 밀면 삭제",
     "cart.addMore": "더 담으러 가기",
-    "cart.addMoreHint": "다른 맛 호떡도 구경해 보세요"
+    "cart.addMoreHint": "다른 맛 호떡도 구경해 보세요",
+    "ticker.fresh": "갓 구운 호떡",
+    "ticker.griddle": "철판 위 지글지글",
+    "ticker.cheese": "쭉 늘어나는 치즈",
+    "ticker.honey": "달콤한 꿀 시럽",
+    "ticker.spicy": "화끈한 불닭",
+    "ticker.seasoning": "듬뿍 시즈닝",
+    "ticker.pay": "현금·계좌이체 OK"
 }

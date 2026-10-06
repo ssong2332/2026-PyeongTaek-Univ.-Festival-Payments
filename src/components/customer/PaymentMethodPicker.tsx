@@ -1,14 +1,15 @@
 "use client";
 
 import { motion } from "motion/react";
-import { BankIcon, CashIcon } from "@/components/ui/icons";
 import type { PaymentMethod } from "@/domain/order/status";
 import { useT } from "@/lib/i18n/locale";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { ArtIcon } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 
-const METHODS: { value: PaymentMethod; Icon: typeof CashIcon }[] = [
-    { value: "cash", Icon: CashIcon },
-    { value: "transfer", Icon: BankIcon },
+// 결제수단 그림은 Flaticon 일러스트(지폐·은행)
+const METHODS: { value: PaymentMethod; art: CustomerIconName }[] = [
+    { value: "cash", art: "banknote" },
+    { value: "transfer", art: "bank" },
 ];
 
 export interface PaymentMethodPickerProps {
@@ -24,18 +25,13 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
     const t = useT();
     return (
         <section className="iron-card relative rounded-3xl p-4">
-            {/* 동전 든 호떡이가 카드 귀퉁이에서 기다리다, 고르면 신나서 뛴다 */}
-            <HotteokMascot
-                variant={value ? "excited" : "pay"}
-                size={58}
-                motion={value ? "jump" : "bob"}
-                className="absolute top-1 right-3"
-            />
+            {/* 동전 더미가 카드 귀퉁이에서 반짝 돈다 */}
+            <ArtIcon name="coins" size={44} motion="spin" className="absolute top-2.5 right-4" />
             <h2 id="payment-method-title" className="font-display mb-3 text-lg text-dough">
                 {t("payment.title")}
             </h2>
             <div role="radiogroup" aria-labelledby="payment-method-title" className="flex flex-col gap-2">
-                {METHODS.map(({ value: method, Icon }) => {
+                {METHODS.map(({ value: method, art }) => {
                     const checked = value === method;
                     const available = enabledMethods.includes(method);
                     const inactive = disabled || !available;
@@ -65,9 +61,13 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                                 }}
                                 className="sr-only"
                             />
-                            <span className={`relative flex size-10 items-center justify-center rounded-xl transition-colors ${checked ? "bg-syrup text-molasses" : "bg-iron-3 text-dough-dim"}`}>
-                                <Icon className="size-5" />
-                            </span>
+                            <motion.span
+                                animate={checked ? { scale: [1, 1.25, 1], rotate: [0, -12, 8, 0] } : { scale: 1, rotate: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className={`relative flex size-12 items-center justify-center rounded-2xl transition-colors ${checked ? "bg-syrup/25 shadow-[0_0_18px_rgba(255,181,71,0.35)]" : "bg-iron-3"}`}
+                            >
+                                <ArtIcon name={art} size={34} className={checked ? "" : "opacity-80 grayscale-[30%]"} />
+                            </motion.span>
                             <span className="relative flex flex-1 flex-col">
                                 <span className="text-[15px] font-bold text-dough">
                                     {t(`payment.${method}` as const)}

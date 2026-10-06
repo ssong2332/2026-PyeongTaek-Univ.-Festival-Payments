@@ -251,5 +251,12 @@
     "journey.pickup": "Pick up",
     "cart.swipeHint": "← Swipe left to remove",
     "cart.addMore": "Add more",
-    "cart.addMoreHint": "Check out the other flavors"
+    "cart.addMoreHint": "Check out the other flavors",
+    "ticker.fresh": "Freshly made hotteok",
+    "ticker.griddle": "Sizzling on the griddle",
+    "ticker.cheese": "Stretchy cheese",
+    "ticker.honey": "Sweet honey syrup",
+    "ticker.spicy": "Fiery buldak",
+    "ticker.seasoning": "Loads of seasoning",
+    "ticker.pay": "Cash & bank transfer"
 }

@@ -2,19 +2,22 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { BanIcon, BellIcon, CardIcon, ClockIcon, FlameIcon } from "@/components/ui/icons";
+import { ArtIcon, type ArtIconMotion } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 import type { OrderStatus } from "@/domain/order/status";
 import { useT } from "@/lib/i18n/locale";
 
 // 문구는 사전 toast.{상태}.title/body
 type ToastStatus = "paid" | "cooking" | "completed" | "cancelled" | "refunded" | "expired";
-const MESSAGES: Partial<Record<OrderStatus, { key: ToastStatus; Icon: typeof BellIcon; tone: "warm" | "ok" | "cold" }>> = {
-  paid: { key: "paid", Icon: CardIcon, tone: "warm" },
-  cooking: { key: "cooking", Icon: FlameIcon, tone: "warm" },
-  completed: { key: "completed", Icon: BellIcon, tone: "ok" },
-  cancelled: { key: "cancelled", Icon: BanIcon, tone: "cold" },
-  refunded: { key: "refunded", Icon: BanIcon, tone: "cold" },
-  expired: { key: "expired", Icon: ClockIcon, tone: "cold" },
+// 상태 그림은 Flaticon 일러스트 — 결제 동전, 조리 프라이팬(지글), 완성 종(흔들), 취소 CLOSED 팻말, 만료 모래시계
+type ToastArt = { art: CustomerIconName; motion: ArtIconMotion };
+const MESSAGES: Partial<Record<OrderStatus, { key: ToastStatus; icon: ToastArt; tone: "warm" | "ok" | "cold" }>> = {
+  paid: { key: "paid", icon: { art: "coins", motion: "spin" }, tone: "warm" },
+  cooking: { key: "cooking", icon: { art: "pan", motion: "sizzle" }, tone: "warm" },
+  completed: { key: "completed", icon: { art: "bell", motion: "ring" }, tone: "ok" },
+  cancelled: { key: "cancelled", icon: { art: "closed", motion: "wiggle" }, tone: "cold" },
+  refunded: { key: "refunded", icon: { art: "closed", motion: "wiggle" }, tone: "cold" },
+  expired: { key: "expired", icon: { art: "hourglass", motion: "flip" }, tone: "cold" },
 };
 const TONE = {
   warm: "bg-syrup text-molasses",
@@ -63,9 +66,9 @@ export function StatusChangeToast({ status }: { status: OrderStatus }) {
               initial={{ rotate: 0 }}
               animate={{ rotate: [0, -16, 12, -6, 0] }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${TONE[message.tone]}`}
+              className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${TONE[message.tone]}`}
             >
-              <message.Icon className="size-5" />
+              <ArtIcon name={message.icon.art} size={34} motion={message.icon.motion} />
             </motion.span>
             <div className="min-w-0">
               <p className="font-bold text-dough">{t(`toast.${message.key}.title` as const)}</p>

@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import CreditsPage from "@/app/(customer)/credits/page";
+import { CUSTOMER_ICON_CREDITS } from "@/features/customer/customerIcons";
 import { FESTIVAL_CREDITS } from "@/features/festival/festivalArt";
 
 afterEach(cleanup);
@@ -12,7 +13,7 @@ describe("/credits — 이미지 출처", () => {
         render(<CreditsPage />);
         expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("이미지 출처");
         const sources = screen.getAllByRole("link", { name: /원본 보기/ });
-        expect(sources).toHaveLength(FESTIVAL_CREDITS.length);
+        expect(sources).toHaveLength(FESTIVAL_CREDITS.length + CUSTOMER_ICON_CREDITS.length);
         expect(sources[0].getAttribute("href")).toBe(FESTIVAL_CREDITS[0].url);
         expect(sources[0].getAttribute("target")).toBe("_blank");
         expect(screen.getAllByText(`Icon by ${FESTIVAL_CREDITS[0].author}`).length).toBeGreaterThan(0);

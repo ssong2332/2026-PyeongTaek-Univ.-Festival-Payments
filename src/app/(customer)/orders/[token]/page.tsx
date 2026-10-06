@@ -18,7 +18,7 @@ import type { OrderStatus } from "@/domain/order/status";
 import { useOrderStatus } from "@/features/customer/useOrderStatus";
 import type { OrderStatusDto } from "@/lib/dto/order";
 import { useT } from "@/lib/i18n/locale";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { motion } from "motion/react";
 
 type PageProps = {
@@ -271,7 +271,7 @@ function LoadingState() {
     <Screen>
       <div className="px-4 pt-10">
         <div role="status" className={`${CARD} flex flex-col items-center gap-3 py-8 text-center`}>
-          <HotteokMascot variant="griddle" size={96} motion="bob" />
+          <ArtIcon name="pan" size={84} motion="sizzle" />
           <p className="font-display text-lg text-dough">{t("order.loading")}</p>
           <span aria-hidden="true" className="flex gap-1.5">
             {[0, 1, 2].map((index) => (
@@ -299,7 +299,7 @@ function NotFoundState() {
           animate={{ opacity: 1, y: 0 }}
           className={`${CARD} flex flex-col items-center py-8 text-center`}
         >
-          <HotteokMascot variant="search" size={104} motion="sway" />
+          <ArtIcon name="search" size={84} motion="float" />
           <h1 className="font-display mt-3 text-2xl text-dough">{t("order.notFound.title")}</h1>
           <p className="mt-2 text-sm text-dough-dim">{t("order.notFound.body")}</p>
         </motion.section>
@@ -318,7 +318,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
           animate={{ opacity: 1, y: 0 }}
           className={`${CARD} flex flex-col items-center py-8 text-center`}
         >
-          <HotteokMascot variant="cry" size={104} motion="bob" />
+          <ArtIcon name="warning" size={80} motion="wiggle" />
           <h1 className="font-display mt-3 text-2xl text-dough">{t("order.error.title")}</h1>
           <p className="mt-2 text-sm text-dough-dim">
             {t("order.error.body")}

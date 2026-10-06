@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { BellIcon } from "@/components/ui/icons";
-import { HotteokMascot } from "@/components/ui/HotteokMascot";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 import { useStaffCall } from "@/features/customer/useStaffCall";
 import { useT } from "@/lib/i18n/locale";
 
@@ -10,7 +10,7 @@ interface StaffCallButtonProps {
   token: string;
 }
 
-// T-27 직원 호출 — 철판 카드 + 확성기 든 호떡이. 누르면 종이 흔들리고, 대기 시간 동안 버튼에 남은 시간이 차오른다.
+// T-27 직원 호출 — 철판 카드 + 확성기 아이콘. 누르면 종이 흔들리고, 대기 시간 동안 버튼에 남은 시간이 차오른다.
 export function StaffCallButton({ token }: StaffCallButtonProps) {
   const t = useT();
   const { isCalling, cooldownRemaining, message, errorMessage, callStaff } = useStaffCall(token);
@@ -30,7 +30,9 @@ export function StaffCallButton({ token }: StaffCallButtonProps) {
   return (
     <section aria-labelledby="staff-call-heading" className="iron-card relative overflow-hidden rounded-3xl p-5">
       <div className="flex items-center gap-3">
-        <HotteokMascot variant="megaphone" size={52} motion={isCalling ? "wiggle" : "sway"} />
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-syrup/12">
+          <ArtIcon name="megaphone" size={40} motion={isCalling ? "sizzle" : "wiggle"} />
+        </span>
         <div className="min-w-0 flex-1">
           <h2 id="staff-call-heading" className="font-display text-lg leading-tight text-dough">
             {t("staffCall.title")}
