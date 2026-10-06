@@ -46,6 +46,8 @@ export function ReviewsSection({ loadReviews, date, refreshKey }: {
                 <span className={styles.count}>{summary.count.toLocaleString("ko-KR")}건</span>
             </p>}
         </div>
+        {/* 같은 날짜 선택을 쓰지만 기준이 다르다 — 후기는 작성 시각, 매출 통계는 주문 시각(수기는 종이 주문 시각). */}
+        <p className={styles.basis}>후기 작성 날짜 기준 · 매출 통계는 주문 날짜 기준</p>
         {loading ? <p role="status" className={styles.message}>후기를 불러오는 중입니다…</p> :
             !summary ? <div role="alert" className={styles.error}>
                 <p>후기를 불러오지 못했습니다.</p>

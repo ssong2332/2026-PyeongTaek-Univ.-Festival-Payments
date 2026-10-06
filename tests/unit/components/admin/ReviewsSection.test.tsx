@@ -43,6 +43,8 @@ it("T-42 별점 평균과 후기 목록(픽업 번호·별점·텍스트·KST �
     expect(within(items[2]).getByText("#123")).toBeTruthy();
     expect(within(items[2]).getByText("별점만 남김")).toBeTruthy();
     expect(within(items[2]).getByText("10. 7. 00:00")).toBeTruthy();
+    // 후기는 작성 날짜, 매출 통계는 주문 날짜 기준이라는 것을 화면에 밝힌다.
+    expect(within(section).getByText("후기 작성 날짜 기준 · 매출 통계는 주문 날짜 기준")).toBeTruthy();
 });
 
 it("T-42 후기 0건이면 '후기 없음'을 보여 주고 평균·목록은 그리지 않는다", async () => {

@@ -5,6 +5,7 @@
 .average { display:flex; align-items:baseline; gap:6px; margin:0; color:#b3a497; font-size:13px; }
 .average strong { color:#ffb547; font-family:var(--font-mono); font-weight:500; font-size:26px; }
 .count { margin-left:6px; color:#f7e8d0; font-family:var(--font-mono); }
+.basis { margin:-8px 0 14px; color:#b3a497; font-size:12px; }
 .message { margin:0; padding:28px; color:#b3a497; text-align:center; }
 .error { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px; border:1px solid rgba(255,106,85,.45); border-radius:12px; background:rgba(255,106,85,.1); color:#ff6a55; }
 .error p { margin:0; }

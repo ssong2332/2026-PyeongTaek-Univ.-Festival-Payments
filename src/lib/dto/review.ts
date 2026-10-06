@@ -24,6 +24,7 @@ export const AdminReviewDtoSchema = z.strictObject({
 });
 export type AdminReviewDto = z.infer<typeof AdminReviewDtoSchema>;
 export const AdminReviewsResponseSchema = z.strictObject({
+    // 후기 작성 시각(reviews.created_at)의 KST 날짜 또는 "all". 주문 날짜 기준인 매출 통계·T-47 리포트와 다르다.
     date: z.string(),
     count: z.int().nonnegative(),
     // 소수 첫째 자리 반올림, 0건이면 null(domain/review/summary).
