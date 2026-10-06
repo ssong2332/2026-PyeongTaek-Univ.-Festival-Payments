@@ -167,6 +167,25 @@ export interface MenuItemPatch {
     stock?: number;
     isRecommended?: boolean;
     isSoldOutManual?: boolean;
+    isActive?: boolean;
+}
+
+export interface AdminMenuCreateInput {
+    basePrice: number;
+    stock: number;
+    sortOrder: number;
+    translations: MenuTranslationWrite[];
+    optionGroups: Array<{
+        minSelect: number;
+        maxSelect: number;
+        sortOrder: number;
+        translations: NameTranslationWrite[];
+        options: Array<{
+            extraPrice: number;
+            sortOrder: number;
+            translations: NameTranslationWrite[];
+        }>;
+    }>;
 }
 
 export interface MenuTranslationWrite {
@@ -201,6 +220,8 @@ export interface AdminMenuRepository {
     // 비활성 포함 전체(GET /api/admin/menus).
     listMenuItems(): Promise<MenuItemRecord[]>;
     getMenuItem(id: string): Promise<MenuItemRecord | null>;
+    // T-37 신규 메뉴와 옵션 구조를 생성한다. 실패 시 구현체가 생성 중인 메뉴를 정리한다.
+    createMenuItem(input: AdminMenuCreateInput): Promise<string>;
     // 값이 없는 칸은 건드리지 않고 updated_at만 갱신한다. 메뉴가 없으면 false.
     updateMenuItem(id: string, patch: MenuItemPatch): Promise<boolean>;
     upsertMenuTranslation(menuItemId: string, translation: MenuTranslationWrite): Promise<void>;
