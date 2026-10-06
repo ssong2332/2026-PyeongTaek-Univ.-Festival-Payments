@@ -76,6 +76,12 @@ function loadFailureStatus(error: unknown): "error" | "unavailable" {
     return error instanceof MenuAdminRequestError && error.status === 404 ? "unavailable" : "error";
 }
 
+// 서로 다른 메뉴 관리 패널(기존 편집 + T-37 추가/판매상태)이 저장 뒤 같은 목록을 다시 읽게 한다.
+export const MENU_ADMIN_CHANGED_EVENT = "ptu:menu-admin-changed";
+export function notifyMenuAdminChanged() {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(MENU_ADMIN_CHANGED_EVENT));
+}
+
 // 세션이 끝난 요청(401)이면 로그인 화면으로 보낸다(근무 관리 화면과 같은 방식).
 // 돌려주는 함수는 렌더가 바뀌어도 같다 — 목록 불러오기 effect가 이 함수 때문에 다시 돌지 않게 한다.
 export function useLoginRedirect() {
@@ -123,6 +129,12 @@ export function useMenuAdmin(api: MenuAdminApi = menuAdminApi) {
             active = false;
         };
     }, [api, redirectIfExpired]);
+
+    useEffect(() => {
+        const handleChange = () => { void reload(); };
+        window.addEventListener(MENU_ADMIN_CHANGED_EVENT, handleChange);
+        return () => window.removeEventListener(MENU_ADMIN_CHANGED_EVENT, handleChange);
+    }, [reload]);
 
     const addMenu = useCallback((created: AdminMenuDto) => {
         setMenus((previous) => [...previous, created].toSorted((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)));
