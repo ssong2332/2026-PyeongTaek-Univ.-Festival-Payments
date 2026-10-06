@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { DEFAULT_LOCALE } from "@/domain/i18n/locales";
 import type { PaymentMethod } from "@/domain/order/status";
 import { postOrderWithRetry } from "@/lib/api/client";
 import { AppError } from "@/lib/api/errors";
 import { CreateOrderRequestSchema, type CreateOrderResponse } from "@/lib/dto/order";
+import { saveMyOrder } from "./myOrders";
 import { isPaymentMethodEnabled } from "./paymentMethods";
 import { useCart, type CartItem } from "./useCart";
+import { getLocale } from "@/lib/i18n/locale";
 
 // DECISIONS #23: 멱등키는 결제 화면 진입 시 만들어 sessionStorage에 두고, 주문 성공 시 장바구니와 함께 폐기한다.
 // 실패·새로고침·수동 재시도 동안에는 같은 키를 쓴다 — 서버가 이미 만든 주문이면 그 주문을 돌려준다(F-08).
@@ -124,13 +125,15 @@ export function useCheckout(options: { onSuccess: (order: CreateOrderResponse) =
 
     const submit = useCallback(async () => {
         const items = useCart.getState().items;
+        // 주문 언어(F-05): 서버가 주문 현황·영수증의 메뉴·옵션 이름을 이 언어로 돌려준다(orders.locale).
+        const locale = getLocale();
         if (inFlightRef.current || succeeded || !paymentMethod || items.length === 0) return;
 
         keyRef.current ??= getOrCreateIdempotencyKey();
         const request = CreateOrderRequestSchema.safeParse({
             idempotencyKey: keyRef.current,
             paymentMethod,
-            locale: DEFAULT_LOCALE,
+            locale,
             items: items.map((item) => ({
                 menuItemId: item.menuItemId,
                 quantity: item.quantity,
@@ -152,6 +155,8 @@ export function useCheckout(options: { onSuccess: (order: CreateOrderResponse) =
             discardIdempotencyKey();
             keyRef.current = null;
             useCart.getState().clear();
+            // #89: 화면을 옮기기 전에 남겨야 메뉴판으로 돌아가거나 다시 접속해도 주문 현황을 찾을 수 있다.
+            saveMyOrder(order);
             onSuccessRef.current(order);
         } catch (caught) {
             setError(toCheckoutError(caught, items));

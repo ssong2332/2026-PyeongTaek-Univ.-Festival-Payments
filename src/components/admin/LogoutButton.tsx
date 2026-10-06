@@ -39,7 +39,7 @@ export function LogoutButton() {
     return (
         <div className="flex items-center gap-2">
             {errorMessage && (
-                <span role="alert" aria-live="assertive" className="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded">
+                <span role="alert" aria-live="assertive" className="rounded bg-chili/15 px-2 py-0.5 text-xs text-chili">
                     {errorMessage}
                 </span>
             )}
@@ -47,7 +47,7 @@ export function LogoutButton() {
                 type="button"
                 onClick={handleLogout}
                 disabled={loading}
-                className="text-xs px-3 py-1.5 rounded-md font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 disabled:opacity-50 transition-colors"
+                className="rounded-lg border border-iron-line bg-iron-2 px-3 py-1 text-xs font-semibold text-dough transition-colors hover:border-syrup/60 hover:text-syrup disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
             >
                 {loading ? "로그아웃 중..." : "로그아웃"}
             </button>

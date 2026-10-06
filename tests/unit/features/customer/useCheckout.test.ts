@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { LOCALE_STORAGE_KEY } from "@/lib/i18n/locale";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MY_ORDERS_STORAGE_KEY, readMyOrders } from "@/features/customer/myOrders";
 import { IDEMPOTENCY_STORAGE_KEY, useCheckout } from "@/features/customer/useCheckout";
 import { useCart } from "@/features/customer/useCart";
 import type { CreateOrderResponse } from "@/lib/dto/order";
@@ -125,13 +127,15 @@ describe("useCheckout.submit — 성공", () => {
         expect(result.current.canSubmit).toBe(false);
     });
 
-    it("P1은 현금만: selectPaymentMethod('transfer')는 무시되고 제출할 수 없다(Tasks T-31 P2)", async () => {
-        const { result } = setup();
+    it("계좌이체도 고를 수 있고 paymentMethod 'transfer'로 제출한다 (T-31, 2026-10-05 결정)", async () => {
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        const { result, onSuccess } = setup();
         act(() => result.current.selectPaymentMethod("transfer"));
-        expect(result.current.paymentMethod).toBeNull();
-        expect(result.current.canSubmit).toBe(false);
-        await act(async () => { await result.current.submit(); });
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(result.current.paymentMethod).toBe("transfer");
+        expect(result.current.canSubmit).toBe(true);
+        await submitAndSettle(result);
+        expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).paymentMethod).toBe("transfer");
+        expect(onSuccess).toHaveBeenCalledTimes(1);
     });
 
     it("T-10: 첫 요청이 8초 타임아웃 → 같은 멱등키로 자동 재시도 성공 → 주문 1건(onSuccess 1회)", async () => {
@@ -263,5 +267,67 @@ describe("useCheckout.submit — 실패", () => {
         await submitAndSettle(result);
         expect(fetchMock).not.toHaveBeenCalled();
         expect(result.current.error).toEqual({ kind: "invalidOrder" });
+    });
+});
+
+describe("useCheckout.submit — 이 기기에 주문 링크 저장 (#89)", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    it("성공하면 이동(onSuccess) 전에 상태 토큰·픽업 번호를 localStorage에 남긴다", async () => {
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        let savedWhenNavigating: unknown = "onSuccess 미호출";
+        const onSuccess = vi.fn(() => {
+            savedWhenNavigating = readMyOrders();
+        });
+        const { result } = renderHook(() => useCheckout({ onSuccess }));
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(onSuccess).toHaveBeenCalledTimes(1);
+        expect(savedWhenNavigating).toEqual([{ statusToken: order.statusToken, pickupNumber: 5, savedAt: new Date().toISOString() }]);
+    });
+
+    it("멱등 재요청(200, 같은 토큰)으로 다시 성공해도 한 건만 남는다", async () => {
+        fetchMock.mockResolvedValueOnce(json(200, { ...order, created: false }));
+        localStorage.setItem(
+            MY_ORDERS_STORAGE_KEY,
+            JSON.stringify([{ statusToken: order.statusToken, pickupNumber: 5, savedAt: new Date(Date.now() - 60_000).toISOString() }]),
+        );
+        const { result } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(readMyOrders().map((saved) => saved.statusToken)).toEqual([order.statusToken]);
+    });
+
+    it.each([
+        ["네트워크(자동 재시도 3회 실패)", () => fetchMock.mockRejectedValue(new TypeError("fetch failed"))],
+        ["429 RATE_LIMITED", () => fetchMock.mockResolvedValueOnce(json(429, envelope("RATE_LIMITED", { retryAfterSeconds: 30 })))],
+        ["409 OUT_OF_STOCK", () => fetchMock.mockResolvedValueOnce(json(409, envelope("OUT_OF_STOCK", [{ menuItemId: MENU_A, requested: 2, available: 1 }])))],
+    ])("실패하면(%s) 아무것도 저장하지 않는다", async (_label, arrange) => {
+        arrange();
+        const { result, onSuccess } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+
+        await submitAndSettle(result);
+
+        expect(onSuccess).not.toHaveBeenCalled();
+        expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
+    });
+});
+
+describe("useCheckout.submit — 주문 언어(T-04)", () => {
+    it("이 기기에서 고른 화면 언어(en)를 locale로 보낸다 — 주문 현황·영수증 이름이 그 언어로 나온다", async () => {
+        localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        const { result } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+        await submitAndSettle(result);
+        expect(sentBodies()[0]).toMatchObject({ locale: "en" });
+        localStorage.removeItem(LOCALE_STORAGE_KEY);
     });
 });

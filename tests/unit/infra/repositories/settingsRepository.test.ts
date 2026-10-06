@@ -91,4 +91,54 @@ describe("SupabaseSettingsRepository", () => {
             "transfer.account_number": "3333-01-123456",
         });
     });
+
+    it("setMany()는 여러 설정을 upsert하고 updated_by를 기록한다", async () => {
+        const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+        const mockClient = {
+            from: vi.fn().mockReturnValue({
+                upsert: mockUpsert,
+            }),
+        } as unknown as SupabaseClient;
+
+        const repo = new SupabaseSettingsRepository(mockClient);
+        await repo.setMany(
+            {
+                "transfer.bank_name": "신한은행",
+                "payment.expire_minutes": "15",
+            },
+            "user-123",
+        );
+
+        expect(mockClient.from).toHaveBeenCalledWith("app_settings");
+        expect(mockUpsert).toHaveBeenCalledTimes(1);
+        const rows = mockUpsert.mock.calls[0][0];
+        expect(rows).toHaveLength(2);
+        expect(rows[0].key).toBe("transfer.bank_name");
+        expect(rows[0].value).toBe("신한은행");
+        expect(rows[0].updated_by).toBe("user-123");
+        expect(typeof rows[0].updated_at).toBe("string");
+        expect(rows[1].key).toBe("payment.expire_minutes");
+        expect(rows[1].value).toBe("15");
+        expect(rows[1].updated_by).toBe("user-123");
+    });
+
+    it("setMany() 호출 시 DB 에러가 발생하면 AppError(INTERNAL_ERROR)를 던진다", async () => {
+        const mockUpsert = vi.fn().mockResolvedValue({
+            error: { message: "database constraint violation" },
+        });
+        const mockClient = {
+            from: vi.fn().mockReturnValue({
+                upsert: mockUpsert,
+            }),
+        } as unknown as SupabaseClient;
+
+        const repo = new SupabaseSettingsRepository(mockClient);
+        await expect(
+            repo.setMany({ "transfer.bank_name": "우리은행" }),
+        ).rejects.toMatchObject({
+            code: "INTERNAL_ERROR",
+            status: 500,
+        });
+    });
 });
+

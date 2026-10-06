@@ -1,0 +1,37 @@
+/* 매출 통계 — 야간 철판 */
+.panel { display:grid; gap:18px; color:#f7e8d0; }
+.heading { display:flex; align-items:end; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.heading h1 { margin:0; font-family:var(--font-display); font-weight:400; font-size:30px; color:#f7e8d0; }
+.heading p { margin:6px 0 0; color:#b3a497; font-size:13px; }
+.controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.controls label { font-size:13px; font-weight:bold; color:#b3a497; }
+.controls select,.controls button,.download { border:1px solid #3a3140; border-radius:10px; background:#211c25; color:#f7e8d0; padding:10px 12px; font:inherit; }
+.controls button,.download { cursor:pointer; color:#ffb547; font-weight:bold; }
+.download { text-decoration:none; }
+.controls select:focus-visible,.controls button:focus-visible,.download:focus-visible { outline:2px solid #ffb547; outline-offset:2px; }
+.summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.summary article { display:grid; gap:8px; border:1px solid #3a3140; border-radius:18px; padding:18px; background:linear-gradient(155deg,#2d2631,#211c25 60%); }
+.summary article:first-child { border-color:rgba(255,181,71,.55); box-shadow:inset 0 0 40px rgba(255,181,71,.08); }
+.summary article:first-child strong { color:#ffb547; }
+.summary article:nth-child(n+3) strong { color:#ff6a55; }
+.summary span { color:#b3a497; font-size:13px; }
+.summary strong { color:#f7e8d0; font-size:28px; font-family:var(--font-mono); font-weight:500; }
+.rule { margin:0; color:#b3a497; font-size:12px; }
+.chartSection { border:1px solid #3a3140; border-radius:20px; padding:20px; background:#211c25; overflow:hidden; }
+.chartSection h2 { margin:0 0 16px; font-family:var(--font-display); font-weight:400; font-size:20px; }
+.message { margin:0; padding:28px; color:#b3a497; text-align:center; }
+.error { margin:0; padding:14px; border:1px solid rgba(255,106,85,.45); border-radius:12px; background:rgba(255,106,85,.1); color:#ff6a55; }
+.bars { display:grid; gap:12px; }
+.barRow { display:grid; grid-template-columns:minmax(90px,160px) minmax(90px,1fr) 54px; align-items:center; gap:10px; font-size:13px; }
+.barLabel { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f7e8d0; }
+.barTrack { display:block; height:14px; overflow:hidden; border-radius:999px; background:#15121a; border:1px solid #3a3140; }
+.barFill { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#b9581c,#ffb547); box-shadow:0 0 12px rgba(255,181,71,.5); transform-origin:left; animation:grow .9s cubic-bezier(.16,1,.3,1) both; }
+.barPercent { text-align:right; color:#ffb547; font-family:var(--font-mono); }
+.table { width:100%; margin-top:18px; border-collapse:collapse; font-size:13px; color:#f7e8d0; }
+.table caption { text-align:left; font-weight:bold; margin-bottom:8px; color:#b3a497; }
+.table th,.table td { padding:10px; border-bottom:1px solid #3a3140; text-align:left; }
+.table th { color:#b3a497; font-weight:600; }
+.table td:last-child,.table th:last-child { text-align:right; font-family:var(--font-mono); }
+@keyframes grow { from { transform:scaleX(0); } }
+@media (prefers-reduced-motion:reduce) { .barFill { animation:none; } }
+@media(max-width:760px) { .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .summary strong { font-size:22px; } .chartSection { padding:14px; } .barRow { grid-template-columns:minmax(72px,110px) minmax(70px,1fr) 48px; gap:8px; } }

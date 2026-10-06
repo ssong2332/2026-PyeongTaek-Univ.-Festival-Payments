@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CheckoutPage from "@/app/(customer)/checkout/page";
+import { MY_ORDERS_STORAGE_KEY } from "@/features/customer/myOrders";
 import { useCart } from "@/features/customer/useCart";
 import type { CreateOrderResponse } from "@/lib/dto/order";
 
@@ -39,8 +40,13 @@ function fillCart() {
 beforeEach(() => {
     fetchMock.mockReset();
     Object.values(router).forEach((fn) => fn.mockReset());
-    vi.stubGlobal("fetch", fetchMock);
+    // 결제 화면은 메뉴 이름을 화면 언어로 보이려고 GET /api/menu를 한 번 읽는다(T-04). 그 요청은 실패로 두고(담을 때 이름 그대로),
+    // fetchMock에는 주문 요청만 들어오게 한다.
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
+        String(url).startsWith("/api/menu") ? Promise.resolve(json(500, envelope("INTERNAL"))) : fetchMock(url, init),
+    );
     sessionStorage.clear();
+    localStorage.clear();
     useCart.setState({ items: [] });
 });
 
@@ -89,15 +95,51 @@ describe("결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 113�
         expect(body.paymentMethod).toBe("cash");
     });
 
-    it("P1은 현금만: 계좌이체는 '준비 중'으로 비활성, 눌러도 선택되지 않고 주문 버튼도 열리지 않는다(Tasks T-31 P2)", () => {
+    it("#89: 성공하면 이동하기 전에 주문 링크(토큰)·픽업 번호를 이 기기(localStorage)에 남긴다", async () => {
         fillCart();
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        let storedWhenNavigating = null as string | null;
+        router.replace.mockImplementation(() => {
+            storedWhenNavigating = localStorage.getItem(MY_ORDERS_STORAGE_KEY);
+        });
         render(<CheckoutPage />);
-        const transfer = screen.getByRole("radio", { name: "계좌이체 (준비 중)" }) as HTMLInputElement;
-        expect(transfer.disabled).toBe(true);
+        fireEvent.click(screen.getByRole("radio", { name: "현금" }));
+        fireEvent.click(confirmButton());
+
+        expect(await screen.findByText("주문이 접수됐어요. 주문 화면으로 이동하고 있어요.")).toBeTruthy();
+        expect(router.replace).toHaveBeenCalledWith(`/orders/${order.statusToken}?new=1`);
+        const saved = JSON.parse(storedWhenNavigating ?? "[]") as { statusToken: string; pickupNumber: number; savedAt: string }[];
+        expect(saved.map(({ statusToken, pickupNumber }) => ({ statusToken, pickupNumber }))).toEqual([
+            { statusToken: order.statusToken, pickupNumber: 5 },
+        ]);
+        expect(Number.isNaN(Date.parse(saved[0].savedAt))).toBe(false);
+    });
+
+    it("#89: 실패하면(재고 부족) 이 기기에 아무것도 남기지 않는다", async () => {
+        fillCart();
+        fetchMock.mockResolvedValueOnce(json(409, envelope("OUT_OF_STOCK", [{ menuItemId: CHEESE, requested: 2, available: 1 }])));
+        render(<CheckoutPage />);
+        fireEvent.click(screen.getByRole("radio", { name: "현금" }));
+        fireEvent.click(confirmButton());
+
+        await screen.findByRole("alert");
+        expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
+    });
+
+    it("계좌이체도 고를 수 있다: 계좌 안내 예고 문구가 보이고 paymentMethod 'transfer'로 주문한다 (T-31, 2026-10-05 결정)", async () => {
+        fillCart();
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        render(<CheckoutPage />);
+        const transfer = screen.getByRole("radio", { name: "계좌이체" }) as HTMLInputElement;
+        expect(transfer.disabled).toBe(false);
         fireEvent.click(transfer);
-        expect(transfer.checked).toBe(false);
-        expect(confirmButton().disabled).toBe(true);
-        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getByText("주문하면 입금할 계좌를 안내해 드려요.")).toBeTruthy();
+        fireEvent.click(confirmButton());
+
+        expect(await screen.findByText("주문이 접수됐어요. 주문 화면으로 이동하고 있어요.")).toBeTruthy();
+        expect(router.replace).toHaveBeenCalledWith(`/orders/${order.statusToken}?new=1`);
+        const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+        expect(body.paymentMethod).toBe("transfer");
     });
 
     it("로딩: 주문 생성 중에는 버튼 잠금 + 진행 표시(중복 탭 방지)", async () => {

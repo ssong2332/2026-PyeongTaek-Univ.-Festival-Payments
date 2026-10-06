@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MenuPage from "@/app/(customer)/page";
+import { MY_ORDERS_STORAGE_KEY } from "@/features/customer/myOrders";
 import { useCart } from "@/features/customer/useCart";
 import type { MenuItemDto, MenuResponse } from "@/lib/dto/menu";
 
@@ -12,6 +15,7 @@ const plain: MenuItemDto = {
     description: "기본호떡",
     price: 2000,
     stock: 5,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,
@@ -23,6 +27,7 @@ const cheese: MenuItemDto = {
     description: "녹진한 모짜렐라 치즈",
     price: 2500,
     stock: 3,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,
@@ -40,6 +45,7 @@ const seed: MenuItemDto = {
     description: "견과류가 들어간 호떡",
     price: 2000,
     stock: 0,
+    isRecommended: false,
     isAvailable: false,
     isSoldOut: true,
     imageUrl: null,
@@ -57,6 +63,7 @@ beforeEach(() => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     sessionStorage.clear();
+    localStorage.clear();
     useCart.setState({ items: [] });
 });
 
@@ -68,6 +75,26 @@ afterEach(() => {
 const menuButton = (name: string) => screen.getByRole("button", { name: new RegExp(name) }) as HTMLButtonElement;
 
 describe("메뉴판(/) — PRD 화면 표 111행", () => {
+    it("추천 플래그가 켜진 판매 가능 메뉴만 추천 영역에 보이고, 전체 메뉴 카드에도 표시한다", async () => {
+        serveMenu([{ ...plain, isRecommended: true }, cheese, { ...seed, isRecommended: true }]);
+        const { container } = render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+        const featured = container.querySelector(".feat-track");
+        expect(featured?.textContent).toContain("기본호떡");
+        expect(featured?.textContent).not.toContain("치즈 호떡");
+        expect(featured?.textContent).not.toContain("씨앗 호떡");
+        expect(menuButton("기본호떡").textContent).toContain("오늘의 추천");
+        expect(menuButton("치즈 호떡").textContent).not.toContain("오늘의 추천");
+    });
+
+    it("추천 메뉴가 0개면 추천 영역을 숨기고 전체 메뉴는 유지한다", async () => {
+        serveMenu([plain, cheese]);
+        const { container } = render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+        expect(container.querySelector(".feat-track")).toBeNull();
+        expect(menuButton("기본호떡")).toBeTruthy();
+    });
+
     it("로딩: 스켈레톤 → 준비됨: 메뉴 목록·가격·대기 건수, 장바구니 비었으면 하단 바 비활성", async () => {
         serveMenu([plain, cheese, seed]);
         render(<MenuPage />);
@@ -103,7 +130,8 @@ describe("메뉴판(/) — PRD 화면 표 111행", () => {
         expect(add.textContent).toContain("6,000원");
         fireEvent.click(add);
 
-        expect(screen.queryByRole("dialog")).toBeNull();
+        // 시트는 아래로 내려가는 퇴장 모션 뒤에 사라진다.
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
         const cartLink = screen.getByRole("link", { name: /장바구니 보기/ });
         expect(cartLink.getAttribute("href")).toBe("/cart");
         expect(cartLink.getAttribute("aria-label")).toBe("장바구니 보기 (2개, 6,000원)");
@@ -166,5 +194,100 @@ describe("메뉴판(/) — PRD 화면 표 111행", () => {
         fireEvent.click(within(alert).getByRole("button", { name: "다시 시도" }));
         expect(await screen.findByRole("button", { name: /기본호떡/ })).toBeTruthy();
         expect(screen.queryByRole("alert")).toBeNull();
+    });
+});
+
+describe("메뉴판 — 내 주문 현황 보기 (#89)", () => {
+    const TOKEN_A = "a".repeat(64);
+    const TOKEN_B = "0123456789abcdef".repeat(4);
+    const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    const storeOrders = (orders: unknown) => localStorage.setItem(MY_ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    const storedTokens = () =>
+        (JSON.parse(localStorage.getItem(MY_ORDERS_STORAGE_KEY) ?? "[]") as { statusToken: string }[]).map((order) => order.statusToken);
+    const entry = () => screen.queryByRole("region", { name: "내 주문 현황 보기" });
+
+    it("빈 값: 이 기기에 저장된 주문이 없으면 진입점을 그리지 않는다", async () => {
+        serveMenu([plain]);
+        render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+
+        expect(entry()).toBeNull();
+        expect(screen.queryByText("내 주문 현황 보기")).toBeNull();
+    });
+
+    it("저장된 주문 2건: '현재 처리 중인 주문' 카드 바로 뒤에 최신순 2줄 — 3자리 픽업 번호 + /orders/{토큰} 링크", async () => {
+        storeOrders([
+            { statusToken: TOKEN_A, pickupNumber: 5, savedAt: minutesAgo(30) },
+            { statusToken: TOKEN_B, pickupNumber: 12, savedAt: minutesAgo(5) },
+        ]);
+        serveMenu([plain]);
+        render(<MenuPage />);
+
+        const region = await screen.findByRole("region", { name: "내 주문 현황 보기" });
+        const links = within(region).getAllByRole("link");
+        expect(links.map((link) => link.getAttribute("href"))).toEqual([`/orders/${TOKEN_B}`, `/orders/${TOKEN_A}`]);
+        expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
+            "픽업 번호 012 주문 현황 보기",
+            "픽업 번호 005 주문 현황 보기",
+        ]);
+        expect(screen.getByRole("region", { name: "현재 처리 중인 주문" }).nextElementSibling).toBe(region);
+    });
+
+    it("경계: 24시간 지난 주문은 보이지 않고 저장소에서도 지운다", async () => {
+        storeOrders([
+            { statusToken: TOKEN_A, pickupNumber: 5, savedAt: minutesAgo(24 * 60 + 1) },
+            { statusToken: TOKEN_B, pickupNumber: 12, savedAt: minutesAgo(24 * 60 - 1) },
+        ]);
+        serveMenu([plain]);
+        render(<MenuPage />);
+
+        const region = await screen.findByRole("region", { name: "내 주문 현황 보기" });
+        expect(within(region).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([`/orders/${TOKEN_B}`]);
+        expect(storedTokens()).toEqual([TOKEN_B]);
+    });
+
+    it("모두 24시간이 지났으면 진입점이 없고 저장 키도 지운다", async () => {
+        storeOrders([{ statusToken: TOKEN_A, pickupNumber: 5, savedAt: minutesAgo(25 * 60) }]);
+        serveMenu([plain]);
+        render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+
+        expect(entry()).toBeNull();
+        expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
+    });
+
+    it("에러: 저장값이 깨졌으면(JSON 아님) 진입점 없이 메뉴판은 그대로 동작한다", async () => {
+        localStorage.setItem(MY_ORDERS_STORAGE_KEY, "{broken");
+        serveMenu([plain]);
+        render(<MenuPage />);
+
+        expect(await screen.findByRole("button", { name: /기본호떡/ })).toBeTruthy();
+        expect(entry()).toBeNull();
+    });
+
+    it("하이드레이션: 서버 HTML에는 진입점이 없고, 기기에 저장값이 있어도 불일치 오류 없이 마운트 뒤에 나타난다", async () => {
+        serveMenu([plain]);
+        // 실제 서버에는 기기 저장값이 없다.
+        const serverHtml = renderToString(<MenuPage />);
+        storeOrders([{ statusToken: TOKEN_A, pickupNumber: 5, savedAt: minutesAgo(1) }]);
+        // 이 테스트 환경(jsdom)에는 window가 있어도, 서버 렌더는 저장값을 읽지 않는다.
+        expect(renderToString(<MenuPage />)).not.toContain("내 주문 현황 보기");
+
+        const container = document.createElement("div");
+        container.innerHTML = serverHtml;
+        document.body.appendChild(container);
+        const onRecoverableError = vi.fn();
+        let root = null as ReturnType<typeof hydrateRoot> | null;
+        try {
+            await act(async () => {
+                root = hydrateRoot(container, <MenuPage />, { onRecoverableError });
+            });
+            expect(await within(container).findByRole("link", { name: "픽업 번호 005 주문 현황 보기" })).toBeTruthy();
+            await within(container).findByRole("button", { name: /기본호떡/ });
+            expect(onRecoverableError).not.toHaveBeenCalled();
+        } finally {
+            act(() => root?.unmount());
+            container.remove();
+        }
     });
 });
