@@ -18,6 +18,8 @@ import type { OrderStatus } from "@/domain/order/status";
 import { useOrderStatus } from "@/features/customer/useOrderStatus";
 import type { OrderStatusDto } from "@/lib/dto/order";
 import { useT } from "@/lib/i18n/locale";
+import { ArtIcon } from "@/components/ui/ArtIcon";
+import { motion } from "motion/react";
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -268,9 +270,20 @@ function LoadingState() {
   return (
     <Screen>
       <div className="px-4 pt-10">
-        <p role="status" className={`${CARD} text-center text-dough-dim`}>
-          {t("order.loading")}
-        </p>
+        <div role="status" className={`${CARD} flex flex-col items-center gap-3 py-8 text-center`}>
+          <ArtIcon name="pan" size={84} motion="sizzle" />
+          <p className="font-display text-lg text-dough">{t("order.loading")}</p>
+          <span aria-hidden="true" className="flex gap-1.5">
+            {[0, 1, 2].map((index) => (
+              <motion.span
+                key={index}
+                className="size-2 rounded-full bg-syrup"
+                animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 0.9, repeat: Infinity, delay: index * 0.15 }}
+              />
+            ))}
+          </span>
+        </div>
       </div>
     </Screen>
   );
@@ -281,10 +294,15 @@ function NotFoundState() {
   return (
     <Screen bottom={<MenuLinkButton />}>
       <div className="px-4 pt-10">
-        <section className={CARD}>
-          <h1 className="font-display text-2xl text-dough">{t("order.notFound.title")}</h1>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${CARD} flex flex-col items-center py-8 text-center`}
+        >
+          <ArtIcon name="search" size={84} motion="float" />
+          <h1 className="font-display mt-3 text-2xl text-dough">{t("order.notFound.title")}</h1>
           <p className="mt-2 text-sm text-dough-dim">{t("order.notFound.body")}</p>
-        </section>
+        </motion.section>
       </div>
     </Screen>
   );
@@ -295,15 +313,20 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
     <Screen bottom={<MenuLinkButton />}>
       <div className="px-4 pt-10">
-        <section className={CARD}>
-          <h1 className="font-display text-2xl text-dough">{t("order.error.title")}</h1>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${CARD} flex flex-col items-center py-8 text-center`}
+        >
+          <ArtIcon name="warning" size={80} motion="wiggle" />
+          <h1 className="font-display mt-3 text-2xl text-dough">{t("order.error.title")}</h1>
           <p className="mt-2 text-sm text-dough-dim">
             {t("order.error.body")}
           </p>
           <button type="button" onClick={onRetry} className={`${PRIMARY_CTA} mt-4`}>
             {t("common.retry")}
           </button>
-        </section>
+        </motion.section>
       </div>
     </Screen>
   );

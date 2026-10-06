@@ -20,6 +20,7 @@ import { formatWon } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/locale";
 import { cartItemNames } from "@/features/customer/cartView";
 import { useMenu } from "@/features/customer/useMenu";
+import { OrderJourney } from "@/components/customer/OrderJourney";
 
 // 결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 "고객 · 결제수단 선택 / 주문 확정", Architecture 8절.
 export default function CheckoutPage() {
@@ -51,7 +52,7 @@ export default function CheckoutPage() {
         );
     } else if (hydrated && items.length === 0 && !checkout.submitting) {
         body = (
-            <EmptyState title={t("cart.empty")}>
+            <EmptyState title={t("cart.empty")} icon="bag">
                 <Link
                     href="/"
                     className="iron-card rounded-full px-5 py-2.5 text-sm font-bold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
@@ -99,6 +100,7 @@ export default function CheckoutPage() {
                     </Link>
                 }
             />
+            {hydrated && !checkout.succeeded && items.length > 0 && <OrderJourney step={1} />}
             <div className="flex flex-col gap-4 px-4 pt-4">{body}</div>
             {showConfirm && (
                 <BottomBar>

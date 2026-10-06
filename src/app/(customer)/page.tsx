@@ -45,6 +45,8 @@ import { useMenuSelection } from "@/features/customer/useMenuSelection";
 import type { MenuItemDto } from "@/lib/dto/menu";
 import { formatWon } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/locale";
+import { FlavorTicker } from "@/components/customer/FlavorTicker";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 
 // 담기 성공 시 시트 사진 자리에서 장바구니 버튼까지 날아가는 사본
 type Flight = { key: number; imageUrl: string | null; from: DOMRect };
@@ -89,6 +91,7 @@ export default function MenuPage() {
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
                 className="flex origin-top flex-col gap-3 px-4"
             >
+                <FlavorTicker />
                 <QueueCount waitingCount={menu.waitingCount} />
                 <MyOrderLinks orders={myOrders} />
                 <SearchBox value={query} onChange={setQuery} />
@@ -104,8 +107,9 @@ export default function MenuPage() {
                     <div className="flex items-end justify-between">
                         <h2
                             id="menu-list-title"
-                            className="font-display text-2xl text-dough"
+                            className="font-display flex items-center gap-2 text-2xl text-dough"
                         >
+                            <ArtIcon name="hotteok" size={30} motion="float" />
                             {t("menu.allTitle")}
                         </h2>
                         {menu.status === "ready" && (
@@ -264,10 +268,10 @@ function MenuList(props: {
     return (
         <>
             {noneOrderable && (
-                <EmptyState title={t("menu.noneOrderable")} />
+                <EmptyState title={t("menu.noneOrderable")} icon="closed" />
             )}
             {props.items.length > 0 && visible.length === 0 && (
-                <EmptyState title={t("menu.noResults")} mascot="search" />
+                <EmptyState title={t("menu.noResults")} icon="search" />
             )}
             {visible.length > 0 && (
                 <ul className="flex flex-col gap-3">

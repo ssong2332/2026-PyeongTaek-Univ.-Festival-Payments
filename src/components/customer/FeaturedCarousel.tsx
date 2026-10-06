@@ -8,6 +8,7 @@ import type { MenuItemDto } from "@/lib/dto/menu";
 import { formatWon } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/locale";
 import { MenuThumbnail } from "./MenuThumbnail";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 
 // "오늘의 추천" 큰 사진 카드 띠(가로로 밀어 보기). 아래 전체 메뉴의 바로가기라 화면 읽기·키보드는 목록 쪽을 쓰고
 // 여기는 숨긴다(aria-hidden, 탭 이동 제외). 손가락으로 밀면 가운데 카드가 앞으로 나오고 양옆은 비스듬히 물러나며
@@ -19,7 +20,7 @@ export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItem
         <section aria-hidden="true" className="-mx-4">
             <div className="flex items-end justify-between px-4 pb-2">
                 <p className="font-display flex items-center gap-1.5 text-xl text-dough">
-                    <FlameIcon className="ember-flicker-soft size-5 text-syrup" />
+                    <ArtIcon name="fire" size={26} motion="wiggle" />
                     {t("menu.featured.title")}
                 </p>
                 <p className="fest-hint">

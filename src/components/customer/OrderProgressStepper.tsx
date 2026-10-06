@@ -2,14 +2,21 @@
 
 import { motion } from "motion/react";
 import { useT } from "@/lib/i18n/locale";
+import { ArtIcon, type ArtIconMotion } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 
 // 취소·환불·만료는 이 단계에 없다 — 화면이 스테퍼 대신 상태 안내를 보여 준다.
 export type ProgressStatus = "pending" | "paid" | "cooking" | "completed";
 
 type StepState = "done" | "current" | "upcoming";
 
-// 단계 이름은 사전 progress.{상태}
-const STEPS: readonly { status: ProgressStatus }[] = [{ status: "pending" }, { status: "paid" }, { status: "cooking" }, { status: "completed" }];
+// 단계 이름은 사전 progress.{상태}, 그림은 Flaticon 일러스트 — 지금 단계 그림만 움직인다
+const STEPS: readonly { status: ProgressStatus; art: CustomerIconName; motion: ArtIconMotion }[] = [
+  { status: "pending", art: "receipt", motion: "wiggle" },
+  { status: "paid", art: "coins", motion: "spin" },
+  { status: "cooking", art: "pan", motion: "sizzle" },
+  { status: "completed", art: "bell", motion: "ring" },
+];
 
 const LABEL_CLASS: Record<StepState, string> = {
   done: "text-dough/80",
@@ -39,7 +46,13 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
           const state: StepState = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
           const isLast = index === STEPS.length - 1;
           return (
-            <li key={step.status} data-state={state} aria-current={state === "current" ? "step" : undefined} className="flex items-center gap-3">
+            <li key={step.status} data-state={state} aria-current={state === "current" ? "step" : undefined} className="relative flex items-center gap-3">
+              <ArtIcon
+                name={step.art}
+                size={state === "current" ? 38 : 30}
+                motion={state === "current" ? step.motion : "none"}
+                className={`absolute right-0 transition-all duration-500 ${state === "upcoming" ? "opacity-35 grayscale" : state === "done" ? "opacity-70" : ""}`}
+              />
               <span
                 aria-hidden="true"
                 className={`relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-500 ${
