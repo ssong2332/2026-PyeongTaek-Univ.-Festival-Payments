@@ -244,5 +244,12 @@
     "privacy.device.value": "24시간",
     "privacy.disposal.value": "2026-11-08",
     "privacy.heroTitle": "개인정보, 받지 않아요",
-    "menu.recommended": "오늘의 추천"
+    "menu.recommended": "오늘의 추천",
+    "journey.label": "주문 단계",
+    "journey.cart": "담기",
+    "journey.pay": "결제",
+    "journey.pickup": "픽업",
+    "cart.swipeHint": "← 왼쪽으로 밀면 삭제",
+    "cart.addMore": "더 담으러 가기",
+    "cart.addMoreHint": "다른 맛 호떡도 구경해 보세요"
 }

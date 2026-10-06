@@ -264,7 +264,7 @@ function MenuList(props: {
     return (
         <>
             {noneOrderable && (
-                <EmptyState title={t("menu.noneOrderable")} />
+                <EmptyState title={t("menu.noneOrderable")} mascot="sleepy" />
             )}
             {props.items.length > 0 && visible.length === 0 && (
                 <EmptyState title={t("menu.noResults")} mascot="search" />

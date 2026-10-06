@@ -244,5 +244,12 @@
     "privacy.device.value": "24 hours",
     "privacy.disposal.value": "2026-11-08",
     "privacy.heroTitle": "We don't collect your personal data",
-    "menu.recommended": "Today's pick"
+    "menu.recommended": "Today's pick",
+    "journey.label": "Order steps",
+    "journey.cart": "Cart",
+    "journey.pay": "Pay",
+    "journey.pickup": "Pick up",
+    "cart.swipeHint": "← Swipe left to remove",
+    "cart.addMore": "Add more",
+    "cart.addMoreHint": "Check out the other flavors"
 }

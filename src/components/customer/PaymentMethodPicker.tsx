@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { BankIcon, CashIcon } from "@/components/ui/icons";
 import type { PaymentMethod } from "@/domain/order/status";
 import { useT } from "@/lib/i18n/locale";
+import { HotteokMascot } from "@/components/ui/HotteokMascot";
 
 const METHODS: { value: PaymentMethod; Icon: typeof CashIcon }[] = [
     { value: "cash", Icon: CashIcon },
@@ -22,7 +23,14 @@ export interface PaymentMethodPickerProps {
 export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled = false }: PaymentMethodPickerProps) {
     const t = useT();
     return (
-        <section className="iron-card rounded-3xl p-4">
+        <section className="iron-card relative rounded-3xl p-4">
+            {/* 동전 든 호떡이가 카드 귀퉁이에서 기다리다, 고르면 신나서 뛴다 */}
+            <HotteokMascot
+                variant={value ? "excited" : "pay"}
+                size={58}
+                motion={value ? "jump" : "bob"}
+                className="absolute top-1 right-3"
+            />
             <h2 id="payment-method-title" className="font-display mb-3 text-lg text-dough">
                 {t("payment.title")}
             </h2>
