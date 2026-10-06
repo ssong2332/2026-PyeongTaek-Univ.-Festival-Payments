@@ -83,7 +83,7 @@ export function MenuLifecyclePanel({ api }: { api?: MenuAdminApi }) {
                         const name = menu.translations.ko?.name ?? "이름 없음";
                         return (
                             <li key={menu.id} className={menu.isActive ? "" : styles.inactive}>
-                                <div className={styles.optionRow}>
+                                <div className={styles.lifecycleRow}>
                                     <div>
                                         <strong>{name}</strong>
                                         <p className={styles.muted}>{menu.isActive ? "고객 메뉴판 노출 중" : "판매 종료 · 관리자에서만 보임"}</p>

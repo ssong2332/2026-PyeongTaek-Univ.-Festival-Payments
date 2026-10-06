@@ -101,7 +101,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                         ))}
                     </span>
                     <h1 className="relative flex items-end gap-3">
-                        {/* 글자를 누르면 다시 반죽처럼 떨어진다(장식 놀이) */}
+                        {/* 글자를 누르면 다시 반죽처럼 떨어진다(장식 놀이). 줄 높이가 촘촘해 ㅎ 꼭지가 그라데이션 칠 밖으로 나가지 않게 글자 상자를 위로 늘린다(pt·-mt) */}
                         <span
                             key={dropKey}
                             onPointerDown={() => {
@@ -114,10 +114,10 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                             }}
                             className="heat-haze font-display relative cursor-pointer text-[96px] leading-[0.9] drop-shadow-[0_10px_30px_rgba(240,138,44,0.35)] select-none"
                         >
-                            <span className="jelly syrup-text inline-block origin-bottom" style={{ animationDelay: "0.05s, 2.2s" }}>
+                            <span className="jelly syrup-text -mt-[0.18em] inline-block origin-bottom pt-[0.18em]" style={{ animationDelay: "0.05s, 2.2s" }}>
                                 호
                             </span>
-                            <span className="jelly syrup-text inline-block origin-bottom" style={{ animationDelay: "0.18s, 2.45s" }}>
+                            <span className="jelly syrup-text -mt-[0.18em] inline-block origin-bottom pt-[0.18em]" style={{ animationDelay: "0.18s, 2.45s" }}>
                                 떡
                             </span>
                             {/* 바닥 그림자: 글자가 닿는 순간 납작하게 퍼진다 */}
