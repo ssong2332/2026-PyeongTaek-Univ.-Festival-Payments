@@ -1,6 +1,6 @@
 # T-29 검증 기록 (2026-10-06)
 
-- 최신 dev `b622512`를 일반 merge(`82d1a6c`)로 반영. force push/PR merge 없음.
+- 최신 dev `3a52fe7`를 일반 merge(`82d1a6c`)로 반영. force push/PR merge 없음.
 - 단위 테스트: 122개 파일, 1,267개 통과.
 - typecheck 통과, production build 통과.
 - lint: 오류 0, 기존 dev의 `src/app/api/admin/settings/route.ts` unused `_request` 경고 1.
@@ -16,3 +16,4 @@
 3. README 절차대로 앱을 정지하고 dry-run → cleanup → 재실행 후 재고와 pickup 기준값을 확인한다.
 
 운영/공용 DB에는 부하 테스트·cleanup·SQL 설치를 실행하지 않았다. 실제 부하 근거가 나오기 전까지 Draft 유지 권장.
+
