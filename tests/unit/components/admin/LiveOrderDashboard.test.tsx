@@ -151,6 +151,26 @@ it("returns the card to the latest server state after a 409 and keeps the failur
     expect(reloadOrders).toHaveBeenCalledTimes(1);
 });
 
+it.each([
+    [200, "4.0"],
+    [401, "후기를 불러오지 못했습니다"],
+])("T-42 매출 통계 탭은 후기를 관리자 API로 따로 불러온다(응답 %i)", async (status, shown) => {
+    const stats = { date: "all", sales: 0, orderCount: 0, refundedAmount: 0, refundedCount: 0, byMenu: [], hourlyByMenu: [],
+        totals: { pending: 0, paid: 0, cooking: 0, completed: 0, cancelled: 0, refunded: 0, expired: 0 } };
+    const reviews = { date: "all", count: 1, averageRating: 4, reviews: [{
+        orderId: "11111111-1111-4111-8111-000000000001", pickupNumber: 7, manualNumber: null,
+        rating: 4, text: "맛있어요", createdAt: "2026-10-07T03:12:00.000Z" }] };
+    const request = vi.fn(async (url: string) => url.startsWith("/api/admin/reviews")
+        ? new Response(status === 200 ? JSON.stringify(reviews) : null, { status })
+        : new Response(JSON.stringify(stats), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    render(<LiveOrderDashboard />);
+    fireEvent.click(within(screen.getByRole("navigation", { name: "관리자 메뉴" })).getByRole("button", { name: "매출 통계" }));
+    const section = await screen.findByRole("region", { name: "후기" });
+    await waitFor(() => expect(section.textContent).toContain(shown));
+    expect(request).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/admin\/reviews\?date=\d{4}-\d{2}-\d{2}$/), { cache: "no-store" });
+});
+
 it("T-23 배너 재확인은 헬스체크를 호출하고 끊김 폴링·복구는 refresh로 재동기화한다", async () => {
     monitorState.disconnected = true;
     render(<LiveOrderDashboard />);

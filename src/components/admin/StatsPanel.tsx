@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AdminReviewsResponse } from "@/lib/dto/review";
 import type { StatsDto } from "@/lib/dto/stats";
 import { HourlyMenuHeatmap } from "./HourlyMenuHeatmap";
+import { ReviewsSection } from "./ReviewsSection";
 import styles from "./StatsPanel.module.css";
 
 const money = (amount: number) => `${amount.toLocaleString("ko-KR")}원`;
 const todayKst = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-export function StatsPanel({ loadStats, initialDate }: {
+export function StatsPanel({ loadStats, loadReviews, initialDate }: {
     loadStats: (date: string) => Promise<StatsDto>;
+    // T-42 후기 열람. 없으면 후기 영역을 숨긴다.
+    loadReviews?: (date: string) => Promise<AdminReviewsResponse>;
     initialDate?: string;
 }) {
     const [date, setDate] = useState(initialDate ?? todayKst);
@@ -78,5 +82,6 @@ export function StatsPanel({ loadStats, initialDate }: {
                 </section>
                 <HourlyMenuHeatmap sales={summary.hourlyByMenu} />
             </>}
+        {loadReviews && <ReviewsSection loadReviews={loadReviews} date={date} refreshKey={version} />}
     </section>;
 }

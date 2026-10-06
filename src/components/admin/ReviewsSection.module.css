@@ -1,0 +1,22 @@
+/* 후기 목록 — 매출 통계 카드와 같은 야간 철판 톤 */
+.section { border:1px solid #3a3140; border-radius:20px; padding:20px; background:#211c25; color:#f7e8d0; }
+.heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.heading h2 { margin:0; font-family:var(--font-display); font-weight:400; font-size:20px; }
+.average { display:flex; align-items:baseline; gap:6px; margin:0; color:#b3a497; font-size:13px; }
+.average strong { color:#ffb547; font-family:var(--font-mono); font-weight:500; font-size:26px; }
+.count { margin-left:6px; color:#f7e8d0; font-family:var(--font-mono); }
+.basis { margin:-8px 0 14px; color:#b3a497; font-size:12px; }
+.message { margin:0; padding:28px; color:#b3a497; text-align:center; }
+.error { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px; border:1px solid rgba(255,106,85,.45); border-radius:12px; background:rgba(255,106,85,.1); color:#ff6a55; }
+.error p { margin:0; }
+.error button { border:1px solid #3a3140; border-radius:10px; background:#211c25; color:#ffb547; font:inherit; font-weight:bold; padding:10px 12px; cursor:pointer; }
+.error button:focus-visible { outline:2px solid #ffb547; outline-offset:2px; }
+.list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
+.item { display:grid; gap:8px; border:1px solid #3a3140; border-radius:14px; padding:12px 14px; background:#15121a; }
+.meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+.number { font-family:var(--font-mono); font-weight:bold; color:#f7e8d0; }
+.stars { color:#ffb547; letter-spacing:1px; }
+.time { margin-left:auto; color:#b3a497; font-family:var(--font-mono); }
+.text { margin:0; font-size:14px; line-height:1.5; white-space:pre-line; overflow-wrap:anywhere; }
+.empty { margin:0; font-size:13px; color:#b3a497; }
+@media(max-width:760px) { .section { padding:14px; } }
