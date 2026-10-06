@@ -45,6 +45,7 @@ coverage/
 test-results/
 playwright-report/
 playwright/.cache/
+tests/load/summary.*
 
 # Supabase CLI 로컬 스택
 supabase/.temp/
