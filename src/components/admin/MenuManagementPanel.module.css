@@ -68,3 +68,9 @@
     .smallSave, .optionToggle { grid-column:span 1; }
     .cardHead { flex-wrap:wrap; }
 }
+
+.headingActions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.createBox { display:grid; gap:14px; border:1px solid rgba(255,181,71,.45); border-radius:20px; padding:18px; background:linear-gradient(155deg,#2b2530,#1d1921); }
+.createBox h3 { margin:0; font-family:var(--font-display); font-size:22px; font-weight:400; }
+.createGroups { display:grid; gap:10px; }
+.groupTitle { display:flex; align-items:center; justify-content:space-between; gap:10px; }

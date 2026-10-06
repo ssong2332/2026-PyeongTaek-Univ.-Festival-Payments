@@ -70,6 +70,7 @@ function createPreviewMenuApi(): MenuAdminApi {
     const ownerOf = (predicate: (menu: AdminMenuDto) => boolean) => menus.find(predicate)?.id ?? menus[0].id;
     return {
         load: async () => structuredClone(menus),
+        createMenu: async () => { throw new Error("Menu creation is not available in dashboard preview."); },
         updateMenu: async (id, patch) => save(id, menu => ({
             ...menu,
             basePrice: patch.basePrice ?? menu.basePrice,

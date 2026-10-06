@@ -1,6 +1,7 @@
 import {
     ADMIN_MENU_LOCALES,
     type AdminMenuDto,
+    type AdminMenuCreate,
     type AdminMenuOptionGroupDto,
     type AdminMenuPatch,
     type AdminMenusResponse,
@@ -89,13 +90,50 @@ async function writeNames(
     }
 }
 
-// PATCH /api/admin/menus/{id}: 가격·재고·수동 품절·이름/설명(ko·en). 응답은 고친 뒤의 메뉴 전체.
+
+export async function createAdminMenu(input: AdminMenuCreate, repository: AdminMenuRepository): Promise<AdminMenuDto> {
+    const existing = await repository.listMenuItems();
+    const sortOrder = existing.reduce((max, menu) => Math.max(max, menu.sortOrder), -1) + 1;
+    const menuItemId = await repository.createMenuItem({
+        basePrice: input.basePrice,
+        stock: input.stock,
+        sortOrder,
+        translations: ADMIN_MENU_LOCALES.map((locale) => ({
+            locale,
+            name: input.translations[locale].name,
+            description: input.translations[locale].description === undefined
+                ? null
+                : input.translations[locale].description || null,
+        })),
+        optionGroups: input.optionGroups.map((group, groupIndex) => ({
+            minSelect: group.minSelect,
+            maxSelect: group.maxSelect,
+            sortOrder: groupIndex,
+            translations: ADMIN_MENU_LOCALES.map((locale) => ({
+                locale,
+                name: group.translations[locale].name,
+            })),
+            options: group.options.map((option, optionIndex) => ({
+                extraPrice: option.extraPrice,
+                sortOrder: optionIndex,
+                translations: ADMIN_MENU_LOCALES.map((locale) => ({
+                    locale,
+                    name: option.translations[locale].name,
+                })),
+            })),
+        })),
+    });
+    return readMenu(repository, menuItemId);
+}
+
+// PATCH /api/admin/menus/{id}: 가격·재고·수동 품절·활성 상태·이름/설명(ko·en). 응답은 고친 뒤의 메뉴 전체.
 export async function updateAdminMenu(menuItemId: string, patch: AdminMenuPatch, repository: AdminMenuRepository): Promise<AdminMenuDto> {
     const exists = await repository.updateMenuItem(menuItemId, {
         basePrice: patch.basePrice,
         stock: patch.stock,
         isRecommended: patch.isRecommended,
         isSoldOutManual: patch.isSoldOutManual,
+        isActive: patch.isActive,
     });
     if (!exists) throw new AppError("NOT_FOUND", 404);
     if (patch.translations) {

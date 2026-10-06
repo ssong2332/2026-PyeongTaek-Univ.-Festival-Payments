@@ -50,6 +50,7 @@ function fakeApi(menus: AdminMenuDto[] = [menu()]): MenuAdminApi {
     };
     return {
         load: vi.fn(async () => structuredClone(current)),
+        createMenu: vi.fn(async () => { throw new Error("not used in MenuManagementPanel tests"); }),
         updateMenu: vi.fn(async (id, patch) => apply(id, (item) => {
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;

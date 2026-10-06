@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AdminMenuSchema, AdminMenusResponseSchema } from "@/lib/dto/adminMenu";
 import { AppError } from "@/lib/api/errors";
-import { listAdminMenus, updateAdminMenu, updateAdminOption, updateAdminOptionGroup } from "@/services/adminMenuService";
+import { createAdminMenu, listAdminMenus, updateAdminMenu, updateAdminOption, updateAdminOptionGroup } from "@/services/adminMenuService";
 import { getMenu } from "@/services/menuService";
 import type { MenuItemRecord, MenuOptionGroupRecord } from "@/services/ports";
 import { createFakeAdminMenuRepository } from "../fakes/fakeAdminMenuRepository";
@@ -92,6 +92,44 @@ describe("listAdminMenus — GET /api/admin/menus", () => {
     it("메뉴가 0개면 빈 목록", async () => {
         const { repository } = createFakeAdminMenuRepository([]);
         expect(await listAdminMenus(repository)).toEqual({ menus: [] });
+    });
+});
+
+
+describe("T-37 create/deactivate menu", () => {
+    it("새 메뉴를 ko/en·가격·재고·옵션과 함께 생성하고 마지막 sort order에 둔다", async () => {
+        const { repository } = createFakeAdminMenuRepository([menu({ sortOrder: 4 })]);
+        const created = await createAdminMenu({
+            translations: {
+                ko: { name: "시나몬 호떡", description: "달콤" },
+                en: { name: "Cinnamon Hotteok", description: "Sweet" },
+            },
+            basePrice: 3000,
+            stock: 20,
+            optionGroups: [{
+                translations: { ko: { name: "토핑" }, en: { name: "Topping" } },
+                minSelect: 0,
+                maxSelect: 1,
+                options: [{
+                    translations: { ko: { name: "치즈" }, en: { name: "Cheese" } },
+                    extraPrice: 500,
+                }],
+            }],
+        }, repository);
+        expect(created).toMatchObject({
+            basePrice: 3000, stock: 20, isActive: true, sortOrder: 5,
+            translations: { ko: { name: "시나몬 호떡" }, en: { name: "Cinnamon Hotteok" } },
+        });
+        expect(created.optionGroups[0]).toMatchObject({ minSelect: 0, maxSelect: 1 });
+        expect(created.optionGroups[0].options[0]).toMatchObject({ extraPrice: 500 });
+    });
+
+    it("판매 종료는 isActive만 끄므로 고객 메뉴판에서 숨고 저장 데이터는 남는다", async () => {
+        const { repository, menuRepository } = createFakeAdminMenuRepository([menu()]);
+        const stopped = await updateAdminMenu(MENU_ID, { isActive: false }, repository);
+        expect(stopped.isActive).toBe(false);
+        expect((await repository.getMenuItem(MENU_ID))?.translations[0].name).toBe("기본 호떡");
+        expect((await getMenu("ko", { menuRepository, orderRepository: queue })).items).toHaveLength(0);
     });
 });
 
