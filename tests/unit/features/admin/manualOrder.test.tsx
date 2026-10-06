@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import type { MenuItemDto } from "@/lib/dto/menu";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import { ManualOrderForm } from "@/features/admin/ManualOrderForm";
-import { manualOrderShortages, manualOrderTotal, toManualOrderMenu, toManualOrderRequest } from "@/features/admin/manualOrder";
+import { ManualOrderSaveError, manualOrderShortages, manualOrderTotal, toManualOrderMenu, toManualOrderRequest } from "@/features/admin/manualOrder";
 
 afterEach(cleanup);
 
@@ -28,6 +28,18 @@ const menu: MenuItemDto[] = [{
     }],
 }];
 const line = { key: "line", menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] };
+const successResult = {
+    orderId: "88888888-8888-4888-8888-888888888888",
+    manualNumber: 1,
+    displayNumber: "M-001",
+    status: "completed" as const,
+    paymentMethod: "cash" as const,
+    totalAmount: 7000,
+    manualOrderedAt: "2026-10-03T11:00:00.000Z",
+    createdAt: "2026-10-06T04:00:00.000Z",
+    created: true,
+    stockShortages: [],
+};
 
 describe("T-28 manual order input", () => {
     it("관리자 메뉴 조회에서 판매 종료 메뉴와 현재 비활성 옵션도 사후 입력 선택지에 남긴다", () => {
@@ -51,15 +63,18 @@ describe("T-28 manual order input", () => {
         expect(screen.getByRole("option", { name: /예전 호떡.*판매 종료\(과거 메뉴\)/ })).toBeTruthy();
     });
 
-    it("builds a KST timestamp and calculates option price and cumulative shortage", () => {
+    it("builds M number and KST timestamp and calculates option price and cumulative shortage", () => {
         const request = toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY, 1);
         expect(request?.manualOrderedAt).toBe("2026-10-03T11:00:00.000Z");
-        expect(request?.manualNumber).toBe(1);\n        expect(request?.items).toEqual([{ menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] }]);
+        expect(request?.manualNumber).toBe(1);
+        expect(request?.items).toEqual([{ menuItemId: MENU_ID, quantity: 2, optionIds: [OPTION_ID] }]);
         expect(manualOrderTotal([line], menu)).toBe(7000);
         expect(manualOrderShortages([line], menu)).toEqual(["호떡"]);
     });
 
-    it("rejects missing required options, impossible dates, and future dates", () => {
+    it("rejects invalid M number, missing required options, impossible dates, and future dates", () => {
+        expect(toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY, 0)).toBeNull();
+        expect(toManualOrderRequest([line], menu, "cash", "2026-10-03T20:00", KEY, 10000)).toBeNull();
         expect(toManualOrderRequest([{ ...line, optionIds: [] }], menu, "cash", "2026-10-03T20:00", KEY, 1)).toBeNull();
         expect(toManualOrderRequest([line], menu, "cash", "2026-02-30T20:00", KEY, 1)).toBeNull();
         expect(toManualOrderRequest([line], menu, "cash", "2099-01-01T10:00", KEY, 1)).toBeNull();
@@ -73,7 +88,7 @@ describe("T-28 manual order input", () => {
 
     it("allows one seasoning and an independent sauce in the finalized menu", () => {
         render(<ManualOrderForm menu={menu} />);
-        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });\n        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });\n        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
+        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
         fireEvent.click(screen.getByLabelText(/콩가루/));
         fireEvent.click(screen.getByLabelText(/불닭 소스 \(\+500원\)/));
@@ -83,12 +98,13 @@ describe("T-28 manual order input", () => {
         expect(screen.getByText("예상 합계 4,000원")).toBeTruthy();
     });
 
-    it("prevents repeated save, preserves failed input and idempotency key for retry", async () => {
+    it("prevents repeated save, preserves failed input/idempotency key, then displays server result", async () => {
         let rejectFirst!: (error: Error) => void;
         const onSave = vi.fn()
-            .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }))
-            .mockResolvedValueOnce(undefined);
-        render(<ManualOrderForm menu={menu} onSave={onSave as never} />);
+            .mockImplementationOnce(() => new Promise((_, reject) => { rejectFirst = reject; }))
+            .mockResolvedValueOnce(successResult);
+        render(<ManualOrderForm menu={menu} onSave={onSave} />);
+        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });
         fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
         fireEvent.change(screen.getByLabelText("종이 주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
@@ -96,13 +112,25 @@ describe("T-28 manual order input", () => {
         expect((save as HTMLButtonElement).disabled).toBe(false);
         fireEvent.click(save);
         expect(onSave).toHaveBeenCalledTimes(1);
-        expect((screen.getByRole("button", { name: "저장 중…" }) as HTMLButtonElement).disabled).toBe(true);
         rejectFirst(new Error("network"));
-        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("저장에 실패"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("입력 내용을 유지"));
+        expect((screen.getByLabelText("M 번호") as HTMLInputElement).value).toBe("1");
         expect((screen.getByLabelText("메뉴 선택") as HTMLSelectElement).value).toBe(MENU_ID);
         fireEvent.click(screen.getByRole("button", { name: "수기 주문 저장" }));
         await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
         expect(onSave.mock.calls[1][0].idempotencyKey).toBe(onSave.mock.calls[0][0].idempotencyKey);
-        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("저장되었습니다"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("M-001 수기 주문이 저장되었습니다"));
+    });
+
+    it("keeps values and explains duplicate M number on 409 contract error", async () => {
+        const onSave = vi.fn().mockRejectedValue(new ManualOrderSaveError("MANUAL_NUMBER_TAKEN"));
+        render(<ManualOrderForm menu={menu} onSave={onSave} />);
+        fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "7" } });
+        fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
+        fireEvent.click(screen.getByLabelText(/치즈/));
+        fireEvent.change(screen.getByLabelText("종이 주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
+        fireEvent.click(screen.getByRole("button", { name: "수기 주문 저장" }));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("M-007 번호는 이미 사용 중"));
+        expect((screen.getByLabelText("M 번호") as HTMLInputElement).value).toBe("7");
     });
 });
