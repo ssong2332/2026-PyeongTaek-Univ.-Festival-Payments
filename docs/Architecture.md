@@ -266,6 +266,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|
 | `create_order` | `(p_idempotency_key uuid, p_payment_method payment_method, p_locale text, p_items jsonb) RETURNS jsonb` — ADR-0002 | `OUT_OF_STOCK` (detail: menu_item_id, available) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `EMPTY_ITEMS` |
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
+| `create_manual_order` (`0104_manual_orders.sql`) | `(p_idempotency_key uuid, p_payment_method payment_method, p_manual_ordered_at timestamptz, p_manual_number integer, p_actor_id uuid, p_items jsonb) RETURNS jsonb` — T-28 수기 주문 사후 입력(F-34, DECISIONS #62). 완료 상태 주문(`source='manual'`·`manual_ordered_at`·`manual_number`) + 상태 이력(`manual_create`, admin) + 재고 차감을 한 트랜잭션으로. 재고는 `greatest(stock - 수량, 0)`(모자라도 저장), 가격은 DB 값, 비활성 메뉴·옵션 허용. 같은 멱등키 재요청은 기존 주문 반환(`created=false`). `pickup_number`는 고객 번호와 겹치지 않게 `2100000000 + manual_number` | `MANUAL_NUMBER_TAKEN` (detail: manualNumber) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `INVALID_MANUAL_ORDERED_AT`(미래) · `INVALID_MANUAL_NUMBER` · `EMPTY_ITEMS` · `INVALID_ITEMS` · `IDEMPOTENCY_KEY_CONFLICT`(고객 주문의 키) |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
 | `consume_rate_limit` (`0018_rate_limit.sql`) | `(p_scope text, p_key text, p_limit int, p_window_seconds int, p_now timestamptz DEFAULT now()) RETURNS boolean` — 고정 윈도 원자적 증가, 한도 도달 시 `false` — ADR-0009 | 없음(`false` 반환) |
@@ -302,6 +303,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0100 | `0100_shifts.sql` | 교대 스케줄 `shifts` 및 RLS | T-46 · DB1 | 0019(운영 적용 순서) | 신규 배정. 0018·0019 이후 운영 적용 |
 | 0101 | `0101_menu_recommendation.sql` | 메뉴별 추천 여부 `is_recommended` | T-38 · DB1 | 0100(운영 적용 순서) | 신규 배정. 기본값 false, NOT NULL; 기존 메뉴 RLS 유지 |
 | 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. 저장 API는 아래 고객 API 규격, 고객 폼 연결은 후속 |
+| 0104 | `0104_manual_orders.sql` | 수기 주문 사후 입력: `orders.source`·`manual_ordered_at`·`manual_number`, `create_manual_order`, `get_stats` 날짜 기준 변경 | T-28 · BE1 | 0103(운영 적용 순서) | 신규 배정(DECISIONS #62). 운영 DB는 0103까지 적용(2026-10-06 팀장 확인) — 병합 후 DB1 적용 |
 
 > **운영 DB 적용 현황(마지막 확인 2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). `0018`은 dev에 병합됐으나 운영 적용 여부는 재확인이 필요하다. `0019` 적용 전 운영 마이그레이션 이력에서 `0018` 적용을 확인한다. 기존 `0014`·`0015`는 규칙 4에 따라 `0018`·`0019`로 이름을 바꿨다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -325,7 +327,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 
 | 기능 | 변경 | 착수 게이트 |
 |---|---|---|
-| F-34 수기 입력 | `orders.source text NOT NULL DEFAULT 'customer'` (`'customer'|'manual'`), `orders.manual_ordered_at` | T-28 |
+| F-34 수기 입력 | `orders.source text NOT NULL DEFAULT 'customer'` (`'customer'|'manual'`), `orders.manual_ordered_at timestamptz`(종이 주문 시각 — 매출·통계·CSV 날짜 기준), `orders.manual_number integer UNIQUE CHECK 1..9999`(종이의 M 번호 — 직접 입력, 축제 전체 연속, 화면·CSV는 `M-001` 표시) — `0104_manual_orders.sql`. 수기 주문만 두 칸을 가진다(CHECK). 기존 `pickup_number` 규칙·고객 카운터는 그대로(수기 주문은 `2100000000 + manual_number`) | T-28 |
 | F-33 직원 호출 | `staff_calls(id, order_id FK, called_at, acknowledged_at, acknowledged_by)`; 2분 중복 방지는 서비스에서 `max(called_at)` 비교 | T-27 |
 | F-35 추천 | `menu_items.is_recommended boolean NOT NULL DEFAULT false` — `0101_menu_recommendation.sql`. 기존·신규 메뉴 기본 OFF, 복수 추천 허용. 기존 메뉴 RLS 유지: authenticated SELECT만, 쓰기는 관리자 API의 service_role | T-38 · Open Question #25(a)(c) 확정. 관리자 UI #97·T-20 API·FE1 고객 노출 연결은 각 담당 후속 |
 | F-35 템플릿 | `option_templates(id, menu_item_id, name, option_ids uuid[])` | T-39 · Open Question #25(b) 확정 |
@@ -391,11 +393,12 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | `PATCH /api/admin/menus/{id}` | `{ basePrice?: int≥0, stock?: int≥0, isSoldOutManual?: bool, translations?: { [locale]: { name: string≥1, description?: string } } }` | `AdminMenuDto` | ko `name` 빈값 → 400. 재고 0이면 `isSoldOut` 파생(F-25) — 별도 플래그 저장 없음 |
 | `PATCH /api/admin/option-groups/{id}` | `{ translations?, minSelect?, maxSelect?, isActive? }` | `AdminMenuDto`(소속 메뉴) | max ≥ min 아니면 400 |
 | `PATCH /api/admin/options/{id}` | `{ translations?, extraPrice?: int≥0, isActive? }` | `AdminMenuDto` | |
-| `GET /api/admin/stats?date=YYYY-MM-DD` | `date` 기본 오늘(KST); `date=all` 허용 | `StatsDto { date, sales, orderCount, refundedAmount, refundedCount, byMenu: [{ menuItemId, nameKo, quantity, ratio }], hourlyByMenu: [{ hour, menuItemId, nameKo, quantity }], totals: { pending, paid, cooking, completed, cancelled, refunded, expired } }` | DECISIONS #19 규칙. `byMenu`는 status ∈ {paid,cooking,completed} 항목 수량 합, `ratio` = 수량/총수량(0건이면 `[]`). T-26 `hourlyByMenu`는 같은 상태·날짜 기준으로 주문 생성 시각의 KST 0~23시별 항목 수량 합; `date=all`은 날짜를 통틀어 같은 시각을 합침(0건이면 `[]`) |
-| `GET /api/admin/stats/csv?from=YYYY-MM-DD&to=YYYY-MM-DD` | 기본 축제 전체(2026-10-07~08 — `app_settings`가 아니라 요청 기본값 상수 `FESTIVAL_DATES`) | `text/csv; charset=utf-8` + BOM, `Content-Disposition: attachment; filename="orders_{from}_{to}.csv"` | 헤더 13개(DECISIONS #20, 2026-09-24 `송금 하위 수단` 삭제): `주문 ID,픽업 번호,주문 시각,메뉴,옵션,수량,금액,결제수단,상태,취소/환불 사유,주문 합계,결제확인 시각,완료 시각`. 옵션은 `;`로 연결. 상태·결제수단은 한글 라벨. 0건이면 헤더만 |
+| `GET /api/admin/stats?date=YYYY-MM-DD` | `date` 기본 오늘(KST); `date=all` 허용 | `StatsDto { date, sales, orderCount, refundedAmount, refundedCount, byMenu: [{ menuItemId, nameKo, quantity, ratio }], totals: { pending, paid, cooking, completed, cancelled, refunded, expired } }` | DECISIONS #19 규칙. `byMenu`는 status ∈ {paid,cooking,completed} 항목 수량 합, `ratio` = 수량/총수량(0건이면 `[]`). 수기 주문(T-28)은 `manual_ordered_at` 날짜에 넣는다 — 그 밖은 `created_at`(DECISIONS #62, `0104`) |
+| `GET /api/admin/stats/csv?from=YYYY-MM-DD&to=YYYY-MM-DD` | 기본 축제 전체(2026-10-07~08 — `app_settings`가 아니라 요청 기본값 상수 `FESTIVAL_DATES`) | `text/csv; charset=utf-8` + BOM, `Content-Disposition: attachment; filename="orders_{from}_{to}.csv"` | 헤더 13개(DECISIONS #20, 2026-09-24 `송금 하위 수단` 삭제): `주문 ID,픽업 번호,주문 시각,메뉴,옵션,수량,금액,결제수단,상태,취소/환불 사유,주문 합계,결제확인 시각,완료 시각`. 옵션은 `;`로 연결. 상태·결제수단은 한글 라벨. 0건이면 헤더만. 수기 주문(T-28)은 `manual_ordered_at` 날짜에 넣는다 — 그 밖은 `created_at`(DECISIONS #62, `0104`) |
 | `GET /api/admin/settings` | — | `{ settings: { [key]: string } }` | 전체 키 |
 | `PUT /api/admin/settings` | `{ settings: { [key]: string } }` (ADR-0004 키만, 키별 zod: `payment.expire_minutes` int 1..120, `auto_complete.enabled` `'true'|'false'`, `auto_complete.minutes` int 1..120, `transfer.*` string ≤200) | `{ settings }` (전체 키) | 부분 갱신 — 전달된 키만 upsert, 나머지 유지. 알 수 없는 키 400(`VALIDATION_ERROR`, `details`에 키). `transfer.*`는 빈 문자열 허용(= "미입력"). `updated_by = user.id`. F-48 설정 패널의 저장 경로 |
 | `POST /api/admin/sweep` | — | `{ expired, completed }` | ADR-0006 폴백. 멱등 |
+| `POST /api/admin/manual-orders` | `{ idempotencyKey: uuid, paymentMethod: 'cash'|'transfer', manualOrderedAt: ISO 8601(오프셋 필수), manualNumber: int 1..9999, items: [{ menuItemId, quantity: int 1..99, optionIds: uuid[] }] (1..20) }` — strict, 가격 필드 없음 | 201 신규 / 200 같은 멱등키 재요청 · `ManualOrderResponse { orderId, manualNumber, displayNumber: 'M-001', status: 'completed', paymentMethod, totalAmount, manualOrderedAt, createdAt, created, stockShortages: [{ menuItemId, requested, available }] }` | T-28(F-34, DECISIONS #62). 같은 수기 번호의 다른 요청 → 409 `MANUAL_NUMBER_TAKEN`. 없는 메뉴 409 `MENU_UNAVAILABLE`, 옵션 오류 409 `INVALID_OPTION`, 미래 시각·형식 오류 400 `VALIDATION_ERROR`. 재고 부족은 오류가 아니다(`stockShortages`로 알림, 재고는 0에서 멈춤). `AdminOrderDto`에 `source`·`manualNumber`·`manualOrderedAt` 추가(선택 필드) |
 
 ### 8. 화면 메커니즘 (PRD "화면" 절 실현)
 
@@ -412,9 +415,9 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | 관리자 로그인 | `/admin/login` | 로컬 폼 상태 | `supabase.auth.signInWithPassword`(브라우저 클라이언트) → 성공 시 `/admin` | 빈칸 → 제출 비활성; 오류 메시지 표시. 회원가입 링크 없음 |
 | 대시보드 | `/admin` | `useOrdersFeed`(Map 병합, ADR-0003) + `useConnectionMonitor` + `useSettings` | Realtime + `/api/admin/orders` + 30초 `sweep` | 빈 값: "아직 주문이 없습니다"; 초기 로딩; `ConnectionBanner`(10초); 전환 실패 → 토스트 + 서버 응답으로 카드 되돌림(낙관적 갱신 안 함 — 서버 응답 후 갱신); 미확인 강조 = `acknowledgedAt==null`; 송금 신고·취소 요청 배지; `PickupSearch`는 Map 필터(클라이언트) — 오늘 범위 밖 번호면 `GET ?pickupNumber=`; `SettingsPanel`(F-48 — 아래 "설정 패널" 단락) |
 | 메뉴·재고 관리 | `/admin/menus` | `useMenuAdmin` — 목록 + 항목별 편집 폼 상태 | `GET/PATCH /api/admin/menus…` | 빈 값: "메뉴가 없습니다 — 시드 데이터를 확인하세요"; 저장 중 잠금; 유효성(가격·재고 음수, ko 이름 빈칸) 즉시 표시; 실패 토스트 |
-| 통계 | `/admin` 내부 매출 통계 탭 | `StatsPanel`의 날짜·조회 상태 | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도. T-26 시간대별 메뉴 히트맵은 KST 1시간 × 메뉴 수량이며 0건은 "데이터 없음", 0개 셀은 비워 둔다. `/admin/stats` 별도 페이지는 두지 않음 |
+| 통계 | `/admin` 내부 매출 통계 탭 | `StatsPanel`의 날짜·조회 상태 | `GET /api/admin/stats`, CSV는 `<a href>` 다운로드 | 빈 값: "데이터 없음"(차트 미렌더); 로딩; 에러 + 재시도. `/admin/stats` 별도 페이지는 두지 않음 |
 | 교대 스케줄 (T-46, F-40) | `/admin/shifts` (`admin/(protected)/shifts/page.tsx`) | `features/admin/ShiftManagement` — CRUD 폼·목록·현재 담당자. 현재 시각은 30초마다 갱신, KST 구간 [시작, 종료)로 복수 담당자 산출 | `lib/api/client` → 관리자 shifts API | 0건·현재 담당자 없음·조회 로딩/오류 재시도·저장 잠금/실패 안내·삭제 확인. 오류 상태를 0건으로 표시하지 않음. 세션 없음/만료 → 로그인 |
-| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신. 2026-10-05: 수기 입력(T-28)은 축제 포함 — 재고 부족 시 저장·재고 0에서 멈춤, 매출 날짜는 `orders.manual_ordered_at` 기준(DECISIONS #62, PRD F-34). 저장 API 요청·응답 계약은 BE1 구현 PR에서 이 표와 API 절에 추가(초안: #98 `docs/T-28-manual-order-integration.md`). 프로모션(F-38)은 미구현 |
+| (2차) 수기 입력·프로모션 | `/admin/manual-orders`, 고객 `/promotions` 또는 배너 | 착수 시 정의 | — | 세부 미정(#28~#31) 확정 후 팀장 갱신. 2026-10-05: 수기 입력(T-28)은 축제 포함 — 재고 부족 시 저장·재고 0에서 멈춤, 매출 날짜는 `orders.manual_ordered_at` 기준(DECISIONS #62, PRD F-34). 저장 API 요청·응답 계약은 위 관리자 API 표 `POST /api/admin/manual-orders`(2026-10-06 — 수기 번호는 종이의 M 번호를 직접 입력, 중복은 DB가 거부). 프로모션(F-38)은 미구현 |
 
 설정 패널(F-48, `/admin` 안의 `SettingsPanel` — 별도 라우트 없음, 접힘/펼침 UI는 디자인 재량):
 

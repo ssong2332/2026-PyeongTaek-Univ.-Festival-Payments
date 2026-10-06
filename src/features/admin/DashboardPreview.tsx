@@ -7,17 +7,15 @@ import { SettingsPanel, type SettingsApi } from "@/components/admin/SettingsPane
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { aggregateStats } from "@/domain/stats/aggregate";
-import { aggregateHourlyMenuSales } from "@/domain/stats/hourlySales";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 
 async function loadPreviewStats(date: string) {
-    const orders = makePreviewOrders().map(order => ({
+    return aggregateStats(makePreviewOrders().map(order => ({
         id: order.id, status: order.status, totalAmount: order.totalAmount,
         createdAt: order.createdAt, items: order.items.map(item => ({
             menuItemId: order.id, nameKo: item.menuNameKo, quantity: item.quantity,
         })),
-    }));
-    return { ...aggregateStats(orders, date), hourlyByMenu: aggregateHourlyMenuSales(orders, date) };
+    })), date);
 }
 
 export function makePreviewOrders(): AdminOrderDto[] {
@@ -42,7 +40,7 @@ export function makePreviewOrders(): AdminOrderDto[] {
 function previewMenus(): AdminMenuDto[] {
     const item = (id: string, ko: string, en: string, price: number, stock: number, extra: Partial<AdminMenuDto> = {}): AdminMenuDto => ({
         id, translations: { ko: { name: ko, description: null }, en: { name: en, description: null } },
-        basePrice: price, stock, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
+        basePrice: price, stock, isRecommended: false, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
     });
     return [
         item("11111111-1111-1111-1111-111111111111", "기본 호떡", "Original Hotteok", 2000, 42, {

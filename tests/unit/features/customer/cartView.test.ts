@@ -16,6 +16,7 @@ function menu(overrides: Partial<MenuItemDto> = {}): MenuItemDto {
         description: null,
         price: 2500,
         stock: 5,
+        isRecommended: false,
         isAvailable: true,
         isSoldOut: false,
         imageUrl: "https://example.com/cheese.jpg",

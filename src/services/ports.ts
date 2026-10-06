@@ -1,6 +1,7 @@
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from "@/domain/order/status";
 import type { CreateOrderRequest, CreateOrderResponse } from "@/lib/dto/order";
+import type { ManualOrderResponse } from "@/lib/dto/manualOrder";
 import type { Shift, ShiftInput } from "@/domain/shift/schedule";
 
 export interface ShiftRepository {
@@ -145,6 +146,7 @@ export interface MenuItemRecord {
     id: string;
     basePrice: number;
     stock: number;
+    isRecommended: boolean;
     isSoldOutManual: boolean;
     isActive: boolean;
     sortOrder: number;
@@ -163,6 +165,7 @@ export interface MenuRepository {
 export interface MenuItemPatch {
     basePrice?: number;
     stock?: number;
+    isRecommended?: boolean;
     isSoldOutManual?: boolean;
 }
 
@@ -208,4 +211,19 @@ export interface AdminMenuRepository {
     findOptionMenuItemId(id: string): Promise<string | null>;
     updateOption(id: string, patch: OptionPatch): Promise<void>;
     upsertOptionTranslation(optionId: string, translation: NameTranslationWrite): Promise<void>;
+}
+
+// 수기 주문 사후 입력(T-28, F-34). 저장은 DB 함수 create_manual_order 한 번(주문·이력·재고가 한 트랜잭션).
+export interface ManualOrderInput {
+    idempotencyKey: string;
+    paymentMethod: PaymentMethod;
+    manualOrderedAt: string;
+    manualNumber: number;
+    actorId: string;
+    items: { menuItemId: string; quantity: number; optionIds: string[] }[];
+}
+
+export interface ManualOrderRepository {
+    // 같은 멱등키 재요청이면 기존 주문을 created=false로 돌려준다. 수기 번호 중복은 409 MANUAL_NUMBER_TAKEN.
+    createManualOrder(input: ManualOrderInput): Promise<ManualOrderResponse>;
 }
