@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AttentionLayer, orderAlert, staffAlert, useAttention } from "@/components/admin/AttentionLayer";
 import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
 import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
@@ -32,14 +33,37 @@ async function fetchReviews(date: string) {
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
     const sound = useNewOrderSound();
+    // 소리를 못 들어도 알 수 있게 화면 알림(테두리 빛·알림 카드·탭 제목 깜빡임·진동)을 함께 띄운다
+    const attention = useAttention();
 
     const feed = useOrdersFeed({
-        onNewOrder: () => {
+        onNewOrder: (order) => {
             void sound.play();
+            attention.push(orderAlert(order));
         },
     });
 
     const staffFeed = useStaffCallsFeed();
+    // 직원 호출: 처음 불러온 목록은 알리지 않고, 그 뒤 새로 생긴 호출만 알린다. 확인 처리돼 목록에서 빠지면 화면 알림도 닫는다.
+    const seenCallIds = useRef<Set<string> | null>(null);
+    const { push: pushAttention, dismiss: dismissAttention, alerts: attentionAlerts } = attention;
+    const playSound = sound.play;
+    useEffect(() => {
+        if (staffFeed.isLoading) return;
+        const ids = new Set(staffFeed.calls.map((call) => call.id));
+        if (seenCallIds.current) {
+            for (const call of staffFeed.calls) {
+                if (!seenCallIds.current.has(call.id)) {
+                    void playSound();
+                    pushAttention(staffAlert(call));
+                }
+            }
+        }
+        seenCallIds.current = ids;
+        for (const alert of attentionAlerts) {
+            if (alert.kind === "staff" && !ids.has(alert.id.replace(/^staff-/, ""))) dismissAttention(alert.id);
+        }
+    }, [staffFeed.calls, staffFeed.isLoading, playSound, pushAttention, dismissAttention, attentionAlerts]);
     useSweepHeartbeat(feed.reload);
 
     const monitor = useConnectionMonitor({
@@ -95,6 +119,7 @@ export function LiveOrderDashboard() {
         return response && response.updatedAt >= order.updatedAt ? response : order;
     });
     return <>
+        <AttentionLayer alerts={attention.alerts} onDismiss={attention.dismiss} />
         <StaffCallAlert calls={staffFeed.calls} onAcknowledge={staffFeed.acknowledge}
             isLoading={staffFeed.isLoading} error={staffFeed.error} onReload={staffFeed.reload} />
         <ConnectionBanner disconnected={monitor.isDisconnected}

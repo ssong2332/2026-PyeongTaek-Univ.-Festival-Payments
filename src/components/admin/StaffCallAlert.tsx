@@ -56,7 +56,7 @@ export function StaffCallAlert({ calls, onAcknowledge, isLoading = false, error 
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white"><Bell className="h-5 w-5" aria-hidden="true" /></div>
             <div>
-              <p className="text-base font-bold text-amber-950">픽업 <span className="text-amber-600">#{formatPickup(call.pickupNumber)}</span> 고객님이 직원을 호출했습니다!</p>
+              <p className="text-base font-bold break-keep text-amber-950">픽업 <span className="text-amber-600">#{formatPickup(call.pickupNumber)}</span> 고객님이 직원을 호출했습니다!</p>
               <p className="text-xs text-amber-800">호출 시각: {formatTime(call.calledAt)}</p>
               {errorId === call.id && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">확인 처리에 실패했습니다. 다시 시도해 주세요.</p>}
             </div>

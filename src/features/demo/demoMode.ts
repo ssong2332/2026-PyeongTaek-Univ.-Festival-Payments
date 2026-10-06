@@ -2,7 +2,9 @@
 // 운영 빌드(NODE_ENV=production)와 단위 테스트(NODE_ENV=test)에서는 이 모듈이 아무것도 하지 않는다.
 // 브라우저 fetch를 가로채 고객 API(/api/menu 등)에 시드와 같은 메뉴·가짜 주문을 돌려준다. 서버·DB는 건드리지 않는다.
 
-export const DEMO_MODE = process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_SUPABASE_URL;
+// .env.local을 .env.example에서 복사만 하고 값을 안 채운 경우(your-project-ref 그대로)도 연결 값이 없는 것으로 본다.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+export const DEMO_MODE = process.env.NODE_ENV === "development" && (!SUPABASE_URL || SUPABASE_URL.includes("your-project"));
 
 // [ID, 가격, 이름(ko), 설명(ko), 이름(en), 설명(en)] — seed.sql과 같은 값
 const MENU: readonly [string, number, string, string, string, string][] = [

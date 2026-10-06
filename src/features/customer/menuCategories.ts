@@ -23,3 +23,8 @@ export function inCategory(item: MenuItemDto, id: MenuCategoryId): boolean {
 export function availableCategories(items: readonly MenuItemDto[]) {
     return MENU_CATEGORIES.filter((category) => category.id === "all" || items.some((item) => inCategory(item, category.id)));
 }
+
+// 메뉴 카드의 맛 배지: 이름·설명이 걸리는 맛 칩(전체 제외)을 최대 3개
+export function flavorBadges(text: string): typeof MENU_CATEGORIES {
+    return MENU_CATEGORIES.filter((category) => category.pattern?.test(text)).slice(0, 3);
+}
