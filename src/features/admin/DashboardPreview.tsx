@@ -67,11 +67,36 @@ function createPreviewMenuApi(): MenuAdminApi {
     const ownerOf = (predicate: (menu: AdminMenuDto) => boolean) => menus.find(predicate)?.id ?? menus[0].id;
     return {
         load: async () => structuredClone(menus),
+        createMenu: async (input) => {
+            const id = crypto.randomUUID();
+            const created: AdminMenuDto = {
+                id,
+                translations: {
+                    ko: { name: input.translations.ko.name, description: input.translations.ko.description || null },
+                    en: { name: input.translations.en.name, description: input.translations.en.description || null },
+                },
+                basePrice: input.basePrice, stock: input.stock, isRecommended: false,
+                isSoldOutManual: false, isActive: true, sortOrder: menus.length, imageUrl: null,
+                optionGroups: input.optionGroups.map((group) => ({
+                    id: crypto.randomUUID(),
+                    translations: { ko: { name: group.translations.ko.name }, en: { name: group.translations.en.name } },
+                    minSelect: group.minSelect, maxSelect: group.maxSelect, isActive: true,
+                    options: group.options.map((option) => ({
+                        id: crypto.randomUUID(),
+                        translations: { ko: { name: option.translations.ko.name }, en: { name: option.translations.en.name } },
+                        extraPrice: option.extraPrice, isActive: true,
+                    })),
+                })),
+            };
+            menus = [...menus, created];
+            return structuredClone(created);
+        },
         updateMenu: async (id, patch) => save(id, menu => ({
             ...menu,
             basePrice: patch.basePrice ?? menu.basePrice,
             stock: patch.stock ?? menu.stock,
             isSoldOutManual: patch.isSoldOutManual ?? menu.isSoldOutManual,
+            isActive: patch.isActive ?? menu.isActive,
             translations: {
                 ...menu.translations,
                 ...(patch.translations?.ko ? { ko: { name: patch.translations.ko.name, description: patch.translations.ko.description === undefined ? menu.translations.ko?.description ?? null : patch.translations.ko.description || null } } : {}),
