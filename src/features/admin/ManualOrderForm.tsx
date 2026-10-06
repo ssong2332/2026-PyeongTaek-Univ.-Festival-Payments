@@ -2,13 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
-    manualOrderShortages, manualOrderTotal, toManualOrderRequest,
-    type ManualOrderLine, type ManualOrderMenu, type ManualOrderRequest,
+    ManualOrderSaveError, manualOrderShortages, manualOrderTotal, toManualOrderRequest,
+    type ManualOrderLine, type ManualOrderMenu, type ManualOrderRequest, type ManualOrderSaveResult,
 } from "./manualOrder";
 
 type Props = {
     menu: ManualOrderMenu[];
-    onSave?: (request: ManualOrderRequest) => Promise<void>;
+    onSave?: (request: ManualOrderRequest) => Promise<ManualOrderSaveResult>;
 };
 
 function newLine(): ManualOrderLine {
@@ -19,13 +19,15 @@ export function ManualOrderForm({ menu, onSave }: Props) {
     const [lines, setLines] = useState<ManualOrderLine[]>(() => [newLine()]);
     const [paymentMethod, setPaymentMethod] = useState<"cash" | "transfer">("cash");
     const [localKstTime, setLocalKstTime] = useState("");
+    const [manualNumberText, setManualNumberText] = useState("");
     const [saving, setSaving] = useState(false);
     const savingRef = useRef(false);
     const [message, setMessage] = useState("");
     const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+    const manualNumber = /^\d+$/.test(manualNumberText) ? Number(manualNumberText) : 0;
     const request = useMemo(
-        () => toManualOrderRequest(lines, menu, paymentMethod, localKstTime, idempotencyKey),
-        [lines, menu, paymentMethod, localKstTime, idempotencyKey],
+        () => toManualOrderRequest(lines, menu, paymentMethod, localKstTime, idempotencyKey, manualNumber),
+        [lines, menu, paymentMethod, localKstTime, idempotencyKey, manualNumber],
     );
     const shortages = manualOrderShortages(lines, menu);
     const total = manualOrderTotal(lines, menu);
@@ -42,14 +44,23 @@ export function ManualOrderForm({ menu, onSave }: Props) {
         setSaving(true);
         setMessage("");
         try {
-            await onSave(request);
-            setMessage("수기 주문이 저장되었습니다.");
+            const result = await onSave(request);
+            const shortageText = result.stockShortages.length > 0
+                ? ` · 재고 부족 ${result.stockShortages.length}건(주문은 저장됨)`
+                : "";
+            setMessage(result.created
+                ? `${result.displayNumber} 수기 주문이 저장되었습니다.${shortageText}`
+                : `${result.displayNumber}는 같은 요청으로 이미 저장된 주문입니다.${shortageText}`);
             setLines([newLine()]);
             setLocalKstTime("");
+            setManualNumberText("");
             setIdempotencyKey(crypto.randomUUID());
-        } catch {
-            // 같은 멱등키와 입력을 유지해 재시도 시 중복 주문을 막는다.
-            setMessage("저장에 실패했습니다. 입력 내용을 확인한 뒤 다시 시도해 주세요.");
+        } catch (error) {
+            if (error instanceof ManualOrderSaveError && error.code === "MANUAL_NUMBER_TAKEN") {
+                setMessage(`M-${manualNumber.toString().padStart(3, "0")} 번호는 이미 사용 중입니다. 다른 M 번호를 확인해 주세요.`);
+            } else {
+                setMessage("저장에 실패했습니다. 입력 내용을 유지했습니다. 확인 후 다시 시도해 주세요.");
+            }
         } finally {
             savingRef.current = false;
             setSaving(false);
@@ -60,8 +71,18 @@ export function ManualOrderForm({ menu, onSave }: Props) {
         <form onSubmit={save} className="space-y-6 rounded-xl bg-white p-4 shadow-sm sm:p-6">
             <div>
                 <h2 className="text-lg font-semibold">종이 주문 입력</h2>
-                <p className="text-sm text-gray-600">종이 기록의 주문 시각은 한국 시간으로 입력하세요.</p>
+                <p className="text-sm text-gray-600">종이에 기록된 M 번호와 주문 시각을 그대로 입력하세요.</p>
             </div>
+            <label className="block text-sm font-medium">
+                M 번호
+                <div className="mt-1 flex items-center rounded border bg-white">
+                    <span className="px-3 text-gray-600">M-</span>
+                    <input aria-label="M 번호" className="min-w-0 flex-1 p-2 outline-none" inputMode="numeric"
+                        pattern="[0-9]*" minLength={1} maxLength={4} value={manualNumberText} disabled={saving}
+                        onChange={(event) => setManualNumberText(event.target.value.replace(/\D/g, "").slice(0, 4))} />
+                </div>
+                <span className="mt-1 block text-xs text-gray-500">1~9999 필수 입력</span>
+            </label>
             {lines.map((line, index) => {
                 const item = menu.find((candidate) => candidate.id === line.menuItemId);
                 return (
@@ -132,7 +153,7 @@ export function ManualOrderForm({ menu, onSave }: Props) {
                 </label>
             </div>
             {shortages.length > 0 && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-900">
-                현재 재고보다 많은 수량: {shortages.join(", ")}. 운영 담당자에게 재고를 확인해 주세요.
+                현재 재고보다 많은 수량: {shortages.join(", ")}. 저장은 가능하며 서버 응답에서 부족 수량을 다시 표시합니다.
             </p>}
             <p className="text-right font-semibold">예상 합계 {total.toLocaleString("ko-KR")}원</p>
             {!onSave && <p role="status" className="rounded bg-amber-50 p-3 text-sm text-amber-900">
