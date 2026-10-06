@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSessionClient } from "@/infra/supabase/session";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { readEmergencyContact } from "@/lib/emergencyContact";
 
 export default async function AdminProtectedLayout({
     children,
@@ -19,5 +20,5 @@ export default async function AdminProtectedLayout({
         return null;
     }
 
-    return <AdminShell email={user.email}>{children}</AdminShell>;
+    return <AdminShell email={user.email} emergency={readEmergencyContact()}>{children}</AdminShell>;
 }
