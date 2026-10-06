@@ -1,0 +1,169 @@
+name: T-29 isolated load test
+
+# N-06(여러 클라이언트 합산 주문 생성 30 RPS) 실측. tests/load/README.md 절차를 그대로 따른다.
+# 대상은 이 러너 안의 폐기용 로컬 Supabase + 로컬 production 빌드뿐이다.
+# 저장소 secret·운영 URL·Cloudflare를 쓰지 않는다(키는 supabase start가 만든 로컬 값).
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'tests/load/**'
+      - 'src/app/api/load-test/**'
+      - '.github/workflows/load-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t29-load-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      LOAD_TEST_ISOLATED: 'YES'
+      LOAD_TEST_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      BASE_URL: http://127.0.0.1:3000
+      # 30 RPS × 30초 = 900건. k6 setup은 재고 900 이상 메뉴만 쓰므로 여유를 둔다(README 3).
+      LOAD_TEST_STOCK: '2000'
+      PGHOST: 127.0.0.1
+      PGPORT: '54322'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+      - name: 폐기용 로컬 Supabase 시작
+        id: supabase_start
+        run: supabase start
+      - name: 로컬 접속값·run ID 등록
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { appendFileSync } = require('node:fs');
+          const { randomBytes } = require('node:crypto');
+          const status = JSON.parse(execFileSync('supabase', ['status', '-o', 'json'], { encoding: 'utf8' }));
+          // 앱·k6·cleanup이 모두 같은 로컬 DB를 보는지 먼저 확인한다(preflight가 문자열 그대로 대조).
+          if (status.API_URL !== process.env.LOAD_TEST_SUPABASE_URL) {
+            throw new Error(`로컬 API URL 불일치: ${status.API_URL}`);
+          }
+          const keys = {
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: status.ANON_KEY,
+            SUPABASE_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+            LOAD_TEST_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+          };
+          for (const [name, value] of Object.entries(keys)) {
+            if (typeof value !== 'string' || !value || /[\r\n]/.test(value)) {
+              throw new Error(`로컬 ${name} 값을 확인할 수 없습니다.`);
+            }
+            console.log(`::add-mask::${value}`);
+            appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`);
+          }
+          const run = randomBytes(4).toString('hex');
+          console.log(`LOAD_TEST_RUN_ID=${run}`);
+          appendFileSync(process.env.GITHUB_ENV, `LOAD_TEST_RUN_ID=${run}\n`);
+          NODE
+      - name: cron sweep 중지 · seed · 로컬 전용 RPC 설치 · 재고 준비
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regclass('cron.job') IS NOT NULL
+               AND EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'sweep-orders') THEN
+              PERFORM cron.unschedule('sweep-orders');
+            END IF;
+          END;
+          $$;
+          SQL
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          psql -v ON_ERROR_STOP=1 -f tests/load/local-only.sql
+          psql -v ON_ERROR_STOP=1 -c "UPDATE public.menu_items SET stock = ${LOAD_TEST_STOCK} WHERE is_active"
+          psql -v ON_ERROR_STOP=1 -c "SELECT count(*) FILTER (WHERE is_active) AS active_menus, min(stock) FILTER (WHERE is_active) AS min_stock FROM public.menu_items"
+      - name: 기준값 저장 (prepare)
+        id: prepare
+        run: npm run test:load:cleanup -- --prepare
+      - name: 로컬 URL로 새 production build
+        run: npm run build
+      - name: 앱 시작
+        id: app
+        run: |
+          nohup ./node_modules/.bin/next start --hostname 127.0.0.1 --port 3000 > app.log 2>&1 &
+          echo $! > app.pid
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/api/health; then exit 0; fi
+            sleep 2
+          done
+          cat app.log
+          exit 1
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '2.3.0'
+      - name: k6 합산 30 RPS · 30초
+        id: k6
+        run: npm run test:load
+      - name: 앱 정지 (cleanup 전 in-flight 요청 종료)
+        if: ${{ always() && steps.app.outcome != 'skipped' }}
+        run: |
+          if [ -f app.pid ]; then kill "$(cat app.pid)" 2>/dev/null || true; fi
+          for i in $(seq 1 30); do
+            if ! curl -fsS -o /dev/null http://127.0.0.1:3000/api/health 2>/dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "앱이 정지되지 않았습니다." >&2
+          exit 1
+      - name: cleanup dry-run → cleanup → 재실행
+        if: ${{ always() && steps.prepare.outcome == 'success' }}
+        run: |
+          npm run test:load:cleanup -- --dry-run
+          npm run test:load:cleanup
+          npm run test:load:cleanup | tee cleanup-rerun.txt
+          grep -q '"alreadyCleaned": true' cleanup-rerun.txt
+      - name: 재고·픽업 번호 기준값 복원 확인
+        if: ${{ always() && steps.prepare.outcome == 'success' }}
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE v_run load_test_private.run;
+          BEGIN
+            SELECT * INTO STRICT v_run FROM load_test_private.run;
+            IF NOT v_run.cleaned THEN RAISE EXCEPTION 'FAILED: run not cleaned'; END IF;
+            IF EXISTS (SELECT 1 FROM public.orders) THEN RAISE EXCEPTION 'FAILED: orders remain'; END IF;
+            IF (SELECT value FROM public.counters WHERE key = 'pickup_number') IS DISTINCT FROM v_run.baseline THEN
+              RAISE EXCEPTION 'FAILED: pickup_number not restored';
+            END IF;
+            IF (SELECT jsonb_object_agg(id::text, stock) FROM public.menu_items) IS DISTINCT FROM v_run.stock THEN
+              RAISE EXCEPTION 'FAILED: stock not restored';
+            END IF;
+            RAISE NOTICE 'OK: orders 0, pickup_number %, stock baseline restored', v_run.baseline;
+          END;
+          $$;
+          SQL
+      - name: 결과 보관
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: t29-load-summary
+          path: |
+            tests/load/summary.txt
+            tests/load/summary.json
+            app.log
+            cleanup-rerun.txt
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Supabase 종료
+        if: ${{ always() && steps.supabase_start.outcome != 'skipped' }}
+        run: supabase stop --no-backup

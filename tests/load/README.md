@@ -40,6 +40,10 @@ k6는 주문을 보내기 전에 `/api/load-test/preflight`에서 **앱이 실�
 
 60개의 고정 benchmark IP(`198.18.0.1..60`)를 iteration 순서로 `x-forwarded-for`에 분산한다. 클라이언트당 약 30건/분이므로 T-51 100건/60초 안쪽이다. 테스트 직전 기존 rate-limit window가 없도록 새 DB를 쓰거나 마지막 실행 후 최소 60초 기다린다. IP 제한 자체는 기존 `t51-rate-limit.test.ts`의 100/101번째 요청 테스트로 별도 검증한다. **cf-connecting-ip 위조, 운영 제한 해제/우회는 금지**한다.
 
+## CI 실행 (`.github/workflows/load-test.yml`)
+
+로컬에 Docker·k6가 없으면 GitHub Actions에서 같은 절차를 실행한다. 러너 안에서 `supabase start`(최신 마이그레이션) → cron sweep 중지 → seed → `local-only.sql` → 재고 준비 → prepare → 새 build → `next start`(127.0.0.1:3000) → k6 30초 → 앱 정지 → dry-run → cleanup → 재실행 → 재고·pickup 기준값 대조 순서다. 저장소 secret은 쓰지 않고 키는 `supabase start`가 만든 로컬 값이다. `tests/load/**`·`src/app/api/load-test/**`·이 워크플로를 바꾼 dev 대상 PR에서 실행되고, summary는 `t29-load-summary` artifact로 보관한다. GitHub 러너는 운영 Workers(CPU 10ms/요청)와 다르므로 결과는 로컬 `next start` 기준 N-06 근거다.
+
 ## 정리 및 실패 복구
 
 k6 종료 후 앱과 sweep/관리자 프로세스를 중지하고 in-flight 요청이 끝난 것을 확인한다. 같은 로컬 URL·키·run ID로 실행한다.
