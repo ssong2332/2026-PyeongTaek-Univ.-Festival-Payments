@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // T-20 (F-25·F-26·F-27): 관리자 메뉴·재고 관리 API의 요청·응답 형태 — Architecture 7절 계약.
 // 라우트(src/app/api/admin/menus…)는 요청을 이 스키마로 검사하고, 화면(useMenuAdmin)은 응답을 검사한다.
-// 1차는 기존 메뉴 수정만 — 메뉴 추가·삭제(활성 끄기)는 2차(T-37)라 메뉴 PATCH에 isActive가 없다.
+// T-37에서 신규 등록과 판매 종료(물리 삭제 대신 isActive=false)를 확장한다. 주문 이력 보존을 위해 메뉴 row는 삭제하지 않는다.
 
 export const ADMIN_MENU_LOCALES = ["ko", "en"] as const;
 export type AdminMenuLocale = (typeof ADMIN_MENU_LOCALES)[number];
@@ -43,6 +43,7 @@ export const AdminMenuSchema = z.object({
     translations: z.record(z.string(), MenuTranslationSchema),
     basePrice: z.number().int(),
     stock: z.number().int(),
+    isRecommended: z.boolean(),
     isSoldOutManual: z.boolean(),
     isActive: z.boolean(),
     sortOrder: z.number().int(),
@@ -83,7 +84,9 @@ export const AdminMenuPatchSchema = z
     .strictObject({
         basePrice: z.number().int().min(0).max(ADMIN_MENU_LIMITS.priceMax).optional(),
         stock: z.number().int().min(0).max(ADMIN_MENU_LIMITS.stockMax).optional(),
+        isRecommended: z.boolean().optional(),
         isSoldOutManual: z.boolean().optional(),
+        isActive: z.boolean().optional(),
         translations: translationsPatch(MenuTranslationPatchSchema).optional(),
     })
     .refine(nonEmpty, NO_FIELDS);
@@ -109,6 +112,46 @@ export const AdminOptionPatchSchema = z
         isActive: z.boolean().optional(),
     })
     .refine(nonEmpty, NO_FIELDS);
+
+const RequiredTranslationsSchema = z.strictObject({
+    ko: MenuTranslationPatchSchema,
+    en: MenuTranslationPatchSchema,
+});
+const RequiredNameTranslationsSchema = z.strictObject({
+    ko: NameTranslationPatchSchema,
+    en: NameTranslationPatchSchema,
+});
+
+const AdminMenuCreateOptionSchema = z.strictObject({
+    translations: RequiredNameTranslationsSchema,
+    extraPrice: z.number().int().min(0).max(ADMIN_MENU_LIMITS.extraPriceMax),
+});
+
+const AdminMenuCreateOptionGroupSchema = z.strictObject({
+    translations: RequiredNameTranslationsSchema,
+    minSelect: z.number().int().min(0).max(ADMIN_MENU_LIMITS.selectMax),
+    maxSelect: z.number().int().min(1).max(ADMIN_MENU_LIMITS.selectMax),
+    options: z.array(AdminMenuCreateOptionSchema).max(20),
+}).superRefine((value, ctx) => {
+    if (value.maxSelect < value.minSelect) {
+        ctx.addIssue({ code: "custom", message: "maxSelect must be greater than or equal to minSelect", path: ["maxSelect"] });
+    }
+    if (value.minSelect > value.options.length) {
+        ctx.addIssue({ code: "custom", message: "minSelect must not exceed options length", path: ["minSelect"] });
+    }
+    if (value.maxSelect > value.options.length) {
+        ctx.addIssue({ code: "custom", message: "maxSelect must not exceed options length", path: ["maxSelect"] });
+    }
+});
+
+export const AdminMenuCreateSchema = z.strictObject({
+    translations: RequiredTranslationsSchema,
+    basePrice: z.number().int().min(0).max(ADMIN_MENU_LIMITS.priceMax),
+    stock: z.number().int().min(0).max(ADMIN_MENU_LIMITS.stockMax),
+    optionGroups: z.array(AdminMenuCreateOptionGroupSchema).max(10).default([]),
+});
+
+export type AdminMenuCreate = z.infer<typeof AdminMenuCreateSchema>;
 
 export type AdminMenuPatch = z.infer<typeof AdminMenuPatchSchema>;
 export type AdminOptionGroupPatch = z.infer<typeof AdminOptionGroupPatchSchema>;

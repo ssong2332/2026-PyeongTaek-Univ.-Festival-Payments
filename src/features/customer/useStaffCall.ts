@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CallStaffResponseSchema } from "@/lib/dto/staffCall";
+import { useT } from "@/lib/i18n/locale";
 
 export interface UseStaffCallReturn {
   isCalling: boolean;
@@ -12,6 +13,7 @@ export interface UseStaffCallReturn {
 }
 
 export function useStaffCall(token: string): UseStaffCallReturn {
+  const t = useT();
   const [isCalling, setIsCalling] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -39,24 +41,24 @@ export function useStaffCall(token: string): UseStaffCallReturn {
         const errorData = await response.json().catch(() => null);
         const retryAfterSeconds = errorData?.error?.details?.retryAfterSeconds ?? 120;
         setCooldownRemaining(retryAfterSeconds);
-        setErrorMessage("잠시 후 다시 호출 가능합니다.");
+        setErrorMessage(t("staffCall.cooldown"));
         return false;
       }
       if (!response.ok) {
-        setErrorMessage("직원 호출에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        setErrorMessage(t("staffCall.failed"));
         return false;
       }
       const parsed = CallStaffResponseSchema.parse(await response.json());
       setCooldownRemaining(parsed.cooldownSeconds || 120);
-      setMessage("직원을 호출했습니다. 잠시만 기다려 주세요.");
+      setMessage(t("staffCall.called"));
       return true;
     } catch {
-      setErrorMessage("네트워크 오류가 발생했습니다. 다시 시도해 주세요.");
+      setErrorMessage(t("staffCall.network"));
       return false;
     } finally {
       setIsCalling(false);
     }
-  }, [token, cooldownRemaining, isCalling]);
+  }, [token, cooldownRemaining, isCalling, t]);
 
   return { isCalling, cooldownRemaining, message, errorMessage, callStaff };
 }

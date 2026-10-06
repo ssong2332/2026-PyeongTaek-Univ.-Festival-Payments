@@ -2,15 +2,17 @@
 
 import { motion } from "motion/react";
 import { formatPickupNumber } from "./PickupNumberDisplay";
+import { useT } from "@/lib/i18n/locale";
 
 const STRIKE = 0.55; // 인두가 닿는 순간(초)
 
 // 주문 완료: 노릇한 호떡 위에 픽업 번호를 인두로 찍듯 새긴다. 닿는 순간 호떡이 살짝 눌리고,
 // 숫자는 달궈진 흰빛으로 빛나다가 천천히 갈색으로 식으며, 김이 한 번 피어오른다.
 export function BrandedPickup({ pickupNumber }: { pickupNumber: number }) {
+  const t = useT();
   const digits = formatPickupNumber(pickupNumber);
   return (
-    <section aria-label="픽업 번호" className="flex flex-col items-center">
+    <section aria-label={t("pickup.label")} className="flex flex-col items-center">
       <div className="relative size-60">
         {/* 호떡 */}
         <motion.span
@@ -95,8 +97,8 @@ export function BrandedPickup({ pickupNumber }: { pickupNumber: number }) {
           ))}
         </span>
       </div>
-      <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-syrup">픽업 번호</p>
-      <p className="mt-1 text-sm text-dough-dim">이 번호로 호떡을 받아 가세요.</p>
+      <p className="mt-4 text-xs font-semibold tracking-[0.2em] text-syrup">{t("pickup.label")}</p>
+      <p className="mt-1 text-sm text-dough-dim">{t("pickup.hint")}</p>
     </section>
   );
 }

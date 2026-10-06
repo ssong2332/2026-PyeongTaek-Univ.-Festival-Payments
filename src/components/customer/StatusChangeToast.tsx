@@ -2,16 +2,22 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { BanIcon, BellIcon, CardIcon, ClockIcon, FlameIcon } from "@/components/ui/icons";
+import { ArtIcon, type ArtIconMotion } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 import type { OrderStatus } from "@/domain/order/status";
+import { useT } from "@/lib/i18n/locale";
 
-const MESSAGES: Partial<Record<OrderStatus, { title: string; body: string; Icon: typeof BellIcon; tone: "warm" | "ok" | "cold" }>> = {
-  paid: { title: "결제가 확인됐어요", body: "곧 호떡을 굽기 시작할게요.", Icon: CardIcon, tone: "warm" },
-  cooking: { title: "호떡을 굽기 시작했어요", body: "지글지글, 조금만 기다려 주세요.", Icon: FlameIcon, tone: "warm" },
-  completed: { title: "호떡이 완성됐어요", body: "부스에서 픽업 번호를 보여 주세요.", Icon: BellIcon, tone: "ok" },
-  cancelled: { title: "주문이 취소됐어요", body: "궁금한 점은 부스 직원에게 문의해 주세요.", Icon: BanIcon, tone: "cold" },
-  refunded: { title: "주문이 환불됐어요", body: "궁금한 점은 부스 직원에게 문의해 주세요.", Icon: BanIcon, tone: "cold" },
-  expired: { title: "주문이 만료됐어요", body: "필요하면 메뉴에서 다시 주문해 주세요.", Icon: ClockIcon, tone: "cold" },
+// 문구는 사전 toast.{상태}.title/body
+type ToastStatus = "paid" | "cooking" | "completed" | "cancelled" | "refunded" | "expired";
+// 상태 그림은 Flaticon 일러스트 — 결제 동전, 조리 프라이팬(지글), 완성 종(흔들), 취소 CLOSED 팻말, 만료 모래시계
+type ToastArt = { art: CustomerIconName; motion: ArtIconMotion };
+const MESSAGES: Partial<Record<OrderStatus, { key: ToastStatus; icon: ToastArt; tone: "warm" | "ok" | "cold" }>> = {
+  paid: { key: "paid", icon: { art: "coins", motion: "spin" }, tone: "warm" },
+  cooking: { key: "cooking", icon: { art: "pan", motion: "sizzle" }, tone: "warm" },
+  completed: { key: "completed", icon: { art: "bell", motion: "ring" }, tone: "ok" },
+  cancelled: { key: "cancelled", icon: { art: "closed", motion: "wiggle" }, tone: "cold" },
+  refunded: { key: "refunded", icon: { art: "closed", motion: "wiggle" }, tone: "cold" },
+  expired: { key: "expired", icon: { art: "hourglass", motion: "flip" }, tone: "cold" },
 };
 const TONE = {
   warm: "bg-syrup text-molasses",
@@ -23,6 +29,7 @@ const SHOW_MS = 3600;
 // 화면을 보고 있는 동안 주문 상태가 바뀌면(폴링) 위에서 알림 카드가 내려와 아이콘이 한 번 흔들리고, 지원하는 폰은 짧게 진동한다.
 // 처음 열었을 때의 상태는 알리지 않는다. 내용은 화면의 상태 알약이 aria-live로 이미 읽어 주므로 알림 자체는 장식이다.
 export function StatusChangeToast({ status }: { status: OrderStatus }) {
+  const t = useT();
   const previous = useRef(status);
   const [shown, setShown] = useState<{ status: OrderStatus; key: number } | null>(null);
 
@@ -59,13 +66,13 @@ export function StatusChangeToast({ status }: { status: OrderStatus }) {
               initial={{ rotate: 0 }}
               animate={{ rotate: [0, -16, 12, -6, 0] }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${TONE[message.tone]}`}
+              className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${TONE[message.tone]}`}
             >
-              <message.Icon className="size-5" />
+              <ArtIcon name={message.icon.art} size={34} motion={message.icon.motion} />
             </motion.span>
             <div className="min-w-0">
-              <p className="font-bold text-dough">{message.title}</p>
-              <p className="text-sm text-dough-dim">{message.body}</p>
+              <p className="font-bold text-dough">{t(`toast.${message.key}.title` as const)}</p>
+              <p className="text-sm text-dough-dim">{t(`toast.${message.key}.body` as const)}</p>
             </div>
           </motion.div>
         )}

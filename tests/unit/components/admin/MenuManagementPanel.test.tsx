@@ -23,6 +23,7 @@ function menu(overrides: Partial<AdminMenuDto> = {}): AdminMenuDto {
         translations: { ko: { name: "기본 호떡", description: "꿀 호떡" }, en: { name: "Original Hotteok", description: null } },
         basePrice: 2000,
         stock: 10,
+        isRecommended: false,
         isSoldOutManual: false,
         isActive: true,
         sortOrder: 0,
@@ -49,9 +50,11 @@ function fakeApi(menus: AdminMenuDto[] = [menu()]): MenuAdminApi {
     };
     return {
         load: vi.fn(async () => structuredClone(current)),
+        createMenu: vi.fn(async () => { throw new Error("not used in MenuManagementPanel tests"); }),
         updateMenu: vi.fn(async (id, patch) => apply(id, (item) => {
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;
+            if (patch.isRecommended !== undefined) item.isRecommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) item.isSoldOutManual = patch.isSoldOutManual;
             if (patch.translations?.ko) item.translations.ko = { name: patch.translations.ko.name, description: patch.translations.ko.description || null };
         })),
@@ -96,6 +99,21 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isSoldOutManual: true }));
         expect(await within(card("기본 호떡")).findByText("품절(수동)")).toBeTruthy();
         expect(within(card("기본 호떡")).getByRole("status").textContent).toBe("품절로 바꿨어요.");
+    });
+
+    it("추천 스위치를 저장하고 응답으로 ON/OFF 상태를 갱신한다", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const toggle = await screen.findByRole("switch", { name: "기본 호떡 추천 메뉴" });
+        expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: true }));
+        await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: false }));
+        await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
     });
 
     it("가격·재고를 고친 뒤 [저장]하면 바뀐 칸만 보낸다(재고 +10 버튼 포함)", async () => {
@@ -167,6 +185,29 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         fireEvent.click(within(target).getByRole("button", { name: "메뉴 저장" }));
 
         await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { ko: { name: "꿀 호떡", description: "" } } }));
+    });
+
+    it("영어 설명을 쓰면 영어 이름과 함께 보낸다 — 고객 영어 메뉴판에 나온다(T-04)", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: " Honey-filled classic " } });
+        fireEvent.click(within(target).getByRole("button", { name: "메뉴 저장" }));
+
+        await waitFor(() =>
+            expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { en: { name: "Original Hotteok", description: "Honey-filled classic" } } }),
+        );
+    });
+
+    it("영어 이름 없이 영어 설명만 쓰면 알리고 저장을 잠근다", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("이름(영어)"), { target: { value: "" } });
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: "Sweet" } });
+        expect(within(target).getByText("영어 설명을 쓰려면 영어 이름도 입력해 주세요.")).toBeTruthy();
     });
 
     it("저장에 실패하면 입력값을 그대로 두고 안내한다", async () => {

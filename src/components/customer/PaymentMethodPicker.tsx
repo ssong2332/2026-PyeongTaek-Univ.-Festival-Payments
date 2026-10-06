@@ -1,12 +1,15 @@
 "use client";
 
 import { motion } from "motion/react";
-import { BankIcon, CashIcon } from "@/components/ui/icons";
 import type { PaymentMethod } from "@/domain/order/status";
+import { useT } from "@/lib/i18n/locale";
+import { ArtIcon } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 
-const METHODS: { value: PaymentMethod; label: string; caption: string; Icon: typeof CashIcon }[] = [
-    { value: "cash", label: "현금", caption: "부스에서 바로 결제", Icon: CashIcon },
-    { value: "transfer", label: "계좌이체", caption: "주문 후 계좌 안내", Icon: BankIcon },
+// 결제수단 그림은 Flaticon 일러스트(지폐·은행)
+const METHODS: { value: PaymentMethod; art: CustomerIconName }[] = [
+    { value: "cash", art: "banknote" },
+    { value: "transfer", art: "bank" },
 ];
 
 export interface PaymentMethodPickerProps {
@@ -19,13 +22,16 @@ export interface PaymentMethodPickerProps {
 
 // F-06: 현금 / 계좌이체 중 하나. 고른 카드로 시럽빛 테두리가 미끄러져 옮겨 가고(layoutId), 라디오 점이 톡 찬다.
 export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled = false }: PaymentMethodPickerProps) {
+    const t = useT();
     return (
-        <section className="iron-card rounded-3xl p-4">
+        <section className="iron-card relative rounded-3xl p-4">
+            {/* 동전 더미가 카드 귀퉁이에서 반짝 돈다 */}
+            <ArtIcon name="coins" size={44} motion="spin" className="absolute top-2.5 right-4" />
             <h2 id="payment-method-title" className="font-display mb-3 text-lg text-dough">
-                결제 방법
+                {t("payment.title")}
             </h2>
             <div role="radiogroup" aria-labelledby="payment-method-title" className="flex flex-col gap-2">
-                {METHODS.map(({ value: method, label, caption, Icon }) => {
+                {METHODS.map(({ value: method, art }) => {
                     const checked = value === method;
                     const available = enabledMethods.includes(method);
                     const inactive = disabled || !available;
@@ -55,21 +61,25 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                                 }}
                                 className="sr-only"
                             />
-                            <span className={`relative flex size-10 items-center justify-center rounded-xl transition-colors ${checked ? "bg-syrup text-molasses" : "bg-iron-3 text-dough-dim"}`}>
-                                <Icon className="size-5" />
-                            </span>
+                            <motion.span
+                                animate={checked ? { scale: [1, 1.25, 1], rotate: [0, -12, 8, 0] } : { scale: 1, rotate: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className={`relative flex size-12 items-center justify-center rounded-2xl transition-colors ${checked ? "bg-syrup/25 shadow-[0_0_18px_rgba(255,181,71,0.35)]" : "bg-iron-3"}`}
+                            >
+                                <ArtIcon name={art} size={34} className={checked ? "" : "opacity-80 grayscale-[30%]"} />
+                            </motion.span>
                             <span className="relative flex flex-1 flex-col">
                                 <span className="text-[15px] font-bold text-dough">
-                                    {label}
+                                    {t(`payment.${method}` as const)}
                                     {!available && (
                                         <>
                                             {" "}
-                                            <span className="text-xs font-medium">(준비 중)</span>
+                                            <span className="text-xs font-medium">{t("payment.preparing")}</span>
                                         </>
                                     )}
                                 </span>
                                 <span aria-hidden="true" className="text-xs text-dough-dim">
-                                    {caption}
+                                    {t(`payment.${method}.caption` as const)}
                                 </span>
                             </span>
                             <span aria-hidden="true" className={`relative flex size-5 items-center justify-center rounded-full border-2 ${checked ? "border-syrup" : "border-dough-dim/50"}`}>
@@ -91,7 +101,7 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-3 rounded-xl border border-syrup/30 bg-syrup/8 px-4 py-3 text-sm font-medium text-dough"
                 >
-                    {value === "cash" ? "부스에서 현금으로 결제해 주세요." : "주문하면 입금할 계좌를 안내해 드려요."}
+                    {value === "cash" ? t("payment.cash.notice") : t("payment.transfer.notice")}
                 </motion.p>
             )}
         </section>

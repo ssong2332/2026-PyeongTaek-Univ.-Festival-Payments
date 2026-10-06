@@ -3,6 +3,7 @@
 import { Minus, PackageX, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { MenuThumbnail } from "@/components/customer/MenuThumbnail";
+import { RecommendedMenuToggle } from "@/components/admin/RecommendedMenuToggle";
 import { menuImageUrl } from "@/features/customer/menuImages";
 import { menuSaveErrorMessage, useLoginRedirect, useMenuAdmin, type MenuAdminApi } from "@/features/admin/useMenuAdmin";
 import {
@@ -126,13 +127,14 @@ export function MenuManagementPanel({ api }: { api?: MenuAdminApi }) {
     );
 }
 
-type MenuDraft = { nameKo: string; nameEn: string; descriptionKo: string; price: string; stock: string };
+type MenuDraft = { nameKo: string; nameEn: string; descriptionKo: string; descriptionEn: string; price: string; stock: string };
 
 function toMenuDraft(menu: AdminMenuDto): MenuDraft {
     return {
         nameKo: menu.translations.ko?.name ?? "",
         nameEn: menu.translations.en?.name ?? "",
         descriptionKo: menu.translations.ko?.description ?? "",
+        descriptionEn: menu.translations.en?.description ?? "",
         price: String(menu.basePrice),
         stock: String(menu.stock),
     };
@@ -146,6 +148,9 @@ function validateMenuDraft(draft: MenuDraft, menu: AdminMenuDto): Partial<Record
     if (!draft.nameEn.trim() && menu.translations.en) errors.nameEn = "영어 이름을 입력해 주세요.";
     else if (draft.nameEn.trim().length > ADMIN_MENU_LIMITS.nameMax) errors.nameEn = `${ADMIN_MENU_LIMITS.nameMax}자 이하로 입력해 주세요.`;
     if (draft.descriptionKo.trim().length > ADMIN_MENU_LIMITS.descriptionMax) errors.descriptionKo = `${ADMIN_MENU_LIMITS.descriptionMax}자 이하로 입력해 주세요.`;
+    // 영어 설명은 영어 이름과 함께 저장된다(번역 한 줄 = 이름 + 설명).
+    if (draft.descriptionEn.trim().length > ADMIN_MENU_LIMITS.descriptionMax) errors.descriptionEn = `${ADMIN_MENU_LIMITS.descriptionMax}자 이하로 입력해 주세요.`;
+    else if (draft.descriptionEn.trim() && !draft.nameEn.trim()) errors.descriptionEn = "영어 설명을 쓰려면 영어 이름도 입력해 주세요.";
     if (parseWhole(draft.price, ADMIN_MENU_LIMITS.priceMax) === null) errors.price = "가격은 0 이상의 정수(원)로 입력해 주세요.";
     if (parseWhole(draft.stock, ADMIN_MENU_LIMITS.stockMax) === null) errors.stock = "재고는 0 이상의 정수로 입력해 주세요.";
     return errors;
@@ -163,7 +168,10 @@ function menuPatch(draft: MenuDraft, menu: AdminMenuDto): AdminMenuPatch {
     if (draft.nameKo.trim() !== (ko?.name ?? "") || draft.descriptionKo.trim() !== (ko?.description ?? "")) {
         translations.ko = { name: draft.nameKo.trim(), description: draft.descriptionKo.trim() };
     }
-    if (draft.nameEn.trim() && draft.nameEn.trim() !== (menu.translations.en?.name ?? "")) translations.en = { name: draft.nameEn.trim() };
+    const en = menu.translations.en;
+    if (draft.nameEn.trim() && (draft.nameEn.trim() !== (en?.name ?? "") || draft.descriptionEn.trim() !== (en?.description ?? ""))) {
+        translations.en = { name: draft.nameEn.trim(), description: draft.descriptionEn.trim() };
+    }
     if (Object.keys(translations).length > 0) patch.translations = translations;
     return patch;
 }
@@ -178,10 +186,12 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
     }
     const fields = useSaver(onUpdated);
     const soldOutToggle = useSaver(onUpdated);
+    const [recommendationSaving, setRecommendationSaving] = useState(false);
     const errors = validateMenuDraft(draft, menu);
     const patch = menuPatch(draft, menu);
     const dirty = Object.keys(patch).length > 0;
-    const canSave = dirty && Object.keys(errors).length === 0 && !fields.state.saving;
+    const busy = fields.state.saving || soldOutToggle.state.saving || recommendationSaving;
+    const canSave = dirty && Object.keys(errors).length === 0 && !busy;
     const status = stockStatus(menu);
     const id = (field: string) => `menu-${menu.id}-${field}`;
     const nameKo = menu.translations.ko?.name ?? "이름 없음";
@@ -190,7 +200,6 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
         const current = parseWhole(draft.stock, ADMIN_MENU_LIMITS.stockMax) ?? menu.stock;
         setDraft("stock", String(Math.min(ADMIN_MENU_LIMITS.stockMax, Math.max(0, current + delta))));
     };
-    const busy = fields.state.saving || soldOutToggle.state.saving;
 
     return (
         <article className={`${styles.card} ${menu.isActive ? "" : styles.inactive}`} aria-labelledby={id("title")}>
@@ -200,6 +209,19 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
                     <h3 id={id("title")}>{nameKo}</h3>
                     <span className={styles.badge} data-tone={status.tone}>{status.label}</span>
                 </div>
+                <RecommendedMenuToggle
+                    menu={{ id: menu.id, name: nameKo, isRecommended: menu.isRecommended }}
+                    showName={false}
+                    disabled={busy}
+                    onSave={async (menuId, isRecommended) => {
+                        setRecommendationSaving(true);
+                        try {
+                            onUpdated(await api.updateMenu(menuId, { isRecommended }));
+                        } finally {
+                            setRecommendationSaving(false);
+                        }
+                    }}
+                />
                 <label className={styles.soldOut} data-on={menu.isSoldOutManual || undefined}>
                     <input
                         type="checkbox"
@@ -233,6 +255,11 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
                     <input id={id("description-ko")} value={draft.descriptionKo} maxLength={ADMIN_MENU_LIMITS.descriptionMax} disabled={busy}
                         aria-invalid={Boolean(errors.descriptionKo)} aria-describedby={errors.descriptionKo ? `${id("description-ko")}-error` : undefined}
                         onChange={(event) => setDraft("descriptionKo", event.target.value)} />
+                </Field>
+                <Field id={id("description-en")} label="설명(영어)" error={errors.descriptionEn} wide>
+                    <input id={id("description-en")} value={draft.descriptionEn} maxLength={ADMIN_MENU_LIMITS.descriptionMax} disabled={busy}
+                        aria-invalid={Boolean(errors.descriptionEn)} aria-describedby={errors.descriptionEn ? `${id("description-en")}-error` : undefined}
+                        onChange={(event) => setDraft("descriptionEn", event.target.value)} />
                 </Field>
                 <Field id={id("price")} label="가격(원)" error={errors.price}>
                     <input id={id("price")} inputMode="numeric" value={draft.price} disabled={busy}

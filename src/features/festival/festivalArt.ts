@@ -62,7 +62,8 @@ export const CROWD_SPRITES = [
 ] as const;
 export const WALKER_SPRITES = [art("person-walk-a"), art("person-walk-b"), art("person-walk-c")] as const;
 
-export type FestivalCredit = { file: string; title: string; author: string | null; url: string };
+// src가 없으면 public/festival/{file}.webp
+export type FestivalCredit = { file: string; title: string; author: string | null; url: string; src?: string };
 
 // Flaticon 무료 라이선스 출처 표기. author가 null인 항목은 아이콘 페이지(url)에 작가가 표시된다.
 export const FESTIVAL_CREDITS: readonly FestivalCredit[] = [

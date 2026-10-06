@@ -1,8 +1,9 @@
 import type { MenuOptionGroupDto } from "@/lib/dto/menu";
+import { koT, type Translate } from "@/lib/i18n/translate";
 import type { CartIssue, MenuBlockReason, SelectionProblem } from "./menuRules";
 import type { CheckoutError } from "./useCheckout";
 
-// 고객 화면 문구(한국어 고정). T-04(다국어, P3)에서 messages/*.json의 errors.{code} 등으로 옮긴다.
+// 고객 화면 판정 문구(F-05) — 사전(messages/*.json)의 키를 고른다. t를 안 넘기면 한국어.
 
 const RETRYABLE: ReadonlySet<CheckoutError["kind"]> = new Set(["network", "server", "rateLimited", "unknown"]);
 
@@ -11,63 +12,63 @@ export function isRetryableCheckoutError(error: CheckoutError): boolean {
     return RETRYABLE.has(error.kind);
 }
 
-const withNames = (names: readonly string[]) => (names.length > 0 ? `: ${names.join(", ")}` : "");
+const withNames = (t: Translate, names: readonly string[]) => (names.length > 0 ? t("error.names", { names: names.join(", ") }) : "");
 
-export function checkoutErrorMessage(error: CheckoutError): string {
+export function checkoutErrorMessage(error: CheckoutError, t: Translate = koT): string {
     switch (error.kind) {
         case "network":
-            return "주문을 보내지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
+            return t("error.checkout.network");
         case "server":
-            return "주문을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
+            return t("error.checkout.server");
         case "rateLimited":
-            return "주문 요청이 많아요. 잠시 후 다시 시도해 주세요.";
+            return t("error.checkout.rateLimited");
         case "outOfStock":
-            return "재고가 부족한 메뉴가 있어요. 장바구니에서 수량을 줄여 주세요.";
+            return t("error.checkout.outOfStock");
         case "menuUnavailable":
-            return `지금 주문할 수 없는 메뉴가 있어요${withNames(error.names)}. 장바구니에서 빼 주세요.`;
+            return t("error.checkout.menuUnavailable", { names: withNames(t, error.names) });
         case "invalidOption":
-            return `옵션이 바뀐 메뉴가 있어요${withNames(error.names)}. 장바구니에서 빼고 다시 담아 주세요.`;
+            return t("error.checkout.invalidOption", { names: withNames(t, error.names) });
         case "invalidOrder":
-            return "주문 내용을 확인할 수 없어요. 장바구니를 다시 확인해 주세요.";
+            return t("error.checkout.invalidOrder");
         case "unknown":
-            return "주문 중 문제가 생겼어요. 다시 시도해 주세요.";
+            return t("error.checkout.unknown");
     }
 }
 
-export function cartIssueMessage(issue: CartIssue): string {
+export function cartIssueMessage(issue: CartIssue, t: Translate = koT): string {
     switch (issue.kind) {
         case "unavailable":
-            return "지금은 판매하지 않는 메뉴예요. 삭제해 주세요.";
+            return t("cart.issue.unavailable");
         case "soldOut":
-            return "품절된 메뉴예요. 삭제해 주세요.";
+            return t("cart.issue.soldOut");
         case "optionsChanged":
-            return "옵션이 바뀌었어요. 삭제 후 다시 담아 주세요.";
+            return t("cart.issue.optionsChanged");
         case "insufficientStock":
-            return `재고가 부족해요. 이 메뉴는 모두 합쳐 ${issue.available}개까지 주문할 수 있어요.`;
+            return t("cart.issue.insufficientStock", { available: issue.available });
     }
 }
 
-export const STOCK_ALREADY_IN_CART_MESSAGE = "남은 재고만큼 이미 장바구니에 담았어요.";
-export const CART_FULL_MESSAGE = "장바구니에는 최대 20가지까지 담을 수 있어요.";
+export const stockAlreadyInCartMessage = (t: Translate = koT) => t("menu.block.stockInCart");
+export const cartFullMessage = (t: Translate = koT) => t("menu.block.cartFull");
 
-export function menuBlockMessage(reason: MenuBlockReason): string {
-    return reason === "soldOut" ? "품절된 메뉴예요." : "지금은 고를 수 있는 옵션이 없어 담을 수 없어요.";
+export function menuBlockMessage(reason: MenuBlockReason, t: Translate = koT): string {
+    return reason === "soldOut" ? t("menu.block.soldOut") : t("menu.block.optionsUnavailable");
 }
 
-export function selectionHint(group: MenuOptionGroupDto): string {
+export function selectionHint(group: MenuOptionGroupDto, t: Translate = koT): string {
     if (group.minSelect === 0) {
-        return group.maxSelect >= group.options.length ? "원하는 것만 선택" : `최대 ${group.maxSelect}개 선택`;
+        return group.maxSelect >= group.options.length ? t("option.hint.any") : t("option.hint.max", { max: group.maxSelect });
     }
     return group.maxSelect === group.minSelect
-        ? `필수 · ${group.minSelect}개 선택`
-        : `필수 · ${group.minSelect}~${group.maxSelect}개 선택`;
+        ? t("option.hint.exact", { count: group.minSelect })
+        : t("option.hint.range", { min: group.minSelect, max: group.maxSelect });
 }
 
-export function selectionProblemMessage(problem: SelectionProblem, groups: readonly MenuOptionGroupDto[]): string {
-    if (problem.kind === "unknownOption") return "옵션을 다시 골라 주세요.";
+export function selectionProblemMessage(problem: SelectionProblem, groups: readonly MenuOptionGroupDto[], t: Translate = koT): string {
+    if (problem.kind === "unknownOption") return t("option.problem.unknown");
     const group = groups.find((candidate) => candidate.id === problem.groupId);
-    const name = group?.name ?? "옵션";
+    const name = group?.name ?? t("option.problem.fallbackName");
     return problem.kind === "tooFew"
-        ? `‘${name}’을(를) 골라 주세요.`
-        : `‘${name}’은(는) 최대 ${group?.maxSelect ?? 0}개까지 고를 수 있어요.`;
+        ? t("option.problem.tooFew", { name })
+        : t("option.problem.tooMany", { name, max: group?.maxSelect ?? 0 });
 }

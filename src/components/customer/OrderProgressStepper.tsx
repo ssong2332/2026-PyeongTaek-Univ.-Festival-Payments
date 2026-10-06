@@ -1,17 +1,21 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useT } from "@/lib/i18n/locale";
+import { ArtIcon, type ArtIconMotion } from "@/components/ui/ArtIcon";
+import type { CustomerIconName } from "@/features/customer/customerIcons";
 
 // 취소·환불·만료는 이 단계에 없다 — 화면이 스테퍼 대신 상태 안내를 보여 준다.
 export type ProgressStatus = "pending" | "paid" | "cooking" | "completed";
 
 type StepState = "done" | "current" | "upcoming";
 
-const STEPS: readonly { status: ProgressStatus; label: string }[] = [
-  { status: "pending", label: "주문 접수됨" },
-  { status: "paid", label: "결제 완료" },
-  { status: "cooking", label: "호떡 굽는 중" },
-  { status: "completed", label: "완성! 수령해주세요" },
+// 단계 이름은 사전 progress.{상태}, 그림은 Flaticon 일러스트 — 지금 단계 그림만 움직인다
+const STEPS: readonly { status: ProgressStatus; art: CustomerIconName; motion: ArtIconMotion }[] = [
+  { status: "pending", art: "receipt", motion: "wiggle" },
+  { status: "paid", art: "coins", motion: "spin" },
+  { status: "cooking", art: "pan", motion: "sizzle" },
+  { status: "completed", art: "bell", motion: "ring" },
 ];
 
 const LABEL_CLASS: Record<StepState, string> = {
@@ -23,6 +27,7 @@ const LABEL_CLASS: Record<StepState, string> = {
 // 현금 주문은 pending → cooking으로 바로 넘어가므로, 현재 단계보다 앞은 거쳤는지와 관계없이 완료로 표시한다.
 // 왼쪽 열선이 현재 단계까지 캐러멜→시럽빛으로 차오르고, 지난 단계의 원은 숫자가 체크로 그려지며 바뀐다.
 export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
+  const t = useT();
   const currentIndex = STEPS.findIndex((step) => step.status === status);
   const fill = currentIndex / (STEPS.length - 1);
 
@@ -41,7 +46,13 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
           const state: StepState = index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming";
           const isLast = index === STEPS.length - 1;
           return (
-            <li key={step.status} data-state={state} aria-current={state === "current" ? "step" : undefined} className="flex items-center gap-3">
+            <li key={step.status} data-state={state} aria-current={state === "current" ? "step" : undefined} className="relative flex items-center gap-3">
+              <ArtIcon
+                name={step.art}
+                size={state === "current" ? 38 : 30}
+                motion={state === "current" ? step.motion : "none"}
+                className={`absolute right-0 transition-all duration-500 ${state === "upcoming" ? "opacity-35 grayscale" : state === "done" ? "opacity-70" : ""}`}
+              />
               <span
                 aria-hidden="true"
                 className={`relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-500 ${
@@ -72,8 +83,8 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
               </span>
               <span className="flex flex-col">
                 <span className={`text-[15px] transition-colors duration-500 ${LABEL_CLASS[state]}`}>
-                  {step.label}
-                  {state === "done" && <span className="sr-only"> (완료)</span>}
+                  {t(`progress.${step.status}` as const)}
+                  {state === "done" && <span className="sr-only">{t("progress.doneSuffix")}</span>}
                 </span>
                 {state === "current" && !isLast && (
                   <motion.span
@@ -81,7 +92,7 @@ export function OrderProgressStepper({ status }: { status: ProgressStatus }) {
                     transition={{ duration: 1.6, repeat: Infinity }}
                     className="text-xs font-medium text-syrup"
                   >
-                    진행 중...
+                    {t("progress.inProgress")}
                   </motion.span>
                 )}
               </span>

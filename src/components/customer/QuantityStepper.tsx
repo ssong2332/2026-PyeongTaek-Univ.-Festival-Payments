@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import { MinusIcon, PlusIcon } from "@/components/ui/icons";
+import { useT } from "@/lib/i18n/locale";
 
 export interface QuantityStepperProps {
     value: number;
@@ -15,14 +16,15 @@ export interface QuantityStepperProps {
 
 // F-02: 1 미만으로 내려가지 않고, 상한(재고)을 넘지 않는다. 상한보다 많이 담겨 있으면 줄이기만 된다.
 // 숫자는 롤링 카운터, +/- 버튼은 짧은 스프링으로 눌린다.
-export function QuantityStepper({ value, max, onChange, min = 1, label = "수량", size = "md" }: QuantityStepperProps) {
+export function QuantityStepper({ value, max, onChange, min = 1, label, size = "md" }: QuantityStepperProps) {
+    const t = useT();
     const button = size === "md" ? "size-10" : "size-8";
     const buttonClass = `flex ${button} items-center justify-center rounded-full bg-iron-3 text-dough disabled:text-dough-dim/40 focus-visible:outline-2 focus-visible:outline-syrup`;
     return (
-        <div role="group" aria-label={label} className="inline-flex items-center gap-1 rounded-full border border-iron-line bg-iron p-1">
+        <div role="group" aria-label={label ?? t("quantity.label")} className="inline-flex items-center gap-1 rounded-full border border-iron-line bg-iron p-1">
             <motion.button
                 type="button"
-                aria-label="수량 줄이기"
+                aria-label={t("quantity.decrease")}
                 disabled={value <= min}
                 onClick={() => onChange(value - 1)}
                 whileTap={{ scale: 0.82 }}
@@ -36,7 +38,7 @@ export function QuantityStepper({ value, max, onChange, min = 1, label = "수량
             </span>
             <motion.button
                 type="button"
-                aria-label="수량 늘리기"
+                aria-label={t("quantity.increase")}
                 disabled={value >= max}
                 onClick={() => onChange(value + 1)}
                 whileTap={{ scale: 0.82 }}

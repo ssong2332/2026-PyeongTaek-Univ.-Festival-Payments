@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import type { OrderStatus } from "@/domain/order/status";
+import { useT } from "@/lib/i18n/locale";
 
 type Stage = "dough" | "filling" | "cooking" | "done" | "cold";
 
@@ -15,13 +16,7 @@ const STAGE: Record<OrderStatus, Stage> = {
   expired: "cold",
 };
 
-const CAPTION: Record<Stage, string> = {
-  dough: "말랑한 반죽을 준비하고 있어요",
-  filling: "흑설탕 호떡소를 듬뿍 넣는 중",
-  cooking: "철판 위에서 굽고 있어요",
-  done: "노릇하게 다 구워졌어요",
-  cold: "철판이 식었어요",
-};
+// 단계 설명은 사전 griddle.{단계}
 
 // 호떡 하나의 모양·색이 단계마다 이어서 바뀐다(장면을 갈아 끼우지 않는다): 반죽 공 → 호떡소 → 눌러 굽기 → 노릇.
 const DOUGH_SHAPE: Record<Stage, { scaleX: number; scaleY: number; background: string; boxShadow: string }> = {
@@ -59,6 +54,7 @@ const DOUGH_SHAPE: Record<Stage, { scaleX: number; scaleY: number; background: s
 
 // 주문 현황의 철판 장면(장식 — 같은 내용은 아래 진행 단계가 글로 알려 준다).
 export function GriddleScene({ status }: { status: OrderStatus }) {
+  const t = useT();
   const stage = STAGE[status];
   const hot = stage !== "cold";
   const shape = DOUGH_SHAPE[stage];
@@ -251,7 +247,7 @@ export function GriddleScene({ status }: { status: OrderStatus }) {
           transition={{ duration: 0.3 }}
           className={`mt-3 text-[15px] font-bold ${hot ? "text-dough" : "text-dough-dim"}`}
         >
-          {CAPTION[stage]}
+          {t(`griddle.${stage}` as const)}
         </motion.p>
       </AnimatePresence>
     </section>

@@ -44,6 +44,9 @@ import { useMenu } from "@/features/customer/useMenu";
 import { useMenuSelection } from "@/features/customer/useMenuSelection";
 import type { MenuItemDto } from "@/lib/dto/menu";
 import { formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
+import { FlavorTicker } from "@/components/customer/FlavorTicker";
+import { ArtIcon } from "@/components/ui/ArtIcon";
 
 // 담기 성공 시 시트 사진 자리에서 장바구니 버튼까지 날아가는 사본
 type Flight = { key: number; imageUrl: string | null; from: DOMRect };
@@ -51,13 +54,15 @@ type Flight = { key: number; imageUrl: string | null; from: DOMRect };
 const imageLayoutId = (menuId: string) => sharedLayoutId(`menu-image-${menuId}`);
 
 // 고객 메뉴판(/) — PRD 화면 표 "고객 · 메뉴판", Architecture 8절.
-// 오늘의 추천: 지금 주문할 수 있는 메뉴 앞에서부터 다섯 개
+// 추천 플래그가 켜지고 지금 주문 가능한 메뉴만 추천 영역에 노출한다.
 function featuredItems(items: readonly MenuItemDto[]): MenuItemDto[] {
-    return items.filter((item) => item.isAvailable && !item.isSoldOut).slice(0, 5);
+    return items.filter((item) => item.isRecommended && item.isAvailable && !item.isSoldOut);
 }
 
 export default function MenuPage() {
-    const menu = useMenu();
+    const locale = useLocale();
+    const t = useT();
+    const menu = useMenu(locale);
     const hydrated = useCartHydrated();
     const count = useCart(selectCartCount);
     const total = useCart(selectCartTotal);
@@ -86,6 +91,7 @@ export default function MenuPage() {
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
                 className="flex origin-top flex-col gap-3 px-4"
             >
+                <FlavorTicker />
                 <QueueCount waitingCount={menu.waitingCount} />
                 <MyOrderLinks orders={myOrders} />
                 <SearchBox value={query} onChange={setQuery} />
@@ -101,13 +107,14 @@ export default function MenuPage() {
                     <div className="flex items-end justify-between">
                         <h2
                             id="menu-list-title"
-                            className="font-display text-2xl text-dough"
+                            className="font-display flex items-center gap-2 text-2xl text-dough"
                         >
-                            전체 메뉴
+                            <ArtIcon name="hotteok" size={30} motion="float" />
+                            {t("menu.allTitle")}
                         </h2>
                         {menu.status === "ready" && (
-                            <span className="font-num pb-1 text-xs text-dough-dim">
-                                {menu.items.length}종
+                            <span className="fest-hint font-num mb-1">
+                                {t("menu.kinds", { count: menu.items.length })}
                             </span>
                         )}
                     </div>
@@ -145,7 +152,7 @@ export default function MenuPage() {
                         >
                             <Link
                                 href="/cart"
-                                aria-label={`장바구니 보기 (${cartCount}개, ${formatWon(total)})`}
+                                aria-label={t("menu.viewCartLabel", { count: cartCount, total: formatWon(total, locale) })}
                                 className={CTA_ENABLED}
                             >
                                 <motion.span
@@ -168,9 +175,9 @@ export default function MenuPage() {
                                         {cartCount}
                                     </motion.span>
                                 </motion.span>
-                                <span className="flex-1">장바구니 보기</span>
+                                <span className="flex-1">{t("menu.viewCart")}</span>
                                 <span className="font-num">
-                                    <RollingNumber value={formatWon(total)} />
+                                    <RollingNumber value={formatWon(total, locale)} />
                                 </span>
                             </Link>
                         </motion.div>
@@ -184,7 +191,7 @@ export default function MenuPage() {
                             exit={{ opacity: 0 }}
                             className="flex h-14 w-full items-center justify-center rounded-[18px] border border-iron-line bg-iron-2/90 text-[15px] font-bold text-dough-dim backdrop-blur"
                         >
-                            메뉴를 선택해 담아보세요
+                            {t("menu.pickPrompt")}
                         </motion.button>
                     )}
                 </AnimatePresence>
@@ -240,11 +247,13 @@ function MenuList(props: {
     onRetry: () => void;
     onSelect: (menuId: string) => void;
 }) {
+    const t = useT();
     if (props.status === "loading") return <MenuSkeleton />;
     if (props.status === "error")
         return (
             <ErrorRetry
-                message="메뉴를 불러오지 못했어요."
+                message={t("menu.loadFailed")}
+                retryLabel={t("common.retry")}
                 onRetry={props.onRetry}
             />
         );
@@ -259,10 +268,10 @@ function MenuList(props: {
     return (
         <>
             {noneOrderable && (
-                <EmptyState title="현재 주문 가능한 메뉴가 없습니다" />
+                <EmptyState title={t("menu.noneOrderable")} icon="closed" />
             )}
             {props.items.length > 0 && visible.length === 0 && (
-                <EmptyState title="검색 결과가 없습니다" mascot="search" />
+                <EmptyState title={t("menu.noResults")} icon="search" />
             )}
             {visible.length > 0 && (
                 <ul className="flex flex-col gap-3">
@@ -288,6 +297,7 @@ function MenuList(props: {
                                 price={item.price}
                                 imageUrl={menuImageUrl(item.id, item.imageUrl)}
                                 soldOut={!item.isAvailable || item.isSoldOut}
+                                recommended={item.isRecommended}
                                 onSelect={() => props.onSelect(item.id)}
                                 layoutId={imageLayoutId(item.id)}
                             />
@@ -310,7 +320,8 @@ function MenuDetail({
 }) {
     const cartItems = useCart((state) => state.items);
     const addItem = useCart((state) => state.addItem);
-    const selection = useMenuSelection(menu, cartItems);
+    const t = useT();
+    const selection = useMenuSelection(menu, cartItems, t);
 
     return (
         <MenuDetailSheet
@@ -321,7 +332,7 @@ function MenuDetail({
             imageLayoutId={imageLayoutId(menu.id)}
             groups={menu.optionGroups.map((group) => ({
                 ...group,
-                hint: selectionHint(group),
+                hint: selectionHint(group, t),
             }))}
             selectedIds={selection.selectedIds}
             onToggleOption={selection.toggle}
