@@ -108,6 +108,26 @@ export function useConnectionMonitor({
     const unhealthySinceRef = useRef<number | null>(null);
     const wasDisconnectedRef = useRef<boolean>(false);
 
+    // Realtime 채널이 짧게 끊겼다가 SUBSCRIBED로 돌아오면
+    // 10초 disconnect 판정 전이라도 누락된 주문을 즉시 재조회한다.
+    const previousChannelOkRef = useRef<boolean>(isChannelOk);
+
+    useEffect(() => {
+        const wasChannelOk = previousChannelOkRef.current;
+        previousChannelOkRef.current = isChannelOk;
+
+        if (!enabled) return;
+
+        // 긴 단절은 아래 기존 복구 로직이 처리하므로 중복 refresh를 피한다.
+        if (
+            !wasChannelOk &&
+            isChannelOk &&
+            !wasDisconnectedRef.current
+        ) {
+            void onRecoverRef.current?.();
+        }
+    }, [isChannelOk, enabled]);
+
     // 전체 상태 (채널과 헬스 둘 다 정상이어야 전체 정상)
     const isOverallHealthy = isChannelOk && isHealthOk;
 

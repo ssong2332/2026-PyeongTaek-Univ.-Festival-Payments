@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
 import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
@@ -47,6 +47,48 @@ export function LiveOrderDashboard() {
         onRecover: feed.refresh,
         onDisconnectedTick: feed.refresh,
     });
+    // Realtime 이벤트가 드물게 누락되더라도 운영 화면이 자동으로 보정되도록
+    // 화면이 활성 상태일 때 15초마다 주문 snapshot을 재조회한다.
+    useEffect(() => {
+        let inFlight = false;
+
+        const refreshVisibleOrders = async () => {
+            if (document.visibilityState !== "visible" || inFlight) {
+                return;
+            }
+
+            inFlight = true;
+
+            try {
+                await feed.refresh();
+            } finally {
+                inFlight = false;
+            }
+        };
+
+        const interval = window.setInterval(() => {
+            void refreshVisibleOrders();
+        }, 15_000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void refreshVisibleOrders();
+            }
+        };
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange,
+        );
+
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange,
+            );
+        };
+    }, [feed.refresh]);
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map(order => {
         const response = confirmed[order.id];
