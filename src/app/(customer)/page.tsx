@@ -52,9 +52,9 @@ type Flight = { key: number; imageUrl: string | null; from: DOMRect };
 const imageLayoutId = (menuId: string) => sharedLayoutId(`menu-image-${menuId}`);
 
 // 고객 메뉴판(/) — PRD 화면 표 "고객 · 메뉴판", Architecture 8절.
-// 오늘의 추천: 지금 주문할 수 있는 메뉴 앞에서부터 다섯 개
+// 추천 플래그가 켜지고 지금 주문 가능한 메뉴만 추천 영역에 노출한다.
 function featuredItems(items: readonly MenuItemDto[]): MenuItemDto[] {
-    return items.filter((item) => item.isAvailable && !item.isSoldOut).slice(0, 5);
+    return items.filter((item) => item.isRecommended && item.isAvailable && !item.isSoldOut);
 }
 
 export default function MenuPage() {
@@ -293,6 +293,7 @@ function MenuList(props: {
                                 price={item.price}
                                 imageUrl={menuImageUrl(item.id, item.imageUrl)}
                                 soldOut={!item.isAvailable || item.isSoldOut}
+                                recommended={item.isRecommended}
                                 onSelect={() => props.onSelect(item.id)}
                                 layoutId={imageLayoutId(item.id)}
                             />

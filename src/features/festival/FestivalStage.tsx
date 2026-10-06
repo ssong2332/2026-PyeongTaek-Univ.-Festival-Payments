@@ -2,7 +2,7 @@
 
 import { MotionGlobalConfig } from "motion/react";
 import { useEffect, useRef } from "react";
-import { CROWD_SPRITES, FIREWORK_MONO, FIREWORK_SPRITES, SHOOTING_STARS, SPARKLE_MONO, SPARKLE_SPRITES, WALKER_SPRITES } from "./festivalArt";
+import { CROWD_SPRITES, FIREWORK_MONO, FIREWORK_SPRITES, SPARKLE_MONO, SPARKLE_SPRITES, WALKER_SPRITES } from "./festivalArt";
 import { applyFestival, FESTIVAL_STOPS, type FestivalState } from "./festivalTheme";
 
 // 축제 무대(장식 캔버스) — 고객 화면 콘텐츠 "뒤"에서만 그린다(z-0, 콘텐츠는 z-10). 화면 읽기 프로그램에는 숨긴다.
@@ -27,7 +27,8 @@ type Rocket = { x: number; y: number; vy: number; vx: number; peakY: number; col
 // 그림 불꽃: 터진 자리에서 확 피었다가 천천히 흘러내리며 사라진다
 type Bloom = { img: CanvasImageSource; x: number; y: number; size: number; life: number; max: number; rot: number; spin: number };
 type Glint = { img: CanvasImageSource | null; x: number; y: number; life: number; max: number; size: number; rot: number };
-type Shooting = { img: CanvasImageSource; x: number; y: number; vx: number; vy: number; life: number; max: number; size: number; flip: boolean };
+// 별똥별: 빛나는 머리(반짝이 그림) + 진행 반대쪽으로 가늘어지며 사라지는 빛 꼬리. 비스듬히 아래로 빠르게 떨어진다.
+type Shooting = { head: CanvasImageSource | null; x: number; y: number; vx: number; vy: number; life: number; max: number; len: number; width: number; spin: number };
 type Dust = { x: number; y: number; vy: number; phase: number; size: number };
 type Person = { sprite: number; x: number; front: boolean; h: number; phase: number; speed: number; jump: boolean; phone: boolean; flip: boolean };
 
@@ -148,7 +149,6 @@ export function FestivalStage() {
         let monoImgs: HTMLImageElement[] = [];
         let sparkleImgs: HTMLImageElement[] = [];
         let sparkleMono: HTMLImageElement | null = null;
-        let shootingImgs: HTMLImageElement[] = [];
         let crowdImgs: HTMLImageElement[] = [];
         let walkerImgs: HTMLImageElement[] = [];
         const ensureFx = () => {
@@ -157,7 +157,6 @@ export function FestivalStage() {
             monoImgs = FIREWORK_MONO.map(loadImage);
             sparkleImgs = SPARKLE_SPRITES.map(loadImage);
             sparkleMono = loadImage(SPARKLE_MONO);
-            shootingImgs = SHOOTING_STARS.map(loadImage);
         };
         const ensureCrowd = () => {
             if (crowdImgs.length) return;
@@ -293,22 +292,22 @@ export function FestivalStage() {
         };
 
         const launchShooting = () => {
-            const imgs = shootingImgs.filter(ready);
-            if (!imgs.length) return;
-            // 별 그림은 오른쪽 위를 향한다 — 왼쪽 아래에서 오른쪽 위로, 또는 뒤집어 반대로 가로지른다
-            const flip = Math.random() < 0.5;
-            const size = 64 + Math.random() * 40;
-            const speed = 5 + Math.random() * 3;
+            // 하늘 위쪽 어딘가에서 35~55° 아래로 기울어 떨어진다(왼쪽→오른쪽 또는 반대). 1초 안팎에 지나간다.
+            const fromLeft = Math.random() < 0.5;
+            const dip = 0.6 + Math.random() * 0.35;
+            const angle = fromLeft ? dip : Math.PI - dip;
+            const speed = 9 + Math.random() * 5;
             shootings.push({
-                img: imgs[Math.floor(Math.random() * imgs.length)],
-                x: flip ? width + size : -size,
-                y: height * (0.12 + Math.random() * 0.22),
-                vx: flip ? -speed : speed,
-                vy: -speed * 0.38,
+                head: pickSparkle(),
+                x: width * (fromLeft ? 0.05 + Math.random() * 0.55 : 0.4 + Math.random() * 0.55),
+                y: -10 + Math.random() * height * 0.12,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
                 life: 0,
-                max: Math.ceil((width + size * 2) / speed),
-                size,
-                flip,
+                max: 42 + Math.random() * 22,
+                len: 110 + Math.random() * 90,
+                width: 2.2 + Math.random() * 1.4,
+                spin: Math.random() * Math.PI,
             });
         };
 
@@ -392,19 +391,56 @@ export function FestivalStage() {
             for (let i = shootings.length - 1; i >= 0; i--) {
                 const star = shootings[i];
                 star.life += dt;
+                // 떨어질수록 조금씩 빨라진다(중력에 끌리는 느낌)
+                const boost = Math.pow(1.012, dt);
+                star.vx *= boost;
+                star.vy *= boost;
                 star.x += star.vx * dt;
                 star.y += star.vy * dt;
                 if (star.life >= star.max) {
                     shootings.splice(i, 1);
                     continue;
                 }
-                const k = Math.min(1, star.life / 12, (star.max - star.life) / 20);
+                const q = star.life / star.max;
+                // 켜질 때 꼬리가 자라고, 끝날 때 머리부터 사그라든다
+                const alpha = Math.sin(Math.PI * Math.min(1, q * 1.15));
+                const speedNow = Math.hypot(star.vx, star.vy);
+                const ux = star.vx / speedNow;
+                const uy = star.vy / speedNow;
+                const tail = star.len * Math.min(1, star.life / 14) * (0.6 + 0.4 * alpha);
+                const tx = star.x - ux * tail;
+                const ty = star.y - uy * tail;
+                const nx = -uy * star.width;
+                const ny = ux * star.width;
                 ctx.save();
-                ctx.globalAlpha = Math.max(0, k);
-                drawSprite(star.img, star.x, star.y, star.size, 0, star.flip);
+                ctx.globalCompositeOperation = "lighter";
+                ctx.globalAlpha = Math.max(0, alpha);
+                // 빛 꼬리: 머리 쪽 두께 → 끝 0으로 가늘어지는 쐐기, 머리 쪽이 가장 밝다
+                const trail = ctx.createLinearGradient(star.x, star.y, tx, ty);
+                trail.addColorStop(0, "rgba(255,250,230,0.95)");
+                trail.addColorStop(0.25, "rgba(255,214,140,0.55)");
+                trail.addColorStop(1, "rgba(255,170,80,0)");
+                ctx.fillStyle = trail;
+                ctx.beginPath();
+                ctx.moveTo(star.x + nx, star.y + ny);
+                ctx.lineTo(tx, ty);
+                ctx.lineTo(star.x - nx, star.y - ny);
+                ctx.closePath();
+                ctx.fill();
+                // 머리 둘레의 번짐
+                const glow = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, 14);
+                glow.addColorStop(0, "rgba(255,248,220,0.9)");
+                glow.addColorStop(1, "rgba(255,200,120,0)");
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, 14, 0, Math.PI * 2);
+                ctx.fill();
+                // 머리: 반짝이 그림이 빙글 돌며 반짝인다
+                star.spin += 0.15 * dt;
+                if (star.head) drawSprite(star.head, star.x, star.y, 16 + Math.sin(star.spin * 2) * 3, star.spin);
                 ctx.restore();
-                // 꼬리에 흩날리는 작은 별가루
-                if (Math.random() < 0.6) sparks.push({ x: star.x - star.vx * 4, y: star.y - star.vy * 4, vx: -star.vx * 0.05, vy: 0.3, life: 0, max: 30, color: "#fff3c9", size: 1, glitter: true, gravity: 0.01, drag: 0.98 });
+                // 꼬리 뒤로 흩날리는 작은 별가루
+                if (Math.random() < 0.5 * dt) sparks.push({ x: star.x - ux * tail * 0.3, y: star.y - uy * tail * 0.3, vx: -star.vx * 0.04, vy: 0.25, life: 0, max: 26, color: "#fff3c9", size: 1, glitter: true, gravity: 0.01, drag: 0.97 });
             }
 
             // 4) 불꽃놀이: 빈도·크기는 fx에 비례, 터지는 위치·색·모양은 매번 랜덤

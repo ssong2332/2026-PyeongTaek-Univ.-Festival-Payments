@@ -3,6 +3,7 @@
 import { Minus, PackageX, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { MenuThumbnail } from "@/components/customer/MenuThumbnail";
+import { RecommendedMenuToggle } from "@/components/admin/RecommendedMenuToggle";
 import { menuImageUrl } from "@/features/customer/menuImages";
 import { menuSaveErrorMessage, useLoginRedirect, useMenuAdmin, type MenuAdminApi } from "@/features/admin/useMenuAdmin";
 import {
@@ -185,10 +186,12 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
     }
     const fields = useSaver(onUpdated);
     const soldOutToggle = useSaver(onUpdated);
+    const [recommendationSaving, setRecommendationSaving] = useState(false);
     const errors = validateMenuDraft(draft, menu);
     const patch = menuPatch(draft, menu);
     const dirty = Object.keys(patch).length > 0;
-    const canSave = dirty && Object.keys(errors).length === 0 && !fields.state.saving;
+    const busy = fields.state.saving || soldOutToggle.state.saving || recommendationSaving;
+    const canSave = dirty && Object.keys(errors).length === 0 && !busy;
     const status = stockStatus(menu);
     const id = (field: string) => `menu-${menu.id}-${field}`;
     const nameKo = menu.translations.ko?.name ?? "이름 없음";
@@ -197,7 +200,6 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
         const current = parseWhole(draft.stock, ADMIN_MENU_LIMITS.stockMax) ?? menu.stock;
         setDraft("stock", String(Math.min(ADMIN_MENU_LIMITS.stockMax, Math.max(0, current + delta))));
     };
-    const busy = fields.state.saving || soldOutToggle.state.saving;
 
     return (
         <article className={`${styles.card} ${menu.isActive ? "" : styles.inactive}`} aria-labelledby={id("title")}>
@@ -207,6 +209,19 @@ function MenuEditCard({ menu, api, onUpdated }: { menu: AdminMenuDto; api: MenuA
                     <h3 id={id("title")}>{nameKo}</h3>
                     <span className={styles.badge} data-tone={status.tone}>{status.label}</span>
                 </div>
+                <RecommendedMenuToggle
+                    menu={{ id: menu.id, name: nameKo, isRecommended: menu.isRecommended }}
+                    showName={false}
+                    disabled={busy}
+                    onSave={async (menuId, isRecommended) => {
+                        setRecommendationSaving(true);
+                        try {
+                            onUpdated(await api.updateMenu(menuId, { isRecommended }));
+                        } finally {
+                            setRecommendationSaving(false);
+                        }
+                    }}
+                />
                 <label className={styles.soldOut} data-on={menu.isSoldOutManual || undefined}>
                     <input
                         type="checkbox"

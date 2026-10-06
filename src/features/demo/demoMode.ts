@@ -31,12 +31,14 @@ function itemsFor(lang: string) {
         name: en ? english : ko,
         extraPrice: 500,
     }));
-    return MENU.map(([id, price, name, description, nameEn, descriptionEn]) => ({
+    return MENU.map(([id, price, name, description, nameEn, descriptionEn], index) => ({
         id,
         price,
         name: en ? nameEn : name,
         description: en ? descriptionEn : description,
         stock: 30,
+        // 데모에서 추천 영역(T-38)이 보이게 앞 3개만 추천
+        isRecommended: index < 3,
         isAvailable: true,
         isSoldOut: false,
         imageUrl: null,

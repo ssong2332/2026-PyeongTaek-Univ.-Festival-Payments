@@ -23,6 +23,7 @@ function menu(overrides: Partial<AdminMenuDto> = {}): AdminMenuDto {
         translations: { ko: { name: "기본 호떡", description: "꿀 호떡" }, en: { name: "Original Hotteok", description: null } },
         basePrice: 2000,
         stock: 10,
+        isRecommended: false,
         isSoldOutManual: false,
         isActive: true,
         sortOrder: 0,
@@ -52,6 +53,7 @@ function fakeApi(menus: AdminMenuDto[] = [menu()]): MenuAdminApi {
         updateMenu: vi.fn(async (id, patch) => apply(id, (item) => {
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;
+            if (patch.isRecommended !== undefined) item.isRecommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) item.isSoldOutManual = patch.isSoldOutManual;
             if (patch.translations?.ko) item.translations.ko = { name: patch.translations.ko.name, description: patch.translations.ko.description || null };
         })),
@@ -96,6 +98,21 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isSoldOutManual: true }));
         expect(await within(card("기본 호떡")).findByText("품절(수동)")).toBeTruthy();
         expect(within(card("기본 호떡")).getByRole("status").textContent).toBe("품절로 바꿨어요.");
+    });
+
+    it("추천 스위치를 저장하고 응답으로 ON/OFF 상태를 갱신한다", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const toggle = await screen.findByRole("switch", { name: "기본 호떡 추천 메뉴" });
+        expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: true }));
+        await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+
+        fireEvent.click(toggle);
+        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: false }));
+        await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
     });
 
     it("가격·재고를 고친 뒤 [저장]하면 바뀐 칸만 보낸다(재고 +10 버튼 포함)", async () => {

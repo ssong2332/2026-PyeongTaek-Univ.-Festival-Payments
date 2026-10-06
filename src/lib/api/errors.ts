@@ -12,6 +12,7 @@ export type ErrorCode =
     | "CANCEL_REQUEST_NOT_ALLOWED"
     | "REVIEW_NOT_ALLOWED"
     | "REVIEW_ALREADY_SUBMITTED"
+    | "MANUAL_NUMBER_TAKEN"
     | "RATE_LIMITED"
     | "CALL_COOLDOWN"
     | "INTERNAL_ERROR";
@@ -38,6 +39,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     CANCEL_REQUEST_NOT_ALLOWED: "Cancel request is not allowed.",
     REVIEW_NOT_ALLOWED: "Reviews are only allowed for completed orders.",
     REVIEW_ALREADY_SUBMITTED: "A review has already been submitted for this order.",
+    MANUAL_NUMBER_TAKEN: "This manual order number is already used.",
     RATE_LIMITED: "Rate limit exceeded.",
     CALL_COOLDOWN: "Please wait before calling staff again.",
     INTERNAL_ERROR: "An internal server error occurred.",

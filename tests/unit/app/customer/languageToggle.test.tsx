@@ -19,6 +19,7 @@ const menuFor = (lang: "ko" | "en"): MenuItemDto => ({
     description: null,
     price: 2500,
     stock: 3,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,

@@ -9,6 +9,7 @@ const item = (name: string, description: string): MenuItemDto => ({
     description,
     price: 2500,
     stock: 5,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,

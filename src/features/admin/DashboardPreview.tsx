@@ -40,7 +40,7 @@ export function makePreviewOrders(): AdminOrderDto[] {
 function previewMenus(): AdminMenuDto[] {
     const item = (id: string, ko: string, en: string, price: number, stock: number, extra: Partial<AdminMenuDto> = {}): AdminMenuDto => ({
         id, translations: { ko: { name: ko, description: null }, en: { name: en, description: null } },
-        basePrice: price, stock, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
+        basePrice: price, stock, isRecommended: false, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
     });
     return [
         item("11111111-1111-1111-1111-111111111111", "기본 호떡", "Original Hotteok", 2000, 42, {

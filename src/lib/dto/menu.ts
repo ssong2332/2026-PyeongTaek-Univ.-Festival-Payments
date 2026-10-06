@@ -33,6 +33,7 @@ export const MenuItemDtoSchema = z.object({
     description: z.string().nullable(),
     price: z.int().nonnegative(),
     stock: z.int().nonnegative(),
+    isRecommended: z.boolean(),
     isAvailable: z.boolean(),
     isSoldOut: z.boolean(),
     imageUrl: z.string().nullable(),
