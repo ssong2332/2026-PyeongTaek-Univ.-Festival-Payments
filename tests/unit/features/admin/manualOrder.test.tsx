@@ -15,7 +15,7 @@ const SAUCE_OPTION_ID = "66666666-6666-6666-6666-666666666666";
 const KEY = "a19ac145-4e29-47c0-aadd-f53531211996";
 const menu: MenuItemDto[] = [{
     id: MENU_ID, name: "호떡", description: null, price: 3000, stock: 1,
-    isAvailable: true, isSoldOut: false, imageUrl: null,
+    isRecommended: false, isAvailable: true, isSoldOut: false, imageUrl: null,
     optionGroups: [{
         id: "33333333-3333-3333-3333-333333333333", name: "추가", minSelect: 1, maxSelect: 1,
         options: [
@@ -46,7 +46,7 @@ describe("T-28 manual order input", () => {
         const historical: AdminMenuDto = {
             id: MENU_ID,
             translations: { ko: { name: "예전 호떡", description: null } },
-            basePrice: 3000, stock: 0, isSoldOutManual: false, isActive: false, sortOrder: 0, imageUrl: null,
+            basePrice: 3000, stock: 0, isRecommended: false, isSoldOutManual: false, isActive: false, sortOrder: 0, imageUrl: null,
             optionGroups: [{
                 id: "33333333-3333-3333-3333-333333333333",
                 translations: { ko: { name: "예전 토핑" } },
