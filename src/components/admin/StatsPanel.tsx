@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { StatsDto } from "@/lib/dto/stats";
+import { HourlyMenuHeatmap } from "./HourlyMenuHeatmap";
 import styles from "./StatsPanel.module.css";
 
 const money = (amount: number) => `${amount.toLocaleString("ko-KR")}원`;
@@ -75,6 +76,7 @@ export function StatsPanel({ loadStats, initialDate }: {
                         </table>
                     </>}
                 </section>
+                <HourlyMenuHeatmap sales={summary.hourlyByMenu} />
             </>}
     </section>;
 }
