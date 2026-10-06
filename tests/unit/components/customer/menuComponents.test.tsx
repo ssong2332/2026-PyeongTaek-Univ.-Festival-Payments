@@ -46,12 +46,12 @@ describe("MenuCard", () => {
         expect(image?.getAttribute("src")).toBe("https://example.com/a.jpg");
         expect(image?.getAttribute("alt")).toBe("");
         rerender(<MenuCard {...base} onSelect={() => {}} />);
-        // 사진이 없으면 사진 대신 호떡이 스티커(장식)를 그린다.
-        const images = container.querySelectorAll("img");
-        expect(images).toHaveLength(1);
-        expect(images[0].getAttribute("src")).toBe("/icons/hotteok.webp");
-        expect(images[0].getAttribute("alt")).toBe("");
-        expect(images[0].closest("[aria-hidden='true']")).not.toBeNull();
+        // 사진이 없으면 사진 자리에 호떡 그림(장식)을 그린다. 맛 배지 그림(/icons/…)도 모두 장식이다.
+        const images = [...container.querySelectorAll("img")];
+        expect(images.some((img) => img.getAttribute("src") === "https://example.com/a.jpg")).toBe(false);
+        const placeholder = images.find((img) => img.getAttribute("src") === "/icons/hotteok.webp");
+        expect(placeholder?.closest("[aria-hidden='true']")).not.toBeNull();
+        for (const img of images) expect(img.getAttribute("alt")).toBe("");
     });
 });
 
