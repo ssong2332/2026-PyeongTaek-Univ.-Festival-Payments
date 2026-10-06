@@ -13,6 +13,7 @@ export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
         description: item.translations.ko?.description ?? item.translations.en?.description ?? null,
         price: item.basePrice,
         stock: item.stock,
+        isRecommended: item.isRecommended,
         isActive: item.isActive,
         isAvailable: item.isActive && !item.isSoldOutManual && item.stock > 0,
         isSoldOut: item.isSoldOutManual || item.stock === 0,
