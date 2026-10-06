@@ -12,6 +12,10 @@ const summary: StatsDto = {
         { menuItemId: "00000000-0000-4000-8000-000000000001", nameKo: "기본호떡", quantity: 10, ratio: 0.25 },
         { menuItemId: "00000000-0000-4000-8000-000000000002", nameKo: "치즈호떡", quantity: 30, ratio: 0.75 },
     ],
+    hourlyByMenu: [
+        { hour: 12, menuItemId: "00000000-0000-4000-8000-000000000001", nameKo: "기본호떡", quantity: 10 },
+        { hour: 13, menuItemId: "00000000-0000-4000-8000-000000000002", nameKo: "치즈호떡", quantity: 30 },
+    ],
     totals: { pending: 1, paid: 1, cooking: 1, completed: 1, cancelled: 1, refunded: 1, expired: 1 },
 };
 
@@ -21,17 +25,20 @@ it("shows the aggregate and accessible menu quantities and ratios", async () => 
     await waitFor(() => expect(screen.getByText("25,000원")).toBeTruthy());
     expect(loadStats).toHaveBeenCalledWith("all");
     expect(screen.getByText("5,000원")).toBeTruthy();
-    expect(screen.getByText("10개")).toBeTruthy();
     const table = screen.getByRole("table", { name: "메뉴별 판매 수량과 비율" });
+    expect(within(table).getByText("10개")).toBeTruthy();
     expect(within(table).getByText("25.0%")).toBeTruthy();
     expect(within(table).getByText("75.0%")).toBeTruthy();
+    const heatmap = screen.getByRole("table", { name: "시간대별 메뉴 판매 수량" });
+    expect(within(heatmap).getByRole("cell", { name: "12시부터 13시 기본호떡 10개" })).toBeTruthy();
+    expect(within(heatmap).getByRole("cell", { name: "13시부터 14시 치즈호떡 30개" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "CSV 다운로드" }).getAttribute("href"))
         .toBe("/api/admin/stats/csv?from=all&to=all");
 });
 
 it("shows an empty chart state when no menus sold", async () => {
-    render(<StatsPanel loadStats={async () => ({ ...summary, byMenu: [] })} initialDate="all" />);
-    await waitFor(() => expect(screen.getByText("데이터 없음")).toBeTruthy());
+    render(<StatsPanel loadStats={async () => ({ ...summary, byMenu: [], hourlyByMenu: [] })} initialDate="all" />);
+    await waitFor(() => expect(screen.getAllByText("데이터 없음")).toHaveLength(2));
     expect(screen.queryByText("메뉴별 판매 수량과 비율")).toBeNull();
 });
 
