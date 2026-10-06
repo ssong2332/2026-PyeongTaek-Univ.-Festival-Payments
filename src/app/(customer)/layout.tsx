@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { CustomerFooter } from "@/components/customer/CustomerFooter";
+import { DocumentLang } from "@/components/customer/LanguageToggle";
 import { CustomerMotion } from "@/components/motion/CustomerMotion";
 import { DemoBadge } from "@/features/demo/DemoBadge";
 import { FestivalStage } from "@/features/festival/FestivalStage";
@@ -21,6 +22,7 @@ export default function CustomerLayout({ children }: Readonly<{ children: React.
     return (
         <CustomerMotion>
             <DemoBadge />
+            <DocumentLang />
             <div className="festival-root iron-bg relative min-h-dvh overflow-x-clip text-dough">
                 <div aria-hidden="true" className="iron-grain pointer-events-none fixed inset-0 z-0 overflow-hidden">
                     <span className="festival-sky absolute inset-0" />
@@ -52,15 +54,7 @@ export default function CustomerLayout({ children }: Readonly<{ children: React.
                 <FestivalStage />
                 <div className="relative z-10 mx-auto flex min-h-dvh max-w-md flex-col">
                     <div className="flex-1">{children}</div>
-                    <footer className="px-4 pt-10 pb-32 text-center text-xs text-dough-dim">
-                        <Link href="/privacy" className="underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-syrup">
-                            개인정보 안내
-                        </Link>
-                        <span aria-hidden="true" className="mx-2">·</span>
-                        <Link href="/credits" className="underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-syrup">
-                            이미지 출처
-                        </Link>
-                    </footer>
+                    <CustomerFooter />
                 </div>
             </div>
         </CustomerMotion>

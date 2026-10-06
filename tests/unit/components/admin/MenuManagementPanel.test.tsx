@@ -186,6 +186,29 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { ko: { name: "꿀 호떡", description: "" } } }));
     });
 
+    it("영어 설명을 쓰면 영어 이름과 함께 보낸다 — 고객 영어 메뉴판에 나온다(T-04)", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: " Honey-filled classic " } });
+        fireEvent.click(within(target).getByRole("button", { name: "메뉴 저장" }));
+
+        await waitFor(() =>
+            expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { en: { name: "Original Hotteok", description: "Honey-filled classic" } } }),
+        );
+    });
+
+    it("영어 이름 없이 영어 설명만 쓰면 알리고 저장을 잠근다", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("이름(영어)"), { target: { value: "" } });
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: "Sweet" } });
+        expect(within(target).getByText("영어 설명을 쓰려면 영어 이름도 입력해 주세요.")).toBeTruthy();
+    });
+
     it("저장에 실패하면 입력값을 그대로 두고 안내한다", async () => {
         const api = fakeApi();
         vi.mocked(api.updateMenu).mockRejectedValueOnce(new Error("network"));

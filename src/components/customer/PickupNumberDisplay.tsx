@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useT } from "@/lib/i18n/locale";
 
 // 부스에서 부르는 번호 그대로 보이게 3자리로 0을 채우고(5 → 005), 천 단위 쉼표는 넣지 않는다.
 export function formatPickupNumber(pickupNumber: number): string {
@@ -37,10 +38,11 @@ export function PickupNumberDisplay({
   pickupNumber: number;
   variant?: "tile" | "header";
 }) {
+  const t = useT();
   const digits = formatPickupNumber(pickupNumber);
   return (
-    <section aria-label="픽업 번호" className="flex flex-col gap-1">
-      <p className="text-xs font-semibold text-dough-dim">픽업 번호</p>
+    <section aria-label={t("pickup.label")} className="flex flex-col gap-1">
+      <p className="text-xs font-semibold text-dough-dim">{t("pickup.label")}</p>
       <p className={`font-num leading-none text-syrup drop-shadow-[0_0_18px_rgba(255,181,71,0.35)] [perspective:400px] ${variant === "header" ? "text-7xl" : "text-6xl"}`}>
         <Digits digits={digits} delay={0.1} />
       </p>

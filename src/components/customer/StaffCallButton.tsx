@@ -2,21 +2,23 @@
 
 import { Bell } from "lucide-react";
 import { useStaffCall } from "@/features/customer/useStaffCall";
+import { useT } from "@/lib/i18n/locale";
 
 interface StaffCallButtonProps {
   token: string;
 }
 
 export function StaffCallButton({ token }: StaffCallButtonProps) {
+  const t = useT();
   const { isCalling, cooldownRemaining, message, errorMessage, callStaff } = useStaffCall(token);
 
   const formatCooldown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     if (mins > 0) {
-      return `${mins}분 ${secs > 0 ? `${secs}초` : ""}`;
+      return secs > 0 ? t("staffCall.minSec", { min: mins, sec: secs }) : t("staffCall.min", { min: mins });
     }
-    return `${secs}초`;
+    return t("staffCall.sec", { sec: secs });
   };
 
   const isCooldown = cooldownRemaining > 0;
@@ -26,10 +28,10 @@ export function StaffCallButton({ token }: StaffCallButtonProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 id="staff-call-heading" className="text-base font-bold text-neutral-900">
-            도움이 필요하신가요?
+            {t("staffCall.title")}
           </h2>
           <p className="mt-0.5 text-xs text-neutral-600">
-            문의사항이 있으시면 직원을 호출해 주세요.
+            {t("staffCall.body")}
           </p>
         </div>
         <button
@@ -44,10 +46,10 @@ export function StaffCallButton({ token }: StaffCallButtonProps) {
         >
           <Bell className="h-4 w-4" />
           {isCalling
-            ? "호출 중…"
+            ? t("staffCall.calling")
             : isCooldown
-            ? `잠시 후 다시 호출 가능 (${formatCooldown(cooldownRemaining)})`
-            : "직원 호출"}
+            ? t("staffCall.wait", { time: formatCooldown(cooldownRemaining) })
+            : t("staffCall.button")}
         </button>
       </div>
 

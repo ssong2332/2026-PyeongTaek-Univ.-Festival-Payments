@@ -17,6 +17,9 @@ import { ENABLED_PAYMENT_METHODS } from "@/features/customer/paymentMethods";
 import { selectCartTotal, useCart, useCartHydrated } from "@/features/customer/useCart";
 import { useCheckout, type CheckoutError } from "@/features/customer/useCheckout";
 import { formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
+import { cartItemNames } from "@/features/customer/cartView";
+import { useMenu } from "@/features/customer/useMenu";
 
 // 결제수단 선택 / 주문 확정(/checkout) — PRD 화면 표 "고객 · 결제수단 선택 / 주문 확정", Architecture 8절.
 export default function CheckoutPage() {
@@ -24,6 +27,11 @@ export default function CheckoutPage() {
     const hydrated = useCartHydrated();
     const items = useCart((state) => state.items);
     const total = useCart(selectCartTotal);
+    const locale = useLocale();
+    const t = useT();
+    // 메뉴·옵션 이름을 화면 언어로 보이려고 메뉴를 한 번 읽는다(실패하면 담을 때의 이름 — 주문에는 영향 없음).
+    const menu = useMenu(locale, { pollQueue: false });
+    const menuById = new Map((menu.status === "ready" ? menu.items : []).map((entry) => [entry.id, entry]));
     // new=1: 주문 상태 페이지가 "주문 완료" 보기를 먼저 보여 준다(상태 페이지 담당과 맞춘 약속).
     // 성공하면 버튼이 캐러멜로 가득 찬 "주문 완료" 상태를 잠깐 보여 준 뒤 이동한다(애니메이션을 끈 환경은 바로 이동).
     const checkout = useCheckout({
@@ -37,18 +45,18 @@ export default function CheckoutPage() {
             <div className="flex flex-col items-center gap-4 py-14">
                 <SuccessMark />
                 <p role="status" className="text-center font-bold text-dough">
-                    주문이 접수됐어요. 주문 화면으로 이동하고 있어요.
+                    {t("checkout.received")}
                 </p>
             </div>
         );
     } else if (hydrated && items.length === 0 && !checkout.submitting) {
         body = (
-            <EmptyState title="장바구니가 비어 있습니다">
+            <EmptyState title={t("cart.empty")}>
                 <Link
                     href="/"
                     className="iron-card rounded-full px-5 py-2.5 text-sm font-bold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
                 >
-                    메뉴판으로 돌아가기
+                    {t("cart.backToMenu")}
                 </Link>
             </EmptyState>
         );
@@ -64,8 +72,7 @@ export default function CheckoutPage() {
                 <OrderSummary
                     lines={items.map((item) => ({
                         lineId: item.lineId,
-                        name: item.name,
-                        optionSummary: item.options.map((option) => option.name).join(", "),
+                        ...cartItemNames(item, menuById.get(item.menuItemId)),
                         quantity: item.quantity,
                         lineTotal: lineTotal(item),
                     }))}
@@ -77,17 +84,17 @@ export default function CheckoutPage() {
     }
 
     const showConfirm = hydrated && (checkout.succeeded || items.length > 0 || checkout.submitting);
-    let confirmLabel = "결제 방법을 선택해 주세요.";
-    if (checkout.succeeded) confirmLabel = "주문 완료!";
-    else if (checkout.submitting) confirmLabel = "주문을 보내는 중…";
-    else if (checkout.paymentMethod) confirmLabel = `${formatWon(total)} 주문하기`;
+    let confirmLabel = t("checkout.choosePayment");
+    if (checkout.succeeded) confirmLabel = t("checkout.done");
+    else if (checkout.submitting) confirmLabel = t("checkout.sending");
+    else if (checkout.paymentMethod) confirmLabel = t("checkout.confirm", { total: formatWon(total, locale) });
 
     return (
         <>
             <PageHeader
-                title="주문 정보"
+                title={t("checkout.title")}
                 back={
-                    <Link href="/cart" aria-label="장바구니로" className={BACK_LINK_CLASS}>
+                    <Link href="/cart" aria-label={t("nav.backToCart")} className={BACK_LINK_CLASS}>
                         <ChevronLeftIcon />
                     </Link>
                 }
@@ -239,6 +246,7 @@ function SuccessMark() {
 
 // 재시도할 수 있는 오류(네트워크·서버·429)는 같은 멱등키로 다시 보내고, 나머지는 장바구니에서 고친다.
 function CheckoutErrorPanel({ error, onRetry }: { error: CheckoutError; onRetry: () => Promise<void> }) {
+    const t = useT();
     return (
         <motion.div
             initial={{ opacity: 0, x: -8 }}
@@ -247,12 +255,12 @@ function CheckoutErrorPanel({ error, onRetry }: { error: CheckoutError; onRetry:
             role="alert"
             className="flex flex-col gap-3 rounded-2xl border border-chili/45 bg-chili/10 p-4 text-sm"
         >
-            <p className="font-bold text-chili">{checkoutErrorMessage(error)}</p>
+            <p className="font-bold text-chili">{checkoutErrorMessage(error, t)}</p>
             {error.kind === "outOfStock" && error.shortages.length > 0 && (
                 <ul className="list-disc pl-5 text-dough">
                     {error.shortages.map((shortage) => (
                         <li key={shortage.menuItemId}>
-                            {shortage.name}: 남은 수량 {shortage.available}개
+                            {t("checkout.shortage", { name: shortage.name, available: shortage.available })}
                         </li>
                     ))}
                 </ul>
@@ -263,11 +271,11 @@ function CheckoutErrorPanel({ error, onRetry }: { error: CheckoutError; onRetry:
                     onClick={() => void onRetry()}
                     className="self-start rounded-full bg-syrup px-4 py-2 font-bold text-molasses transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
                 >
-                    다시 시도
+                    {t("common.retry")}
                 </button>
             ) : (
                 <Link href="/cart" className="iron-card self-start rounded-full px-4 py-2 font-bold text-dough focus-visible:outline-2 focus-visible:outline-syrup">
-                    장바구니로 돌아가기
+                    {t("checkout.backToCart")}
                 </Link>
             )}
         </motion.div>

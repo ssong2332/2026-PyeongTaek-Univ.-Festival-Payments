@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import type { PaymentMethod } from "@/domain/order/status";
 import { CelebrationBurst } from "@/features/festival/CelebrationBurst";
 import type { OrderStatusItemDto } from "@/lib/dto/order";
+import { useT } from "@/lib/i18n/locale";
 import { BrandedPickup } from "./BrandedPickup";
 import { ReceiptPrinter } from "./ReceiptPrinter";
 
@@ -21,6 +22,7 @@ export function OrderCompleteCard({
   items?: readonly OrderStatusItemDto[];
   createdAt?: string;
 }) {
+  const t = useT();
   return (
     <>
       <motion.h1
@@ -29,7 +31,9 @@ export function OrderCompleteCard({
         transition={{ type: "spring", stiffness: 300, damping: 24 }}
         className="font-display text-center text-3xl text-dough"
       >
-        주문이 <span className="text-syrup">접수</span>됐어요!
+        {t("complete.titleBefore")}
+        <span className="text-syrup">{t("complete.titleHighlight")}</span>
+        {t("complete.titleAfter")}
       </motion.h1>
       <BrandedPickup pickupNumber={pickupNumber} />
       <ReceiptPrinter totalAmount={totalAmount} paymentMethod={paymentMethod} items={items} createdAt={createdAt} />

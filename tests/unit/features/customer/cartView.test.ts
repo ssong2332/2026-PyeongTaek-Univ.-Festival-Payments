@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCartLines } from "@/features/customer/cartView";
+import { createT } from "@/lib/i18n/translate";
 import { menuImageUrl } from "@/features/customer/menuImages";
 import type { CartItem } from "@/features/customer/useCart";
 import type { MenuItemDto } from "@/lib/dto/menu";
@@ -78,5 +79,36 @@ describe("buildCartLines — 장바구니 화면 줄 정보", () => {
         expect(first.warning).toBe("재고가 부족해요. 이 메뉴는 모두 합쳐 5개까지 주문할 수 있어요.");
         expect(first.maxQuantity).toBe(2);
         expect(second.maxQuantity).toBe(1);
+    });
+});
+
+describe("buildCartLines — 화면 언어(T-04)", () => {
+    const english = menu({
+        name: "Cheese Hotteok",
+        optionGroups: [{
+            id: "bbbbbbbb-0000-0000-0000-000000000001",
+            name: "Extras",
+            minSelect: 0,
+            maxSelect: 3,
+            options: [{ id: NUTS.id, name: "Add nuts", extraPrice: 500 }],
+        }],
+    });
+
+    it("지금 언어로 받은 메뉴가 있으면 메뉴·옵션 이름을 그 언어로 보인다", () => {
+        const [line] = buildCartLines([item("a", MENU_A, 1, [NUTS, CINNAMON])], [english], createT("en"));
+        expect(line.name).toBe("Cheese Hotteok");
+        // 메뉴에서 빠진 옵션(시나몬)은 담을 때의 이름
+        expect(line.optionSummary).toBe("Add nuts, 시나몬");
+    });
+
+    it("메뉴를 아직 못 받았으면 담을 때의 이름", () => {
+        const [line] = buildCartLines([item("a", MENU_A, 1)], null, createT("en"));
+        expect(line.name).toBe("치즈 호떡");
+        expect(line.optionSummary).toBe("견과류 추가");
+    });
+
+    it("경고 문구도 화면 언어", () => {
+        const [line] = buildCartLines([item("a", MENU_A, 1)], [{ ...english, isSoldOut: true, isAvailable: false, stock: 0 }], createT("en"));
+        expect(line.warning).toBe("This item is sold out. Please remove it.");
     });
 });
