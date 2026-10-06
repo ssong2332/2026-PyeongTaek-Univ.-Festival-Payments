@@ -36,7 +36,8 @@ BEGIN
   IF v_baseline < 0 THEN RAISE EXCEPTION 'INVALID_COUNTER'; END IF;
   SELECT jsonb_object_agg(id::text, stock) INTO v_stock FROM public.menu_items;
   IF v_stock IS NULL THEN RAISE EXCEPTION 'SEED_MENUS_REQUIRED'; END IF;
-  DELETE FROM load_test_private.run;
+  -- Supabase PostgREST(pg-safeupdate) rejects DELETE/UPDATE without WHERE; the single row is replaced.
+  DELETE FROM load_test_private.run WHERE true;
   INSERT INTO load_test_private.run(run_id, baseline, stock) VALUES(p_run, v_baseline, v_stock);
   RETURN jsonb_build_object('run', p_run, 'baseline', v_baseline, 'stock', v_stock);
 END;
@@ -85,13 +86,13 @@ BEGIN
     SELECT i.menu_item_id, sum(i.quantity)::integer qty FROM public.order_items i
     JOIN public.orders o ON o.id = i.order_id WHERE o.status = 'pending' GROUP BY i.menu_item_id
   ) q WHERE q.menu_item_id = m.id;
-  DELETE FROM public.orders; -- every row checked under ACCESS EXCLUSIVE lock
+  DELETE FROM public.orders WHERE true; -- every row checked under ACCESS EXCLUSIVE lock (WHERE for pg-safeupdate)
   IF v_run.baseline IS NULL THEN
     DELETE FROM public.counters WHERE key = 'pickup_number';
   ELSE
     UPDATE public.counters SET value = v_run.baseline WHERE key = 'pickup_number';
   END IF;
-  UPDATE load_test_private.run SET cleaned = true;
+  UPDATE load_test_private.run SET cleaned = true WHERE run_id = p_run;
   RETURN jsonb_build_object('orders', v_count, 'dryRun', false, 'baseline', v_run.baseline);
 END;
 $$;
