@@ -4,10 +4,9 @@ import type { AdminMenuRepository } from "@/services/ports";
 import { toMenuItemRecord } from "./mappers";
 import { ADMIN_MENU_SELECT } from "./supabaseMenuRepository";
 
-// 관리자 메뉴·재고 관리(T-20). service_role 클라이언트로만 만든다(라우트가 requireAdmin 뒤에 넘긴다).
+// 관리자 메뉴·재고 관리(T-20/T-37). service_role 클라이언트로만 만든다(라우트가 requireAdmin 뒤에 넘긴다).
 // DB 에러 원문은 응답에 담지 않는다(Architecture 5절 — 500은 상세 비노출).
-// supabase-js에는 트랜잭션이 없어 메뉴 칸·번역을 차례로 쓴다. 요청 값이 모두 "최종 값"이라 중간에 실패해도
-// 같은 요청을 다시 보내면 같은 결과가 된다(화면은 실패 시 다시 저장하게 안내한다).
+// 신규 메뉴는 0105 create_admin_menu RPC 한 번으로 메뉴·번역·옵션 구조를 원자적으로 생성한다.
 const internal = () => new AppError("INTERNAL_ERROR", 500);
 
 type OptionGroupRow = { menu_item_id: string; min_select: number; max_select: number };
@@ -28,57 +27,35 @@ export function createSupabaseAdminMenuRepository(client: SupabaseClient): Admin
         },
 
         async createMenuItem(input) {
-            const inserted = await client.from("menu_items").insert({
-                base_price: input.basePrice,
-                stock: input.stock,
-                is_sold_out_manual: false,
-                is_active: true,
-                sort_order: input.sortOrder,
-            }).select("id").single();
-            if (inserted.error || !inserted.data?.id) throw internal();
-            const menuId = inserted.data.id as string;
-            const cleanup = async () => { await client.from("menu_items").delete().eq("id", menuId); };
-            try {
-                for (const translation of input.translations) {
-                    const { error } = await client.from("menu_item_translations").insert({
-                        menu_item_id: menuId, locale: translation.locale, name: translation.name,
-                        description: translation.description ?? null,
-                    });
-                    if (error) throw internal();
-                }
-                for (const group of input.optionGroups) {
-                    const createdGroup = await client.from("option_groups").insert({
-                        menu_item_id: menuId, min_select: group.minSelect, max_select: group.maxSelect,
-                        sort_order: group.sortOrder, is_active: true,
-                    }).select("id").single();
-                    if (createdGroup.error || !createdGroup.data?.id) throw internal();
-                    const groupId = createdGroup.data.id as string;
-                    for (const translation of group.translations) {
-                        const { error } = await client.from("option_group_translations").insert({
-                            option_group_id: groupId, locale: translation.locale, name: translation.name,
-                        });
-                        if (error) throw internal();
-                    }
-                    for (const option of group.options) {
-                        const createdOption = await client.from("options").insert({
-                            option_group_id: groupId, extra_price: option.extraPrice,
-                            sort_order: option.sortOrder, is_active: true,
-                        }).select("id").single();
-                        if (createdOption.error || !createdOption.data?.id) throw internal();
-                        const optionId = createdOption.data.id as string;
-                        for (const translation of option.translations) {
-                            const { error } = await client.from("option_translations").insert({
-                                option_id: optionId, locale: translation.locale, name: translation.name,
-                            });
-                            if (error) throw internal();
-                        }
-                    }
-                }
-                return menuId;
-            } catch (error) {
-                await cleanup();
-                throw error;
-            }
+            const { data, error } = await client.rpc("create_admin_menu", {
+                p_base_price: input.basePrice,
+                p_stock: input.stock,
+                p_sort_order: input.sortOrder,
+                p_translations: input.translations.map((translation) => ({
+                    locale: translation.locale,
+                    name: translation.name,
+                    description: translation.description ?? null,
+                })),
+                p_option_groups: input.optionGroups.map((group) => ({
+                    minSelect: group.minSelect,
+                    maxSelect: group.maxSelect,
+                    sortOrder: group.sortOrder,
+                    translations: group.translations.map((translation) => ({
+                        locale: translation.locale,
+                        name: translation.name,
+                    })),
+                    options: group.options.map((option) => ({
+                        extraPrice: option.extraPrice,
+                        sortOrder: option.sortOrder,
+                        translations: option.translations.map((translation) => ({
+                            locale: translation.locale,
+                            name: translation.name,
+                        })),
+                    })),
+                })),
+            });
+            if (error || typeof data !== "string") throw internal();
+            return data;
         },
 
         async updateMenuItem(id, patch) {
