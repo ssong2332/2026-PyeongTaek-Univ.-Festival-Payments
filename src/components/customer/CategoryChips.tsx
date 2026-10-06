@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import type { MENU_CATEGORIES, MenuCategoryId } from "@/features/customer/menuCategories";
+import { useT } from "@/lib/i18n/locale";
 
 // 맛 탭. 고른 탭 아래로 시럽색 막대가 미끄러져 옮겨 간다(layoutId) — 탭 사이 관계가 눈으로 이어진다.
 export function CategoryChips({
@@ -13,9 +14,10 @@ export function CategoryChips({
     value: MenuCategoryId;
     onChange: (id: MenuCategoryId) => void;
 }) {
+    const t = useT();
     if (categories.length <= 1) return null;
     return (
-        <div role="group" aria-label="맛 고르기" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto border-b border-iron-line px-4">
+        <div role="group" aria-label={t("category.groupLabel")} className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto border-b border-iron-line px-4">
             {categories.map((category) => {
                 const active = category.id === value;
                 return (
@@ -28,7 +30,7 @@ export function CategoryChips({
                             active ? "text-syrup" : "text-dough-dim hover:text-dough"
                         }`}
                     >
-                        {category.label}
+                        {t(`category.${category.id}` as const)}
                         {active && (
                             <motion.span
                                 layoutId="menu-category-bar"

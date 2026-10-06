@@ -4,16 +4,19 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/infra/supabase/session");
 vi.mock("@/infra/supabase/server");
 vi.mock("@/infra/repositories/statsRepository");
+vi.mock("@/infra/repositories/hourlySalesRepository");
 
 import { NextRequest } from "next/server";
 import { GET } from "@/app/api/admin/stats/route";
 import { requireAdmin } from "@/infra/supabase/session";
 import { createServiceClient } from "@/infra/supabase/server";
 import { loadStats } from "@/infra/repositories/statsRepository";
+import { loadHourlyMenuSales } from "@/infra/repositories/hourlySalesRepository";
 import { AppError } from "@/lib/api/errors";
 
 const emptySummary = {
     date: "all", sales: 0, orderCount: 0, refundedAmount: 0, refundedCount: 0, byMenu: [],
+    hourlyByMenu: [],
     totals: { pending: 0, paid: 0, cooking: 0, completed: 0, cancelled: 0, refunded: 0, expired: 0 },
 };
 const request = (query = "") => new NextRequest(`http://localhost:3000/api/admin/stats${query}`);
@@ -23,6 +26,7 @@ describe("GET /api/admin/stats", () => {
         vi.clearAllMocks();
         vi.mocked(requireAdmin).mockResolvedValue({ id: "admin-id" } as Awaited<ReturnType<typeof requireAdmin>>);
         vi.mocked(loadStats).mockResolvedValue(emptySummary);
+        vi.mocked(loadHourlyMenuSales).mockResolvedValue([]);
     });
 
     it("rejects a missing admin session before calling the database", async () => {
@@ -30,6 +34,7 @@ describe("GET /api/admin/stats", () => {
         const response = await GET(request("?date=all"));
         expect(response.status).toBe(401);
         expect(loadStats).not.toHaveBeenCalled();
+        expect(loadHourlyMenuSales).not.toHaveBeenCalled();
     });
 
     it("rejects malformed, nonexistent, and repeated dates", async () => {
@@ -46,6 +51,7 @@ describe("GET /api/admin/stats", () => {
         expect(response.headers.get("Cache-Control")).toBe("private, no-store");
         expect(await response.json()).toEqual(emptySummary);
         expect(loadStats).toHaveBeenCalledWith(createServiceClient(), "all");
+        expect(loadHourlyMenuSales).toHaveBeenCalledWith(createServiceClient(), "all");
     });
 
     it("accepts seeded menu IDs in an otherwise valid aggregate", async () => {
@@ -66,6 +72,7 @@ describe("GET /api/admin/stats", () => {
             const response = await GET(request());
             expect(response.status).toBe(200);
             expect(loadStats).toHaveBeenCalledWith(createServiceClient(), "2026-09-29");
+            expect(loadHourlyMenuSales).toHaveBeenCalledWith(createServiceClient(), "2026-09-29");
         } finally {
             now.mockRestore();
         }

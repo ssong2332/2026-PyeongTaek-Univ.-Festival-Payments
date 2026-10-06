@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { LOCALE_STORAGE_KEY } from "@/lib/i18n/locale";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MY_ORDERS_STORAGE_KEY, readMyOrders } from "@/features/customer/myOrders";
@@ -316,5 +317,17 @@ describe("useCheckout.submit — 이 기기에 주문 링크 저장 (#89)", () =
 
         expect(onSuccess).not.toHaveBeenCalled();
         expect(localStorage.getItem(MY_ORDERS_STORAGE_KEY)).toBeNull();
+    });
+});
+
+describe("useCheckout.submit — 주문 언어(T-04)", () => {
+    it("이 기기에서 고른 화면 언어(en)를 locale로 보낸다 — 주문 현황·영수증 이름이 그 언어로 나온다", async () => {
+        localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+        fetchMock.mockResolvedValueOnce(json(201, order));
+        const { result } = setup();
+        act(() => result.current.selectPaymentMethod("cash"));
+        await submitAndSettle(result);
+        expect(sentBodies()[0]).toMatchObject({ locale: "en" });
+        localStorage.removeItem(LOCALE_STORAGE_KEY);
     });
 });

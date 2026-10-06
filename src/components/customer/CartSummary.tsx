@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import { CloseIcon } from "@/components/ui/icons";
 import { formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
 import { MenuThumbnail } from "./MenuThumbnail";
 import { QuantityStepper } from "./QuantityStepper";
 
@@ -29,6 +30,8 @@ const SWIPE_DELETE_OFFSET = -110;
 
 // 장바구니 줄. 왼쪽으로 밀면 뒤의 고추색 "삭제"가 드러나고, 지운 줄은 옆으로 빠지며 아래 줄들이 메워 올라온다(layout).
 export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryProps) {
+    const locale = useLocale();
+    const t = useT();
     return (
         <ul className="flex flex-col gap-3">
             <AnimatePresence initial={false}>
@@ -42,7 +45,7 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                         className="relative overflow-hidden rounded-3xl"
                     >
                         <span aria-hidden="true" className="absolute inset-0 flex items-center justify-end rounded-3xl bg-chili/90 pr-6 text-sm font-bold text-molasses">
-                            삭제
+                            {t("common.delete")}
                         </span>
                         <motion.div
                             drag="x"
@@ -57,10 +60,10 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                                 <MenuThumbnail imageUrl={line.imageUrl} className="size-20 rounded-full shadow-[0_8px_18px_rgba(0,0,0,0.45)]" />
                                 <div className="flex min-w-0 flex-1 flex-col">
                                     <div className="flex items-start gap-2">
-                                        <p className="font-display min-w-0 flex-1 truncate text-lg text-dough">{line.name}</p>
+                                        <p className="font-display line-clamp-2 min-w-0 flex-1 text-lg leading-tight text-dough">{line.name}</p>
                                         <button
                                             type="button"
-                                            aria-label={`${line.name} 삭제`}
+                                            aria-label={t("cart.removeLine", { name: line.name })}
                                             onClick={() => onRemove(line.lineId)}
                                             className="-m-1 flex size-8 shrink-0 items-center justify-center rounded-full text-dough-dim transition-colors hover:bg-chili/15 hover:text-chili active:scale-90 focus-visible:outline-2 focus-visible:outline-syrup"
                                         >
@@ -71,14 +74,14 @@ export function CartSummary({ lines, onQuantityChange, onRemove }: CartSummaryPr
                                     <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                                         <QuantityStepper
                                             size="sm"
-                                            label={`${line.name} 수량`}
+                                            label={t("cart.lineQuantity", { name: line.name })}
                                             value={line.quantity}
                                             max={line.maxQuantity}
                                             onChange={(quantity) => onQuantityChange(line.lineId, quantity)}
                                         />
                                         <span className="font-num relative text-lg text-dough">
                                             <span key={line.lineTotal} aria-hidden="true" className="heat-pulse pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-lg" />
-                                            <RollingNumber value={formatWon(line.lineTotal)} />
+                                            <RollingNumber value={formatWon(line.lineTotal, locale)} />
                                         </span>
                                     </div>
                                 </div>

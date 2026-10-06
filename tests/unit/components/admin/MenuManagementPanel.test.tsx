@@ -50,35 +50,11 @@ function fakeApi(menus: AdminMenuDto[] = [menu()]): MenuAdminApi {
     };
     return {
         load: vi.fn(async () => structuredClone(current)),
-        createMenu: vi.fn(async (input) => {
-            const created: AdminMenuDto = {
-                id: "77777777-7777-4777-8777-777777777777",
-                translations: {
-                    ko: { name: input.translations.ko.name, description: input.translations.ko.description || null },
-                    en: { name: input.translations.en.name, description: input.translations.en.description || null },
-                },
-                basePrice: input.basePrice, stock: input.stock, isRecommended: false, isSoldOutManual: false,
-                isActive: true, sortOrder: current.length, imageUrl: null,
-                optionGroups: input.optionGroups.map((group, groupIndex) => ({
-                    id: `88888888-8888-4888-8888-${String(groupIndex + 1).padStart(12, "0")}`,
-                    translations: { ko: { name: group.translations.ko.name }, en: { name: group.translations.en.name } },
-                    minSelect: group.minSelect, maxSelect: group.maxSelect, isActive: true,
-                    options: group.options.map((option, optionIndex) => ({
-                        id: `99999999-9999-4999-8999-${String(optionIndex + 1).padStart(12, "0")}`,
-                        translations: { ko: { name: option.translations.ko.name }, en: { name: option.translations.en.name } },
-                        extraPrice: option.extraPrice, isActive: true,
-                    })),
-                })),
-            };
-            current = [...current, created];
-            return structuredClone(created);
-        }),
         updateMenu: vi.fn(async (id, patch) => apply(id, (item) => {
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;
             if (patch.isRecommended !== undefined) item.isRecommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) item.isSoldOutManual = patch.isSoldOutManual;
-            if (patch.isActive !== undefined) item.isActive = patch.isActive;
             if (patch.translations?.ko) item.translations.ko = { name: patch.translations.ko.name, description: patch.translations.ko.description || null };
         })),
         updateOptionGroup: vi.fn(async () => structuredClone(current[0])),
@@ -109,40 +85,8 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         expect(within(card("꿀버터 호떡")).getByText("품절(수동)")).toBeTruthy();
         expect(within(card("판매 종료 호떡")).getByText("판매 종료(메뉴판 미노출)")).toBeTruthy();
         expect(screen.getByText(/지금 품절/).textContent).toContain("2");
-        expect(screen.getByRole("button", { name: "메뉴 추가" })).toBeTruthy();
-    });
-
-
-    it("새 메뉴를 ko/en 이름·가격·재고·옵션과 함께 등록한다(T-37)", async () => {
-        const api = fakeApi();
-        render(<MenuManagementPanel api={api} />);
-        fireEvent.click(await screen.findByRole("button", { name: "메뉴 추가" }));
-        const form = screen.getByRole("region", { name: "새 메뉴 등록" });
-        fireEvent.change(within(form).getByLabelText("이름(한국어)"), { target: { value: "시나몬 호떡" } });
-        fireEvent.change(within(form).getByLabelText("이름(영어)"), { target: { value: "Cinnamon Hotteok" } });
-        fireEvent.change(within(form).getByLabelText("가격(원)"), { target: { value: "3000" } });
-        fireEvent.change(within(form).getByLabelText("초기 재고"), { target: { value: "20" } });
-        fireEvent.click(within(form).getByRole("button", { name: /옵션 그룹 추가/ }));
-        fireEvent.change(within(form).getByLabelText("그룹명(한국어)"), { target: { value: "토핑" } });
-        fireEvent.change(within(form).getByLabelText("그룹명(영어)"), { target: { value: "Topping" } });
-        fireEvent.click(within(form).getByRole("button", { name: "옵션 추가" }));
-        fireEvent.change(within(form).getByLabelText("옵션명(한국어)"), { target: { value: "치즈" } });
-        fireEvent.change(within(form).getByLabelText("옵션명(영어)"), { target: { value: "Cheese" } });
-        fireEvent.change(within(form).getByLabelText("추가 가격"), { target: { value: "500" } });
-        fireEvent.click(within(form).getByRole("button", { name: "메뉴 등록" }));
-        await waitFor(() => expect(api.createMenu).toHaveBeenCalled());
-        expect(await screen.findByRole("article", { name: "시나몬 호떡" })).toBeTruthy();
-    });
-
-    it("판매 종료는 물리 삭제하지 않고 isActive=false로 저장하고 다시 판매할 수 있다(T-37)", async () => {
-        const api = fakeApi();
-        render(<MenuManagementPanel api={api} />);
-        const target = await screen.findByRole("article", { name: "기본 호떡" });
-        fireEvent.click(within(target).getByRole("button", { name: "판매 종료" }));
-        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isActive: false }));
-        expect(await within(target).findByText("판매 종료(메뉴판 미노출)")).toBeTruthy();
-        fireEvent.click(within(target).getByRole("button", { name: "다시 판매" }));
-        await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { isActive: true }));
+        // 1차는 수정만: 메뉴 추가·삭제 버튼이 없다(F-27)
+        expect(screen.queryByRole("button", { name: /메뉴 추가|삭제/ })).toBeNull();
     });
 
     it("품절 처리 스위치는 누르는 즉시 isSoldOutManual만 저장하고 상태를 바꾼다(F-26)", async () => {
@@ -240,6 +184,29 @@ describe("T-20 메뉴·재고 관리 화면", () => {
         fireEvent.click(within(target).getByRole("button", { name: "메뉴 저장" }));
 
         await waitFor(() => expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { ko: { name: "꿀 호떡", description: "" } } }));
+    });
+
+    it("영어 설명을 쓰면 영어 이름과 함께 보낸다 — 고객 영어 메뉴판에 나온다(T-04)", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: " Honey-filled classic " } });
+        fireEvent.click(within(target).getByRole("button", { name: "메뉴 저장" }));
+
+        await waitFor(() =>
+            expect(api.updateMenu).toHaveBeenCalledWith(MENU_ID, { translations: { en: { name: "Original Hotteok", description: "Honey-filled classic" } } }),
+        );
+    });
+
+    it("영어 이름 없이 영어 설명만 쓰면 알리고 저장을 잠근다", async () => {
+        const api = fakeApi();
+        render(<MenuManagementPanel api={api} />);
+        const target = await screen.findByRole("article", { name: "기본 호떡" });
+
+        fireEvent.change(within(target).getByLabelText("이름(영어)"), { target: { value: "" } });
+        fireEvent.change(within(target).getByLabelText("설명(영어)"), { target: { value: "Sweet" } });
+        expect(within(target).getByText("영어 설명을 쓰려면 영어 이름도 입력해 주세요.")).toBeTruthy();
     });
 
     it("저장에 실패하면 입력값을 그대로 두고 안내한다", async () => {

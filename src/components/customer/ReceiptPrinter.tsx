@@ -4,7 +4,7 @@ import { motion, type Variants } from "motion/react";
 import type { PaymentMethod } from "@/domain/order/status";
 import type { OrderStatusItemDto } from "@/lib/dto/order";
 import { formatWon } from "@/lib/format";
-import { PAYMENT_METHOD_LABELS } from "./orderDisplay";
+import { useLocale, useT } from "@/lib/i18n/locale";
 
 // 연출 시간표(초): 프린터 등장 → 종이가 끊어 끊어 출력 → 줄마다 인쇄 → 도장 쾅.
 const PRINT_START = 0.35;
@@ -41,6 +41,8 @@ export function ReceiptPrinter({
   items: readonly OrderStatusItemDto[];
   createdAt?: string;
 }) {
+  const locale = useLocale();
+  const t = useT();
   return (
     <div className="relative">
       {/* 프린터 몸체(장식) */}
@@ -70,7 +72,7 @@ export function ReceiptPrinter({
       {/* 슬롯 아래로만 보이게 잘라 낸 종이 */}
       <div className="relative -mt-1 overflow-hidden px-4 pb-6">
         <motion.section
-          aria-label="주문 영수증"
+          aria-label={t("receipt.label")}
           initial={{ y: "-102%" }}
           animate={{ y: ["-102%", "-74%", "-72%", "-44%", "-42%", "-14%", "0%"] }}
           transition={{ duration: PRINT_DURATION, delay: PRINT_START, ease: "easeOut" }}
@@ -85,8 +87,8 @@ export function ReceiptPrinter({
           >
             <motion.div variants={LINES} initial="hidden" animate="show" className="flex flex-col gap-3">
               <motion.div variants={LINE} className="text-center">
-                <p className="font-display text-xl text-molasses">호떡 부스 영수증</p>
-                <p className="text-[11px] text-neutral-500">2026 평택대학교 대동제{createdAt ? ` · ${KST.format(new Date(createdAt))}` : ""}</p>
+                <p className="font-display text-xl text-molasses">{t("receipt.title")}</p>
+                <p className="text-[11px] text-neutral-500">{t("hero.festival")}{createdAt ? ` · ${KST.format(new Date(createdAt))}` : ""}</p>
               </motion.div>
               <motion.p variants={LINE} aria-hidden="true" className="overflow-hidden text-xs whitespace-nowrap text-neutral-300">
                 {"- ".repeat(40)}
@@ -100,18 +102,18 @@ export function ReceiptPrinter({
                         {item.name} <span className="text-neutral-500">×{item.quantity}</span>
                         {item.options.length > 0 && <span className="block text-[11px] text-neutral-500">+ {item.options.join(", ")}</span>}
                       </span>
-                      <span className="shrink-0 tabular-nums">{formatWon(item.lineTotal)}</span>
+                      <span className="shrink-0 tabular-nums">{formatWon(item.lineTotal, locale)}</span>
                     </motion.li>
                   ))}
                 </ul>
               )}
               <motion.div variants={LINE} className="flex items-end justify-between border-t-2 border-neutral-800 pt-2">
-                <span className="text-sm font-bold">합계</span>
-                <span className="font-display text-3xl text-molasses">{formatWon(totalAmount)}</span>
+                <span className="text-sm font-bold">{t("common.total")}</span>
+                <span className="font-display text-3xl text-molasses">{formatWon(totalAmount, locale)}</span>
               </motion.div>
               <motion.dl variants={LINE} className="flex items-center justify-between text-sm">
-                <dt className="text-neutral-500">결제 방법</dt>
-                <dd className="font-bold text-neutral-900">{PAYMENT_METHOD_LABELS[paymentMethod]}</dd>
+                <dt className="text-neutral-500">{t("payment.title")}</dt>
+                <dd className="font-bold text-neutral-900">{t(`payment.${paymentMethod}` as const)}</dd>
               </motion.dl>
               <motion.p variants={LINE} aria-hidden="true" className="pt-1 text-center text-[10px] tracking-[0.4em] text-neutral-400">
                 ||| | || ||| | ||| || | |||
@@ -128,6 +130,7 @@ export function ReceiptPrinter({
 
 // "접수 완료" 도장(장식). 위에서 크게 떨어져 비스듬히 찍히고, 잉크가 번지듯 퍼진다.
 function Stamp() {
+  const t = useT();
   return (
     <motion.div
       aria-hidden="true"
@@ -155,7 +158,7 @@ function Stamp() {
           <circle cx="60" cy="60" r="54" strokeWidth="6" />
           <circle cx="60" cy="60" r="44" strokeWidth="2.5" />
           <text x="60" y="56" textAnchor="middle" fill="#d6342c" stroke="none" fontSize="21" fontWeight="900" fontFamily="sans-serif">
-            접수완료
+            {t("receipt.stamp")}
           </text>
           <text x="60" y="77" textAnchor="middle" fill="#d6342c" stroke="none" fontSize="10" fontWeight="800" letterSpacing="2" fontFamily="sans-serif">
             · HOTTEOK ·
