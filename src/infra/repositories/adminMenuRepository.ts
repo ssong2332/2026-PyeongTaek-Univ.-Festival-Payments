@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError } from "@/lib/api/errors";
 import type { AdminMenuRepository } from "@/services/ports";
 import { toMenuItemRecord } from "./mappers";
-import { MENU_SELECT } from "./supabaseMenuRepository";
+import { ADMIN_MENU_SELECT } from "./supabaseMenuRepository";
 
 // 관리자 메뉴·재고 관리(T-20). service_role 클라이언트로만 만든다(라우트가 requireAdmin 뒤에 넘긴다).
 // DB 에러 원문은 응답에 담지 않는다(Architecture 5절 — 500은 상세 비노출).
@@ -16,13 +16,13 @@ type OptionRow = { option_groups: { menu_item_id: string } | { menu_item_id: str
 export function createSupabaseAdminMenuRepository(client: SupabaseClient): AdminMenuRepository {
     return {
         async listMenuItems() {
-            const { data, error } = await client.from("menu_items").select(MENU_SELECT);
+            const { data, error } = await client.from("menu_items").select(ADMIN_MENU_SELECT);
             if (error) throw internal();
             return (data ?? []).map((row: unknown) => toMenuItemRecord(row));
         },
 
         async getMenuItem(id) {
-            const { data, error } = await client.from("menu_items").select(MENU_SELECT).eq("id", id).maybeSingle();
+            const { data, error } = await client.from("menu_items").select(ADMIN_MENU_SELECT).eq("id", id).maybeSingle();
             if (error) throw internal();
             return data ? toMenuItemRecord(data) : null;
         },
@@ -31,6 +31,7 @@ export function createSupabaseAdminMenuRepository(client: SupabaseClient): Admin
             const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
             if (patch.basePrice !== undefined) row.base_price = patch.basePrice;
             if (patch.stock !== undefined) row.stock = patch.stock;
+            if (patch.isRecommended !== undefined) row.is_recommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) row.is_sold_out_manual = patch.isSoldOutManual;
             const { data, error } = await client.from("menu_items").update(row).eq("id", id).select("id");
             if (error) throw internal();

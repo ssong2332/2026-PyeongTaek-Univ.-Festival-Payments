@@ -9,6 +9,7 @@ function menu(id: string, name: string, description: string | null = null, isSol
         description,
         price: 2500,
         stock: isSoldOut ? 0 : 10,
+        isRecommended: false,
         isAvailable: !isSoldOut,
         isSoldOut,
         imageUrl: null,
