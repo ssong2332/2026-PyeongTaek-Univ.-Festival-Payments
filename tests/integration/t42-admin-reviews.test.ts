@@ -27,13 +27,14 @@ const reviews = [
 ];
 
 beforeAll(async () => {
+    // 여러 행 insert는 행마다 빠진 열을 기본값이 아닌 NULL로 보내므로 모든 행에 같은 열을 채운다.
     const orders = await db.from("orders").insert(ids.map((id, index) => ({
         id, status: "completed", payment_method: "cash", total_amount: 3000,
         idempotency_key: randomUUID(), status_token: randomUUID().replaceAll("-", "").repeat(2),
         ...(index === 4
             ? { pickup_number: 2_100_000_000 + manualNumber, source: "manual", manual_number: manualNumber,
                 manual_ordered_at: "2099-03-02T02:50:00.000Z" }
-            : { pickup_number: pickupBase + index }),
+            : { pickup_number: pickupBase + index, source: "customer", manual_number: null, manual_ordered_at: null }),
     })));
     if (orders.error) throw orders.error;
     const inserted = await db.from("reviews").insert(reviews);
