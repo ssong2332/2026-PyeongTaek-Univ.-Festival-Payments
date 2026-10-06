@@ -12,7 +12,9 @@ import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { useStaffCallsFeed } from "@/features/admin/useStaffCallsFeed";
 import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
+import { useNewOrderSound } from "@/features/admin/useNewOrderSound";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
+import { AdminReviewsResponseSchema } from "@/lib/dto/review";
 import { StatsDtoSchema } from "@/lib/dto/stats";
 
 async function fetchStats(date: string) {
@@ -21,11 +23,25 @@ async function fetchStats(date: string) {
     return StatsDtoSchema.parse(await response.json());
 }
 
+async function fetchReviews(date: string) {
+    const response = await fetch(`/api/admin/reviews?date=${encodeURIComponent(date)}`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Reviews request failed");
+    return AdminReviewsResponseSchema.parse(await response.json());
+}
+
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
-    const feed = useOrdersFeed();
+    const sound = useNewOrderSound();
+
+    const feed = useOrdersFeed({
+        onNewOrder: () => {
+            void sound.play();
+        },
+    });
+
     const staffFeed = useStaffCallsFeed();
     useSweepHeartbeat(feed.reload);
+
     const monitor = useConnectionMonitor({
         channelStatus: feed.channelStatus,
         onRecover: feed.refresh,
@@ -42,11 +58,29 @@ export function LiveOrderDashboard() {
         <ConnectionBanner disconnected={monitor.isDisconnected}
             retrying={monitor.isChecking}
             onRetry={async () => { await monitor.checkNow(); }} />
+        <div className="mb-3 flex justify-end">
+            <button
+                type="button"
+                onClick={() => {
+                    if (sound.enabled) {
+                        sound.disable();
+                    } else {
+                        void sound.enable();
+                    }
+                }}
+                className="rounded-lg border px-3 py-2 text-sm font-medium"
+            >
+                {sound.enabled
+                    ? "🔔 주문 알림음 켜짐"
+                    : "🔕 주문 알림음 켜기"}
+            </button>
+        </div>
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
             menuPanel={<><MenuLifecyclePanel /><MenuManagementPanel /></>}
             onReload={feed.reload}
             onLoadStats={fetchStats}
+            onLoadReviews={fetchReviews}
             onSearch={async pickupNumber => {
                 const response = await fetch(`/api/admin/orders?pickupNumber=${pickupNumber}`, { cache: "no-store" });
                 if (!response.ok) throw new Error("Order search failed");
