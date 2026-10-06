@@ -61,7 +61,7 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, recommen
             <span className="flex min-w-0 flex-col">
                 <span className="flex items-start gap-2">
                     <span className="font-display line-clamp-2 min-w-0 text-[19px] leading-tight text-dough">{name}</span>
-                    {recommended && <span className="shrink-0 rounded-full bg-syrup/20 px-2 py-0.5 text-[11px] font-bold text-syrup">{t("menu.featured.title")}</span>}
+                    {recommended && <span className="shrink-0 rounded-full bg-syrup/20 px-2 py-0.5 text-[11px] font-bold text-syrup">{t("menu.recommended")}</span>}
                 </span>
                 {description && <span className="mt-1 line-clamp-2 text-[13px] leading-snug text-dough-dim">{description}</span>}
                 <span className="mt-2 flex items-center justify-between">

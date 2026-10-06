@@ -243,5 +243,6 @@
     "privacy.device.title": "이 기기에만 보관",
     "privacy.device.value": "24시간",
     "privacy.disposal.value": "2026-11-08",
-    "privacy.heroTitle": "개인정보, 받지 않아요"
+    "privacy.heroTitle": "개인정보, 받지 않아요",
+    "menu.recommended": "오늘의 추천"
 }
