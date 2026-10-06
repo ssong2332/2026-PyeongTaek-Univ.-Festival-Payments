@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
+import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { MenuManagementPanel } from "@/components/admin/MenuManagementPanel";
 import { SettingsPanel } from "@/components/admin/SettingsPanel";
@@ -43,7 +44,7 @@ export function LiveOrderDashboard() {
             onRetry={async () => { await monitor.checkNow(); }} />
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
-            menuPanel={<MenuManagementPanel />}
+            menuPanel={<><MenuLifecyclePanel /><MenuManagementPanel /></>}
             onReload={feed.reload}
             onLoadStats={fetchStats}
             onSearch={async pickupNumber => {
