@@ -45,6 +45,10 @@ export const AdminOrderDtoSchema = z.object({
     refundChannel: z.enum(REFUND_CHANNELS).nullable(),
     lastReason: z.string().nullable(),
     availableActions: z.array(z.enum(TRANSITION_ACTIONS)),
+    // T-28 수기 주문. 고객 주문은 source가 없거나 customer이며 수기 전용 값은 null이다.
+    source: z.enum(["customer", "manual"]).optional(),
+    manualNumber: z.number().int().positive().nullable().optional(),
+    manualOrderedAt: z.string().nullable().optional(),
 });
 export type AdminOrderDto = z.infer<typeof AdminOrderDtoSchema>;
 
