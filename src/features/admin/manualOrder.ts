@@ -2,7 +2,11 @@ import { z } from "zod";
 import type { MenuItemDto } from "@/lib/dto/menu";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 
-export type ManualOrderMenu = MenuItemDto & { isActive?: boolean };
+type ManualOrderOptionGroup = MenuItemDto["optionGroups"][number] & { isActive?: boolean };
+export type ManualOrderMenu = Omit<MenuItemDto, "optionGroups"> & {
+    isActive?: boolean;
+    optionGroups: ManualOrderOptionGroup[];
+};
 
 export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
     const name = (translations: Record<string, { name: string }>) =>
@@ -23,6 +27,7 @@ export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
             name: name(group.translations),
             minSelect: group.minSelect,
             maxSelect: group.maxSelect,
+            isActive: group.isActive,
             options: group.options.map((option) => ({
                 id: option.id,
                 name: name(option.translations),
@@ -64,6 +69,14 @@ export class ManualOrderSaveError extends Error {
     }
 }
 
+/** Common API errors are wrapped as { error: { code, ... } }. */
+export function manualOrderErrorCode(body: unknown): string | undefined {
+    if (!body || typeof body !== "object" || !("error" in body)) return undefined;
+    const error = body.error;
+    if (!error || typeof error !== "object" || !("code" in error) || typeof error.code !== "string") return undefined;
+    return error.code;
+}
+
 export type ManualOrderLine = {
     key: string;
     menuItemId: string;
@@ -91,7 +104,7 @@ export function manualOrderShortages(lines: ManualOrderLine[], menu: MenuItemDto
 
 export function toManualOrderRequest(
     lines: ManualOrderLine[],
-    menu: MenuItemDto[],
+    menu: ManualOrderMenu[],
     paymentMethod: "cash" | "transfer",
     localKstTime: string,
     idempotencyKey: string,
@@ -109,7 +122,9 @@ export function toManualOrderRequest(
         return line.quantity < 1 || line.quantity > 99 || !Number.isInteger(line.quantity) ||
             item.optionGroups.some((group) => {
                 const count = group.options.filter((option) => selected.has(option.id)).length;
-                return count < group.minSelect || count > group.maxSelect;
+                // 0104 create_manual_order: inactive historical groups keep maxSelect but do not require minSelect.
+                const belowMinimum = group.isActive !== false && count < group.minSelect;
+                return belowMinimum || count > group.maxSelect;
             }) || selected.size !== line.optionIds.length ||
             line.optionIds.some((id) => !item.optionGroups.some((group) =>
                 group.options.some((option) => option.id === id)));
