@@ -109,6 +109,13 @@ jobs:
           psql -d festival_seed_test -v ON_ERROR_STOP=1 -f supabase/migrations/0001_schema.sql
           psql -d festival_seed_test -v ON_ERROR_STOP=1 -f supabase/migrations/0003_rls.sql
           psql -d festival_seed_test -v ON_ERROR_STOP=1 -f tests/integration/seed.sql
+      - name: 독립 DB에서 T-30 파기·보존·새 FK 차단 검증
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '54322'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: bash tests/integration/purge_2026-11-08.sh
       - name: 테스트용 Supabase 종료
         if: always()
         run: supabase stop --no-backup
