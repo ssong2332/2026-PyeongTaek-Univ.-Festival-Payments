@@ -113,7 +113,6 @@ export const AdminOptionPatchSchema = z
     })
     .refine(nonEmpty, NO_FIELDS);
 
-
 const RequiredTranslationsSchema = z.strictObject({
     ko: MenuTranslationPatchSchema,
     en: MenuTranslationPatchSchema,
@@ -133,9 +132,16 @@ const AdminMenuCreateOptionGroupSchema = z.strictObject({
     minSelect: z.number().int().min(0).max(ADMIN_MENU_LIMITS.selectMax),
     maxSelect: z.number().int().min(1).max(ADMIN_MENU_LIMITS.selectMax),
     options: z.array(AdminMenuCreateOptionSchema).max(20),
-}).refine((value) => value.maxSelect >= value.minSelect, {
-    message: "maxSelect must be greater than or equal to minSelect",
-    path: ["maxSelect"],
+}).superRefine((value, ctx) => {
+    if (value.maxSelect < value.minSelect) {
+        ctx.addIssue({ code: "custom", message: "maxSelect must be greater than or equal to minSelect", path: ["maxSelect"] });
+    }
+    if (value.minSelect > value.options.length) {
+        ctx.addIssue({ code: "custom", message: "minSelect must not exceed options length", path: ["minSelect"] });
+    }
+    if (value.maxSelect > value.options.length) {
+        ctx.addIssue({ code: "custom", message: "maxSelect must not exceed options length", path: ["maxSelect"] });
+    }
 });
 
 export const AdminMenuCreateSchema = z.strictObject({
