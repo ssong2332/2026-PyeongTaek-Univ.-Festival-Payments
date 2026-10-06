@@ -6,6 +6,7 @@ import {
     AdminMenuSchema,
     AdminMenusResponseSchema,
     type AdminMenuDto,
+    type AdminMenuCreate,
     type AdminMenuPatch,
     type AdminOptionGroupPatch,
     type AdminOptionPatch,
@@ -24,6 +25,7 @@ export class MenuAdminRequestError extends Error {
 
 export interface MenuAdminApi {
     load: () => Promise<AdminMenuDto[]>;
+    createMenu: (input: AdminMenuCreate) => Promise<AdminMenuDto>;
     updateMenu: (id: string, patch: AdminMenuPatch) => Promise<AdminMenuDto>;
     updateOptionGroup: (id: string, patch: AdminOptionGroupPatch) => Promise<AdminMenuDto>;
     updateOption: (id: string, patch: AdminOptionPatch) => Promise<AdminMenuDto>;
@@ -42,6 +44,11 @@ function patchJson(url: string, body: unknown) {
 export const menuAdminApi: MenuAdminApi = {
     async load() {
         return AdminMenusResponseSchema.parse(await request("/api/admin/menus")).menus;
+    },
+    async createMenu(input) {
+        return AdminMenuSchema.parse(await request("/api/admin/menus", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+        }));
     },
     async updateMenu(id, patch) {
         return AdminMenuSchema.parse(await patchJson(`/api/admin/menus/${encodeURIComponent(id)}`, patch));
@@ -117,10 +124,14 @@ export function useMenuAdmin(api: MenuAdminApi = menuAdminApi) {
         };
     }, [api, redirectIfExpired]);
 
+    const addMenu = useCallback((created: AdminMenuDto) => {
+        setMenus((previous) => [...previous, created].toSorted((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)));
+    }, []);
+
     // 저장 응답(고친 뒤의 메뉴 전체)으로 목록의 그 메뉴만 바꾼다.
     const replaceMenu = useCallback((updated: AdminMenuDto) => {
         setMenus((previous) => previous.map((menu) => (menu.id === updated.id ? updated : menu)));
     }, []);
 
-    return { status, menus, reload, replaceMenu, api };
+    return { status, menus, reload, addMenu, replaceMenu, api };
 }
