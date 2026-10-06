@@ -12,6 +12,7 @@ import { aggregateHourlyMenuSales } from "@/domain/stats/hourlySales";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 import { summarizeRatings } from "@/domain/review/summary";
 import { kstDate } from "@/domain/time/kst";
+import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
 
 async function loadPreviewStats(date: string) {
     const orders = makePreviewOrders().map(order => ({
@@ -86,16 +87,36 @@ function createPreviewMenuApi(): MenuAdminApi {
     const ownerOf = (predicate: (menu: AdminMenuDto) => boolean) => menus.find(predicate)?.id ?? menus[0].id;
     return {
         load: async () => structuredClone(menus),
-        createMenu: async () => { throw new Error("Menu creation is not available in dashboard preview."); },
+        // 미리보기에서도 메뉴 추가(T-37)가 실제 화면처럼 동작하게 메모리에 더한다
+        createMenu: async input => {
+            const id = crypto.randomUUID();
+            const created: AdminMenuDto = {
+                id,
+                translations: {
+                    ko: { name: input.translations.ko.name, description: input.translations.ko.description || null },
+                    en: { name: input.translations.en.name, description: input.translations.en.description || null },
+                },
+                basePrice: input.basePrice, stock: input.stock, isRecommended: false, isSoldOutManual: false, isActive: true,
+                sortOrder: menus.length, imageUrl: null,
+                optionGroups: (input.optionGroups ?? []).map(group => ({
+                    id: crypto.randomUUID(), translations: group.translations, minSelect: group.minSelect, maxSelect: group.maxSelect, isActive: true,
+                    options: group.options.map(option => ({ id: crypto.randomUUID(), translations: option.translations, extraPrice: option.extraPrice, isActive: true })),
+                })),
+            };
+            menus = [...menus, created];
+            return structuredClone(created);
+        },
         updateMenu: async (id, patch) => save(id, menu => ({
             ...menu,
             basePrice: patch.basePrice ?? menu.basePrice,
             stock: patch.stock ?? menu.stock,
             isSoldOutManual: patch.isSoldOutManual ?? menu.isSoldOutManual,
+            isActive: patch.isActive ?? menu.isActive,
+            isRecommended: patch.isRecommended ?? menu.isRecommended,
             translations: {
                 ...menu.translations,
                 ...(patch.translations?.ko ? { ko: { name: patch.translations.ko.name, description: patch.translations.ko.description === undefined ? menu.translations.ko?.description ?? null : patch.translations.ko.description || null } } : {}),
-                ...(patch.translations?.en ? { en: { name: patch.translations.en.name, description: menu.translations.en?.description ?? null } } : {}),
+                ...(patch.translations?.en ? { en: { name: patch.translations.en.name, description: patch.translations.en.description === undefined ? menu.translations.en?.description ?? null : patch.translations.en.description || null } } : {}),
             },
         })),
         updateOptionGroup: async (id, patch) => save(ownerOf(menu => menu.optionGroups.some(group => group.id === id)), menu => ({
@@ -130,7 +151,7 @@ export function DashboardPreview() {
     });
     const [menuApi] = useState(createPreviewMenuApi);
     function replace(next: AdminOrderDto[]) { current.current = next; setOrders(next); }
-    return <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<MenuManagementPanel api={menuApi} />}
+    return <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<><MenuLifecyclePanel api={menuApi} /><MenuManagementPanel api={menuApi} /></>}
         onReload={async () => replace(makePreviewOrders())}
         onLoadStats={loadPreviewStats}
         onLoadReviews={loadPreviewReviews}
