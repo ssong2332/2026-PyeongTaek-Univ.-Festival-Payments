@@ -4,7 +4,6 @@ import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 
 export type ManualOrderMenu = MenuItemDto & { isActive?: boolean };
 
-// 관리자 조회는 판매 종료 메뉴·옵션도 포함한다. 종이 주문 사후 입력에서는 과거에 판매한 항목도 선택할 수 있어야 한다.
 export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
     const name = (translations: Record<string, { name: string }>) =>
         translations.ko?.name ?? translations.en?.name ?? "이름 없음";
@@ -32,11 +31,11 @@ export function toManualOrderMenu(items: AdminMenuDto[]): ManualOrderMenu[] {
     }));
 }
 
-// T-28 저장 API 계약. 가격은 보내지 않고 서버가 DB 가격·옵션을 스냅샷으로 확정한다.
 export const ManualOrderRequestSchema = z.strictObject({
     idempotencyKey: z.uuid(),
     paymentMethod: z.enum(["cash", "transfer"]),
     manualOrderedAt: z.iso.datetime(),
+    manualNumber: z.int().min(1).max(9999),
     items: z.array(z.strictObject({
         menuItemId: z.guid(),
         quantity: z.int().min(1).max(99),
@@ -44,6 +43,25 @@ export const ManualOrderRequestSchema = z.strictObject({
     })).min(1).max(20),
 });
 export type ManualOrderRequest = z.infer<typeof ManualOrderRequestSchema>;
+
+export type ManualOrderSaveResult = {
+    orderId: string;
+    manualNumber: number;
+    displayNumber: string;
+    status: "completed";
+    paymentMethod: "cash" | "transfer";
+    totalAmount: number;
+    manualOrderedAt: string;
+    createdAt: string;
+    created: boolean;
+    stockShortages: Array<{ menuItemId: string; requested: number; available: number }>;
+};
+
+export class ManualOrderSaveError extends Error {
+    constructor(public readonly code?: string) {
+        super(code ?? "MANUAL_ORDER_SAVE_FAILED");
+    }
+}
 
 export type ManualOrderLine = {
     key: string;
@@ -76,11 +94,12 @@ export function toManualOrderRequest(
     paymentMethod: "cash" | "transfer",
     localKstTime: string,
     idempotencyKey: string,
+    manualNumber: number,
 ): ManualOrderRequest | null {
+    if (!Number.isInteger(manualNumber) || manualNumber < 1 || manualNumber > 9999) return null;
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(localKstTime)) return null;
     const orderedAt = new Date(`${localKstTime}:00+09:00`);
     if (Number.isNaN(orderedAt.getTime()) || orderedAt > new Date()) return null;
-    // 브라우저 Date가 존재하지 않는 날짜를 보정하는 경우를 거부한다.
     if (new Date(orderedAt.getTime() + 9 * 60 * 60_000).toISOString().slice(0, 16) !== localKstTime) return null;
     if (lines.some((line) => {
         const item = menu.find((candidate) => candidate.id === line.menuItemId);
@@ -95,7 +114,7 @@ export function toManualOrderRequest(
                 group.options.some((option) => option.id === id)));
     })) return null;
     const request = ManualOrderRequestSchema.safeParse({
-        idempotencyKey, paymentMethod, manualOrderedAt: orderedAt.toISOString(),
+        idempotencyKey, paymentMethod, manualOrderedAt: orderedAt.toISOString(), manualNumber,
         items: lines.map(({ menuItemId, quantity, optionIds }) => ({ menuItemId, quantity, optionIds })),
     });
     return request.success ? request.data : null;
