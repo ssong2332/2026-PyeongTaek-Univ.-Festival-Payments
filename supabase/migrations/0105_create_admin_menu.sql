@@ -22,6 +22,7 @@ DECLARE
     v_translation jsonb;
     v_group jsonb;
     v_option jsonb;
+    v_option_count integer;
 BEGIN
     IF p_base_price IS NULL OR p_base_price < 0 OR p_stock IS NULL OR p_stock < 0 THEN
         RAISE EXCEPTION 'INVALID_MENU';
@@ -50,9 +51,15 @@ BEGIN
     END LOOP;
 
     FOR v_group IN SELECT value FROM jsonb_array_elements(p_option_groups) LOOP
+        IF jsonb_typeof(coalesce(v_group->'options', '[]'::jsonb)) <> 'array' THEN
+            RAISE EXCEPTION 'INVALID_OPTION_GROUP';
+        END IF;
+        v_option_count := jsonb_array_length(coalesce(v_group->'options', '[]'::jsonb));
         IF (v_group->>'minSelect')::integer < 0
            OR (v_group->>'maxSelect')::integer < 1
-           OR (v_group->>'maxSelect')::integer < (v_group->>'minSelect')::integer THEN
+           OR (v_group->>'maxSelect')::integer < (v_group->>'minSelect')::integer
+           OR (v_group->>'minSelect')::integer > v_option_count
+           OR (v_group->>'maxSelect')::integer > v_option_count THEN
             RAISE EXCEPTION 'INVALID_OPTION_GROUP';
         END IF;
 
