@@ -12,6 +12,7 @@ import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { useStaffCallsFeed } from "@/features/admin/useStaffCallsFeed";
 import { useSweepHeartbeat } from "@/features/admin/useSweepHeartbeat";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
+import { useNewOrderSound } from "@/features/admin/useNewOrderSound";
 import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 import { StatsDtoSchema } from "@/lib/dto/stats";
 
@@ -23,9 +24,17 @@ async function fetchStats(date: string) {
 
 /** T-13의 인증된 서버 페이지 안에서 렌더링한다. */
 export function LiveOrderDashboard() {
-    const feed = useOrdersFeed();
+    const sound = useNewOrderSound();
+
+    const feed = useOrdersFeed({
+        onNewOrder: () => {
+            void sound.play();
+        },
+    });
+
     const staffFeed = useStaffCallsFeed();
     useSweepHeartbeat(feed.reload);
+
     const monitor = useConnectionMonitor({
         channelStatus: feed.channelStatus,
         onRecover: feed.refresh,
@@ -42,6 +51,23 @@ export function LiveOrderDashboard() {
         <ConnectionBanner disconnected={monitor.isDisconnected}
             retrying={monitor.isChecking}
             onRetry={async () => { await monitor.checkNow(); }} />
+        <div className="mb-3 flex justify-end">
+            <button
+                type="button"
+                onClick={() => {
+                    if (sound.enabled) {
+                        sound.disable();
+                    } else {
+                        void sound.enable();
+                    }
+                }}
+                className="rounded-lg border px-3 py-2 text-sm font-medium"
+            >
+                {sound.enabled
+                    ? "🔔 주문 알림음 켜짐"
+                    : "🔕 주문 알림음 켜기"}
+            </button>
+        </div>
         <OrderDashboard orders={orders} isLoading={feed.isLoading} error={feed.error}
             settingsPanel={<SettingsPanel />}
             menuPanel={<><MenuLifecyclePanel /><MenuManagementPanel /></>}
