@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { Suspense } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrderStatusPage from "@/app/(customer)/orders/[token]/page";
+import { readMyOrders, saveMyOrder } from "@/features/customer/myOrders";
 import type { OrderStatusDto } from "@/lib/dto/order";
 
 const TOKEN = "0123456789abcdef".repeat(4);
@@ -104,13 +105,25 @@ describe("/orders/[token]?new=1 — 주문 완료 보기 (T-09, F-09)", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문이 접수됐어요!");
   });
 
-  it("계좌이체 주문이면 '계좌이체'만 보이고 현금 안내·계좌 안내·송금 버튼은 없다 (T-31·T-32는 P2)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true })));
+  it("계좌이체 주문이면 계좌 안내와 송금 신고 버튼을 보여준다 (T-31·T-32)", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true })))
+      .mockResolvedValueOnce(jsonResponse({
+        configured: true,
+        bankName: "테스트은행",
+        accountNumber: "123-456-7890",
+        accountHolder: "테스트예금주",
+      }));
     await renderPage({ new: "1" });
 
     expect(screen.getByText("계좌이체")).toBeTruthy();
     expect(screen.queryByText("부스에서 현금으로 결제해 주세요.")).toBeNull();
-    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["주문 현황 보기 →"]);
+    expect(screen.getByRole("heading", { name: "계좌이체 안내" })).toBeTruthy();
+    expect(screen.getByText("테스트은행")).toBeTruthy();
+    expect(screen.getByText("123-456-7890")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "송금했어요" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /주문 현황 보기/ })).toBeTruthy();
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("/api/settings/transfer");
   });
 
   it("현금 주문이라도 이미 결제가 확인됐으면(cooking) 현금 결제 안내를 숨긴다", async () => {
@@ -194,12 +207,19 @@ describe("/orders/[token] — 주문 현황 보기 (T-11, F-10·F-11·F-14)", ()
     expect(screen.queryByText(/내 앞 대기|대기 없음/)).toBeNull();
   });
 
-  it("canTransferReport·canCancelRequest가 true여도 송금·취소 요청·직원 호출 버튼을 만들지 않는다 (P1 범위)", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(orderDto({ paymentMethod: "transfer", canTransferReport: true, canCancelRequest: true })));
+  it("canCancelRequest가 false면 취소 요청 버튼이 없다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
     await renderPage();
 
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /취소 요청/ })).toBeNull();
     expect(screen.getByRole("link", { name: "메뉴로 돌아가기" }).getAttribute("href")).toBe("/");
+  });
+
+  it("T-27 직원 호출 버튼을 제공한다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "cooking", canCancelRequest: false })));
+    await renderPage();
+
+    expect(screen.getByRole("button", { name: /직원 호출/ })).toBeTruthy();
   });
 });
 
@@ -254,5 +274,53 @@ describe("/orders/[token] — 로딩·없음·오류 (PRD 화면 표)", () => {
     await flush(5_000);
     expect(screen.queryByText(/최신 상태를 불러오지 못했어요/)).toBeNull();
     expect(screen.getByText("완료")).toBeTruthy();
+  });
+});
+
+describe("/orders/[token] — 메뉴판 '내 주문' 정리 (#89)", () => {
+  const OTHER = "f".repeat(64);
+  const savedTokens = () => readMyOrders().map((order) => order.statusToken);
+
+  beforeEach(() => {
+    localStorage.clear();
+    saveMyOrder({ statusToken: OTHER, pickupNumber: 7 });
+    saveMyOrder({ statusToken: TOKEN, pickupNumber: 5 });
+  });
+
+  it("404면 '주문을 찾을 수 없습니다'와 함께 이 기기에서 그 주문을 지운다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: { code: "NOT_FOUND", message: "Resource not found." } }, 404));
+    await renderPage();
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문을 찾을 수 없습니다");
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it.each([
+    ["cancelled", "주문이 취소됐어요"],
+    ["refunded", "주문이 환불됐어요"],
+    ["expired", "주문이 만료됐어요"],
+  ] as const)("%s 안내를 보여 주고 이 기기에서 그 주문을 지운다", async (status, title) => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status, canCancelRequest: false })));
+    await renderPage();
+
+    expect(screen.getByRole("heading", { name: title })).toBeTruthy();
+    expect(savedTokens()).toEqual([OTHER]);
+  });
+
+  it("완료(completed)는 수령해야 하므로 남긴다", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "completed", aheadCount: 0 })));
+    await renderPage();
+
+    expect(screen.getByText("완료")).toBeTruthy();
+    expect(savedTokens()).toEqual([TOKEN, OTHER]);
+  });
+
+  it("저장되지 않은 주문을 완료 보기(?new=1)로 열어도 이 화면은 새로 저장하지 않는다", async () => {
+    localStorage.clear();
+    fetchMock.mockResolvedValue(jsonResponse(orderDto({ status: "pending" })));
+    await renderPage({ new: "1" });
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("주문이 접수됐어요!");
+    expect(savedTokens()).toEqual([]);
   });
 });

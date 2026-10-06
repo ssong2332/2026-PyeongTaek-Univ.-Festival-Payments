@@ -14,8 +14,8 @@ export function OrderStatusItems({
   paymentMethod: PaymentMethod;
 }) {
   return (
-    <section aria-labelledby="order-items-heading" className="rounded-3xl border border-[#F3E7DA] bg-white p-5">
-      <h2 id="order-items-heading" className="text-xs font-semibold tracking-[0.2em] text-brand-deep">
+    <section aria-labelledby="order-items-heading" className="iron-card rounded-3xl p-5">
+      <h2 id="order-items-heading" className="text-xs font-semibold tracking-[0.2em] text-dough">
         주문 내역
       </h2>
       <ul className="mt-3 flex flex-col gap-3">
@@ -23,23 +23,23 @@ export function OrderStatusItems({
           // 항목에 ID가 없고, 주문 시점 스냅샷이라 순서가 바뀌지 않는다.
           <li key={index} className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-semibold text-neutral-900">
-                {item.name} <span className="font-normal text-neutral-500">× {item.quantity}</span>
+              <p className="font-semibold text-dough">
+                {item.name} <span className="font-normal text-dough-dim">× {item.quantity}</span>
               </p>
-              {item.options.length > 0 && <p className="text-sm text-brand-deep/80">{item.options.join(", ")}</p>}
+              {item.options.length > 0 && <p className="text-sm text-dough">{item.options.join(", ")}</p>}
             </div>
-            <p className="shrink-0 font-bold text-brand-deep">{formatWon(item.lineTotal)}</p>
+            <p className="shrink-0 font-bold text-dough">{formatWon(item.lineTotal)}</p>
           </li>
         ))}
       </ul>
-      <dl className="mt-4 flex flex-col gap-2 border-t border-[#F3E7DA] pt-4">
+      <dl className="mt-4 flex flex-col gap-2 border-t border-iron-line pt-4">
         <div className="flex items-center justify-between">
-          <dt className="text-sm text-neutral-500">결제 방법</dt>
-          <dd className="font-semibold text-neutral-900">{PAYMENT_METHOD_LABELS[paymentMethod]}</dd>
+          <dt className="text-sm text-dough-dim">결제 방법</dt>
+          <dd className="font-semibold text-dough">{PAYMENT_METHOD_LABELS[paymentMethod]}</dd>
         </div>
         <div className="flex items-center justify-between">
-          <dt className="text-neutral-700">합계</dt>
-          <dd className="text-2xl font-black text-brand-deep">{formatWon(totalAmount)}</dd>
+          <dt className="text-dough-dim">합계</dt>
+          <dd className="font-display text-3xl text-dough">{formatWon(totalAmount)}</dd>
         </div>
       </dl>
     </section>

@@ -1,9 +1,12 @@
+"use client";
+
+import { motion } from "motion/react";
 import { BankIcon, CashIcon } from "@/components/ui/icons";
 import type { PaymentMethod } from "@/domain/order/status";
 
-const METHODS: { value: PaymentMethod; label: string; Icon: typeof CashIcon }[] = [
-    { value: "cash", label: "현금", Icon: CashIcon },
-    { value: "transfer", label: "계좌이체", Icon: BankIcon },
+const METHODS: { value: PaymentMethod; label: string; caption: string; Icon: typeof CashIcon }[] = [
+    { value: "cash", label: "현금", caption: "부스에서 바로 결제", Icon: CashIcon },
+    { value: "transfer", label: "계좌이체", caption: "주문 후 계좌 안내", Icon: BankIcon },
 ];
 
 export interface PaymentMethodPickerProps {
@@ -14,25 +17,33 @@ export interface PaymentMethodPickerProps {
     disabled?: boolean;
 }
 
-// F-06: 현금 / 계좌이체 중 하나. 계좌이체 안내 블록(T-31)은 주문 완료 화면 몫이다.
+// F-06: 현금 / 계좌이체 중 하나. 고른 카드로 시럽빛 테두리가 미끄러져 옮겨 가고(layoutId), 라디오 점이 톡 찬다.
 export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled = false }: PaymentMethodPickerProps) {
     return (
-        <section className="rounded-[20px] border border-orange-100 bg-white p-4">
-            <h2 id="payment-method-title" className="mb-3 text-xs font-bold tracking-widest text-amber-700">
+        <section className="iron-card rounded-3xl p-4">
+            <h2 id="payment-method-title" className="font-display mb-3 text-lg text-dough">
                 결제 방법
             </h2>
-            <div role="radiogroup" aria-labelledby="payment-method-title" className="grid grid-cols-2 gap-3">
-                {METHODS.map(({ value: method, label, Icon }) => {
+            <div role="radiogroup" aria-labelledby="payment-method-title" className="flex flex-col gap-2">
+                {METHODS.map(({ value: method, label, caption, Icon }) => {
                     const checked = value === method;
                     const available = enabledMethods.includes(method);
                     const inactive = disabled || !available;
                     return (
                         <label
                             key={method}
-                            className={`flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 text-base font-bold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand ${
-                                checked ? "border-brand-amber bg-orange-50 text-brand-deep" : "border-stone-200 bg-white text-stone-600"
-                            } ${inactive ? "cursor-not-allowed opacity-60" : ""}`}
+                            className={`relative flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border border-iron-line bg-iron/60 px-4 py-3 transition-transform active:scale-[0.985] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-syrup ${
+                                inactive ? "cursor-not-allowed opacity-50" : ""
+                            }`}
                         >
+                            {checked && (
+                                <motion.span
+                                    layoutId="payment-method-selected"
+                                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                                    aria-hidden="true"
+                                    className="absolute -inset-px rounded-2xl border-2 border-syrup bg-syrup/8 shadow-[0_0_24px_rgba(255,181,71,0.18)]"
+                                />
+                            )}
                             <input
                                 type="radio"
                                 name="payment-method"
@@ -44,22 +55,44 @@ export function PaymentMethodPicker({ value, onChange, enabledMethods, disabled 
                                 }}
                                 className="sr-only"
                             />
-                            <Icon className="size-5" />
-                            {label}
-                            {!available && (
-                                <>
-                                    {" "}
-                                    <span className="text-xs font-medium">(준비 중)</span>
-                                </>
-                            )}
+                            <span className={`relative flex size-10 items-center justify-center rounded-xl transition-colors ${checked ? "bg-syrup text-molasses" : "bg-iron-3 text-dough-dim"}`}>
+                                <Icon className="size-5" />
+                            </span>
+                            <span className="relative flex flex-1 flex-col">
+                                <span className="text-[15px] font-bold text-dough">
+                                    {label}
+                                    {!available && (
+                                        <>
+                                            {" "}
+                                            <span className="text-xs font-medium">(준비 중)</span>
+                                        </>
+                                    )}
+                                </span>
+                                <span aria-hidden="true" className="text-xs text-dough-dim">
+                                    {caption}
+                                </span>
+                            </span>
+                            <span aria-hidden="true" className={`relative flex size-5 items-center justify-center rounded-full border-2 ${checked ? "border-syrup" : "border-dough-dim/50"}`}>
+                                <motion.span
+                                    initial={false}
+                                    animate={{ scale: checked ? 1 : 0 }}
+                                    transition={{ type: "spring", stiffness: 600, damping: 20 }}
+                                    className="size-2.5 rounded-full bg-syrup"
+                                />
+                            </span>
                         </label>
                     );
                 })}
             </div>
-            {value === "cash" && (
-                <p className="mt-3 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-bold text-brand-deep">
-                    부스에서 현금으로 결제해 주세요.
-                </p>
+            {value && (
+                <motion.p
+                    key={value}
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-3 rounded-xl border border-syrup/30 bg-syrup/8 px-4 py-3 text-sm font-medium text-dough"
+                >
+                    {value === "cash" ? "부스에서 현금으로 결제해 주세요." : "주문하면 입금할 계좌를 안내해 드려요."}
+                </motion.p>
             )}
         </section>
     );

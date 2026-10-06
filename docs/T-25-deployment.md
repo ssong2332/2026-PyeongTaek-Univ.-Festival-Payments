@@ -1,6 +1,6 @@
 # T-25 Cloudflare Workers 배포 및 운영 가이드
 
-> 소유자: BE2 (유은조) — 2026-10-01 팀장(박수홍) 인수 | 상태: 진행 중 (① 배포 준비 — 빌드 재현성·CI 검증 보완 / ② 최종 점검 대기) | 최종 갱신: 2026-10-01  
+> 소유자: BE2 (유은조) — 2026-10-01 팀장(박수홍) 인수 | 상태: 진행 중 (① 배포 준비 — **2026-10-01 운영 배포 완료**(7절) / ② 최종 점검 10-04 대기) | 최종 갱신: 2026-10-01  
 > 기준: PRD N-14, N-11, F-20 / Architecture 배포 절 (451~458라인) / DECISIONS #43
 
 ---
@@ -17,11 +17,13 @@
   ```
   - `<계정 workers.dev 서브도메인>`은 Cloudflare 대시보드 **Workers & Pages** 화면의 "Your subdomain" 값이다(계정마다 다름). 2026-10-01 정정: 이전 판의 `https://ptu-festival-payments.workers.dev`는 계정 서브도메인이 빠진 잘못된 주소다.
   - 실제 주소는 첫 배포 뒤 대시보드에 표시된 값으로 확정하고, 이 문서와 QR에 그대로 옮긴다.
+  - **운영 주소(2026-10-06 확정)**: `https://ptu-festival-payments.aiisgod.workers.dev` — 팀장이 계정 서브도메인을 `asg21274` → `aiisgod`로 바꿈(DECISIONS #59, 대시보드 Workers & Pages → Your subdomain → Change). 확인: 변경 직후 옛 주소는 DNS에서 사라졌고(00:28 KST "DNS name does not exist"), 새 주소는 잠시 HTTPS 연결이 실패하다가(00:28~00:29, TLS handshake failure) 00:29:52 `/api/health` 200 `{"ok":true,"db":true}`, 00:30 `/`·`/admin/login`·`/api/menu?lang=ko` 200. 코드·환경변수는 고치지 않았다(운영 `main`은 572a346 그대로).
+  - 2026-10-01 첫 배포 주소는 `https://ptu-festival-payments.asg21274.workers.dev`였다(7절 기록) — 더 이상 열리지 않으므로 인쇄물·즐겨찾기에 쓰지 않는다.
   > [!IMPORTANT]
   > Worker 이름(`ptu-festival-payments`)과 계정 서브도메인은 **축제 포스터 및 QR 인쇄물 출력 이후에는 절대 변경하지 않습니다 (N-11, N-14)**. 계정 서브도메인을 바꾸면 주소 전체가 바뀐다.
 
 - **작업 단계 분할**:
-  1. **① 배포 준비 (09-25, 현재 단계)**: `vinext` 호환성 검증, `wrangler.jsonc` 및 빌드 스크립트 정합성 구성, `GET /api/health` 구현, 운영 가이드 및 스모크 절차 수립.
+  1. **① 배포 준비 (09-25 → 2026-10-01 완료)**: 배포 어댑터 확정(OpenNext, DECISIONS #52), `wrangler.jsonc` 및 빌드 스크립트 정합성 구성, `GET /api/health` 구현, 운영 가이드 및 스모크 절차 수립, Cloudflare Workers Builds 연결·첫 운영 배포·스모크(7절).
   2. **② 최종 점검 (10-04, 선행 T-24 E2E 완료 후)**: 실제 Cloudflare 대시보드 Git 연동 배포 트리거, 실기기 스모크 테스트 5단계 수행, 접속 확인 증거 기록, 축제 전 `counters` 초기화.
 
 ---
@@ -95,19 +97,25 @@ Cloudflare Workers에서 Next.js를 서빙하기 위한 Worker 엔트리포인�
    - 저장소: `ssong2332/2026-PyeongTaek-Univ.-Festival-Payments`, Worker 이름은 `wrangler.jsonc`의 `name`(`ptu-festival-payments`)과 같게
 2. **배포 브랜치 및 빌드 설정**:
    - **Production branch**: `main`
-   - **비프로덕션 브랜치 빌드**(`dev`·작업 브랜치의 미리보기): 켜면 운영과 같은 변수·Secret으로 같은 운영 Supabase를 쓴다 — 미리보기 주소에서 주문을 만들지 않는다(픽업 번호가 축제 전체에서 이어짐). 필요 없으면 끈다
+   - **비프로덕션 브랜치 빌드**(`dev`·작업 브랜치의 미리보기): 켜면 운영과 같은 변수·Secret으로 같은 운영 Supabase를 쓴다 — 미리보기 주소에서 주문을 만들지 않는다(픽업 번호가 축제 전체에서 이어짐). 필요 없으면 끈다 — **2026-10-01 끔**(생성 화면의 "Enable Preview builds")
    - **Build command**: `npm run build:worker`
    - **Deploy command**: `npx opennextjs-cloudflare deploy` (devDependency에 잠긴 1.20.7을 씀)
    - Worker 엔트리(`.open-next/worker.js`)와 정적 파일(`.open-next/assets`)은 `wrangler.jsonc`가 지정하므로 화면에 따로 넣지 않는다(이전 판의 "Build output directory"는 Pages용 항목).
    - Node 버전은 저장소의 `.nvmrc`(22.23.3)를 따른다 — 첫 빌드 로그에서 Node 버전이 22인지 확인한다.
-3. **환경변수 및 Secrets 등록** — Cloudflare에는 **빌드 변수**(빌드할 때)와 **실행 변수·Secret**(Worker가 요청을 처리할 때)이 따로 있다:
+3. **환경변수 및 Secrets 등록** — Cloudflare에는 **빌드 변수**(Settings → Build → Variables and secrets, 빌드할 때만)와 **실행 변수·Secret**(Settings → Runtime variables and secrets, Worker가 요청을 처리할 때)이 따로 있다:
 
    | 이름 | 빌드 변수 | 실행 변수 | 이유 |
    |---|---|---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | **등록** | 등록 | `NEXT_PUBLIC_` 값은 `next build` 때 브라우저 코드에 들어간다(Next 문서 `environment-variables.md`). 빌드 변수에 없으면 관리자 로그인 화면이 Supabase에 연결되지 않는다 |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **등록** | 등록 | 위와 같음(공개 키) |
-   | `SUPABASE_SERVICE_ROLE_KEY` | 넣지 않음 | **Secret**으로 등록 | 서버 전용 비밀 키 — 빌드 로그·브라우저 코드에 들어가면 안 된다. 코드·문서·채팅에 값을 적지 않는다 |
+   | `NEXT_PUBLIC_SUPABASE_URL` | **등록** | 넣지 않음 | `NEXT_PUBLIC_` 값은 `next build` 때 서버·브라우저 코드 양쪽에 그대로 박힌다(Next 문서 `environment-variables.md` — "replace all references … in the Node.js environment", 코드는 모두 `process.env.NEXT_PUBLIC_…`로 직접 읽음). 빌드 변수에 없으면 관리자 로그인 화면이 500이 된다(2026-10-01 첫 배포에서 확인) |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **등록** | 넣지 않음 | 위와 같음. 공개 키 — 예전 형식 anon 키 또는 새 형식 publishable 키(`sb_publishable_…`). 서버 비밀 키를 넣으면 앱이 일부러 오류를 낸다(`src/infra/supabase/config.ts`) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | 넣지 않음 | **Secret**으로 등록(Type: Secret) | 서버 전용 비밀 키 — 예전 형식 service_role 키 또는 새 형식 secret 키(`sb_secret_…`). 빌드 로그·브라우저 코드에 들어가면 안 된다. 코드·문서·채팅에 값을 적지 않는다 |
    | `PHONE_ENCRYPTION_KEY` | — | (2차 배달 기능 착수 시) Secret | 전화번호 대칭 암호화 키 |
+
+   > [!WARNING]
+   > 실행 변수를 **일반 텍스트(Variable)**로 넣으면 다음 배포 때 지워진다. 배포 명령(`opennextjs-cloudflare deploy` → `wrangler deploy`)은 대시보드의 일반 실행 변수를 `wrangler.jsonc`의 `vars`(비어 있음)로 덮어쓴다(Cloudflare Wrangler 설정 문서: "Wrangler will override them the next time you deploy", `keep_vars` 미설정). **Secret은 지워지지 않는다.** 그래서 비밀 값은 반드시 Secret으로 넣고, `NEXT_PUBLIC_*`는 빌드 변수에만 넣는다.
+
+   > [!NOTE]
+   > 빌드 변수를 넣거나 바꾼 뒤에는 **다시 빌드**해야 반영된다(Deployments → 빌드 → Retry build). 실행 Secret만 바꾸면 Cloudflare가 기존 코드에 새 Secret을 붙인 버전을 바로 배포한다.
 
 ---
 
@@ -129,7 +137,7 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 
 ## 5. 배포 후 스모크 테스트 시나리오 (Architecture 457)
 
-`dev` → `main` 병합으로 자동 배포가 끝난 뒤 운영 URL(`https://ptu-festival-payments.<계정 서브도메인>.workers.dev`)에서 아래 5단계를 수행합니다.
+`dev` → `main` 병합으로 자동 배포가 끝난 뒤 운영 URL(`https://ptu-festival-payments.<계정 서브도메인>.workers.dev`, 2026-10-01 기준 1절 주소)에서 아래 5단계를 수행합니다. 2026-10-01 첫 배포 결과는 7절.
 
 | 단계 | 수행 작업 | 기대 결과 | 구현/검증 위치 |
 |---|---|---|---|
@@ -144,10 +152,45 @@ Cloudflare 배포 전, 운영 Supabase 인스턴스에서 아래 4가지 항목�
 ## 6. 장애 대응 및 롤백 절차
 
 1. **애플리케이션 롤백**:
-   - Cloudflare Workers 대시보드의 **Deployments** 탭에서 직전 정상 동작 배포 버전의 **Rollback** 버튼을 클릭하여 30초 내 즉시 이전 상태로 복구합니다.
+   1. Cloudflare Dashboard → Workers & Pages로 이동한다.
+   2. `ptu-festival-payments` Worker를 선택한다.
+   3. Deployments 탭으로 이동한다.
+   4. 직전 정상 동작 버전을 확인한다.
+   5. 해당 버전 오른쪽 `...` 메뉴에서 Rollback을 실행한다.
+   6. 롤백 후 운영 URL 접속을 확인한다.
+   7. `GET /api/health`가 정상 응답하는지 확인한다.
+   8. 고객 메뉴 접속 → 테스트 주문 → 관리자 수신까지 최소 스모크 테스트를 수행한다.
+   9. DB 스키마 변경이 포함된 장애인 경우 앱 롤백만으로 복구 완료로 판단하지 않고 DB 담당자와 별도 확인한다.
+
+   > Worker 롤백은 Supabase 운영 데이터나 DB 스키마를 이전 상태로 되돌리지 않는다.
+   
 2. **데이터베이스 백업 및 복구**:
    - 축제 개막 전날(2026-10-06) 저녁, Supabase CLI로 스키마 및 설정 백업을 1회 수행합니다:
      ```bash
      supabase db dump -f backup_20261006.sql
      ```
    - 운영 DB는 롤백 마이그레이션 대신 항상 순방향 마이그레이션(Forward fix)으로 패치합니다.
+
+---
+
+## 7. 운영 배포 기록 (2026-10-01, 팀장 박수홍 진행)
+
+| 항목 | 값 | 근거 |
+|---|---|---|
+| 배포 커밋 | `main` `572a346` (릴리스 PR #84, `dev` `eabeed9`와 내용 같음 — #85 리뷰 수정 포함) | `git log origin/main` |
+| Worker | `ptu-festival-payments` — Workers Builds 연결, Production branch `main`, 미리보기 빌드 끔 | Cloudflare Settings → Builds |
+| 운영 URL | `https://ptu-festival-payments.asg21274.workers.dev`(첫 배포 당시) → 2026-10-06 `https://ptu-festival-payments.aiisgod.workers.dev`로 변경(1절) | 배포 로그 "Deployed … triggers" / 10-06 새 주소 `/api/health` 200 |
+| 빌드 환경 | Node 22.23.3(`.nvmrc`), Next 16.3.8, `@opennextjs/cloudflare` 1.20.7, wrangler 4.145.0 | 빌드 로그 |
+| 변수 | 빌드 변수 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_ANON_KEY`(publishable 키), 실행 Secret `SUPABASE_SERVICE_ROLE_KEY`(secret 키) — 값은 기록하지 않음 | Cloudflare Settings(이름·형식만 확인) |
+| 활성 버전 | `ec3548d8` (변수 추가 뒤 Retry build로 만든 버전) | Deployments → Active deployment |
+| `GET /api/health` | 200 `{"ok":true,"db":true}` (17:37 KST) | `curl` |
+| 조회 확인 | `/`·`/cart`·`/privacy`·`/admin/login` 200, `/admin` → 307 `/admin/login`, `/api/menu` 메뉴 4개(재고 100), `/api/queue` `{"waitingCount":0}` | `curl`(주문 생성 없음) |
+| 스모크(5절 1~5단계) | 통과(17:45 KST) — 고객 375px 현금 주문 픽업 002 → 주문 현황이 새로고침 없이 조리중·완료로 바뀜, 관리자 로그인·대시보드, 현금 수령 확인 → 조리 완료(이력 `actor_type=admin`) | 세션 "프로토타입 배포 준비" 보고 |
+| 미확인 | 관리자 화면 모바일 | — |
+
+**첫 배포에서 겪은 것** (다음 배포·재설정 때 참고):
+1. 생성 화면에서 넣은 변수가 저장되지 않아 첫 빌드가 변수 없이 돌았다 → `/api/health` 503·`/admin/login` 500. Settings에서 변수를 다시 넣고 Retry build로 해결.
+2. `SUPABASE_SERVICE_ROLE_KEY`가 처음에 일반 Variable로 들어갔다 → 다음 배포 때 지워질 값이라 Secret으로 다시 넣음(3절 경고).
+3. Claude 앱 내장 브라우저에서는 Cloudflare 로그인 사람 확인(Turnstile)이 통과되지 않았다 → 평소 쓰는 브라우저에서 진행.
+
+**축제 전 정리 대상**(스모크 테스트 데이터): 주문 001·002와 이력, `counters.pickup_number` 2 → 0, 재고 기본호떡·뿌링클 99 → 100. 축제 직전에 한 번에 정리한다.

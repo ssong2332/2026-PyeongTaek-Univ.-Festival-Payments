@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Flame } from "lucide-react";
 import { createAdminBrowserClient } from "@/infra/supabase/browser";
 
 export default function AdminLoginPage() {
@@ -44,13 +45,14 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-            <div className="w-full max-w-md bg-white rounded-xl shadow-md border border-gray-200 p-8 space-y-6">
+        <main className="iron-bg flex min-h-screen items-center justify-center px-4 py-16 text-dough">
+            <div className="iron-card relative w-full max-w-md space-y-6 rounded-3xl px-8 pt-10 pb-8 shadow-[0_30px_70px_rgba(0,0,0,0.55)]">
+                <span aria-hidden="true" className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-[#ffd58a] via-syrup to-syrup-2 text-molasses shadow-[0_0_30px_rgba(255,181,71,0.4)]"><Flame size={26} /></span>
                 <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                    <h1 className="font-display text-3xl text-dough">
                         관리자 로그인
                     </h1>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-dough-dim">
                         평택대 축제 부스 주문·결제 관리 시스템
                     </p>
                 </div>
@@ -59,7 +61,7 @@ export default function AdminLoginPage() {
                     <div
                         role="alert"
                         aria-live="assertive"
-                        className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg"
+                        className="rounded-lg border border-chili/45 bg-chili/10 p-3 text-sm text-chili"
                     >
                         {errorMessage}
                     </div>
@@ -69,7 +71,7 @@ export default function AdminLoginPage() {
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-email"
-                            className="block text-sm font-medium text-gray-700"
+                            className="block text-sm font-semibold text-dough"
                         >
                             이메일
                         </label>
@@ -83,14 +85,14 @@ export default function AdminLoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="admin@ptu.ac.kr"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-full rounded-xl border border-iron-line bg-iron px-3 py-3 text-sm text-dough placeholder:text-dough-dim/60 focus:border-syrup/70 focus:ring-4 focus:ring-syrup/15 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
 
                     <div className="space-y-1">
                         <label
                             htmlFor="admin-password"
-                            className="block text-sm font-medium text-gray-700"
+                            className="block text-sm font-semibold text-dough"
                         >
                             비밀번호
                         </label>
@@ -104,19 +106,19 @@ export default function AdminLoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            className="w-full rounded-xl border border-iron-line bg-iron px-3 py-3 text-sm text-dough placeholder:text-dough-dim/60 focus:border-syrup/70 focus:ring-4 focus:ring-syrup/15 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60"
                         />
                     </div>
 
                     <button
                         type="submit"
                         disabled={!isFormValid || submitting}
-                        className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-lg shadow-xs text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="syrup-btn sheen flex w-full items-center justify-center rounded-xl px-4 py-3.5 text-sm font-bold transition-transform active:scale-[0.98] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-syrup disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {submitting ? (
                             <span className="inline-flex items-center gap-2">
                                 <svg
-                                    className="animate-spin h-4 w-4 text-white"
+                                    className="h-4 w-4 animate-spin"
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"
                                     viewBox="0 0 24 24"
@@ -143,7 +145,7 @@ export default function AdminLoginPage() {
                     </button>
                 </form>
 
-                <div className="pt-2 text-center text-xs text-gray-400">
+                <div className="pt-2 text-center text-xs text-dough-dim">
                     관리자 계정 발급 및 비밀번호 재설정은 총관리자에게 문의하세요.
                 </div>
             </div>

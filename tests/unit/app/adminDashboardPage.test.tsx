@@ -27,7 +27,9 @@ vi.mock("@/infra/supabase/browser", () => ({
 }));
 
 function stubFetch(result: () => Promise<Response>) {
-    const request = vi.fn(result);
+    const request = vi.fn((url: string) => url.startsWith("/api/admin/staff-calls")
+        ? Promise.resolve(new Response(JSON.stringify({ calls: [], unacknowledgedCount: 0 }), { status: 200 }))
+        : result());
     vi.stubGlobal("fetch", request);
     return request;
 }
@@ -113,6 +115,7 @@ describe("/admin 대시보드 페이지", () => {
         const { container } = await renderAdminPage();
 
         expect(await screen.findByRole("navigation", { name: "관리자 메뉴" })).toBeTruthy();
+        expect(screen.getByRole("link", { name: "교대 스케줄" }).getAttribute("href")).toBe("/admin/shifts");
         const [logout] = logoutButtons();
         expect(logoutButtons()).toHaveLength(1);
         for (let node: HTMLElement | null = logout; node; node = node.parentElement) {

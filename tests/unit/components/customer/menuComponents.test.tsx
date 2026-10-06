@@ -40,13 +40,18 @@ describe("MenuCard", () => {
         expect((card as HTMLButtonElement).disabled).toBe(false);
     });
 
-    it("이미지가 있으면 장식용(alt=\"\" — 이름은 옆 글자로 읽힘), 없으면 이미지 요소 없음", () => {
+    it("이미지가 있으면 장식용(alt=\"\" — 이름은 옆 글자로 읽힘), 없으면 메뉴 이미지 대신 마스코트 자리표시(장식)", () => {
         const { container, rerender } = render(<MenuCard {...base} imageUrl="https://example.com/a.jpg" onSelect={() => {}} />);
         const image = container.querySelector("img");
         expect(image?.getAttribute("src")).toBe("https://example.com/a.jpg");
         expect(image?.getAttribute("alt")).toBe("");
         rerender(<MenuCard {...base} onSelect={() => {}} />);
-        expect(container.querySelector("img")).toBeNull();
+        // 사진이 없으면 사진 대신 호떡이 스티커(장식)를 그린다.
+        const images = container.querySelectorAll("img");
+        expect(images).toHaveLength(1);
+        expect(images[0].getAttribute("src")).toBe("/mascot/hotteoki/hello.webp");
+        expect(images[0].getAttribute("alt")).toBe("");
+        expect(images[0].closest("[aria-hidden='true']")).not.toBeNull();
     });
 });
 

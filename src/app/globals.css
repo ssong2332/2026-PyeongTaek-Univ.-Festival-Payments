@@ -1,17 +1,1041 @@
 @import "tailwindcss";
 
-/* 고객 화면 색(피그마 "대동제 호떡" 미리보기 캡처에서 추정한 값 — 정확한 hex가 아니다) */
+/* 화면 색 — 프론트 담당 Figma Make 업그레이드(크림·피치·코랄·코코아, 2026-10-04)를 따른다.
+   코랄 원색(#FF7A45 등) 위 흰 글씨는 대비가 모자라서 같은 계열의 진한 값으로 맞췄다(Design-Changes 변경 #58~).
+   대비는 색 값으로 계산한 WCAG 값이다. */
 @theme {
-    --color-cream: #fdf8f3;
-    --color-brand: #e8703a;
-    --color-brand-deep: #8b3a1e;
-    --color-brand-amber: #d08a35;
-    --color-badge: #f5e08a;
+    --color-cream: #fff8f3; /* 고객 화면 바탕 */
+    --color-peach: #fff1e7; /* 옅은 강조 바탕 */
+    --color-line: #f2ded4; /* 카드·입력 테두리 */
+    --color-brand: #e4572e; /* 코랄: 큰 가격·+ 버튼·선택 테두리·포커스 링. 흰 바탕 3.7:1이라 큰 글씨·비텍스트에만 */
+    --color-brand-deep: #5a3025; /* 코코아: 짙은 글씨(흰 바탕 11.2:1)·그라데이션 시작 */
+    --color-brand-amber: #d9472b; /* 진한 코랄: 그라데이션 끝·아이콘 바탕(흰 글씨 4.3:1) */
+    --color-coral: #f0612a; /* 행동 버튼 그라데이션 밝은 끝(흰 20px 굵은 글씨 3.3:1) */
+    --color-badge: #ffd8c5; /* 피치: 비활성 버튼·다음 단계·보조 버튼 */
+
+    /* ── 야간 철판(고객 화면, 2026-10-05) — 밤 축제 무쇠 철판 위 흑설탕 시럽 ── */
+    --color-iron: #15121a; /* 무쇠: 바탕 */
+    --color-iron-2: #211c25; /* 철판: 카드 */
+    --color-iron-3: #2d2631; /* 달군 철판: 카드 밝은 쪽·입력 */
+    --color-iron-line: #3a3140; /* 테두리 */
+    --color-dough: #f7e8d0; /* 반죽: 본문 글씨(무쇠 위 15:1) */
+    --color-dough-dim: #b3a497; /* 흐린 반죽: 보조 글씨(철판 위 6.6:1) */
+    --color-syrup: #ffb547; /* 시럽: 강조·가격 */
+    --color-syrup-2: #f08a2c;
+    --color-caramel: #b9581c;
+    --color-molasses: #3b1a08; /* 시럽 버튼 위 글씨 */
+    --color-chili: #ff6a55; /* 경고 */
+    --color-ok: #a6db86; /* 진행·완료 */
+
+    /* 제목: Black Han Sans(OFL) · 숫자: IBM Plex Mono(OFL) */
+    --font-display: "Black Han Sans", "Pretendard Variable", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "Pretendard Variable", monospace;
+    --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+
+    /* 마스코트 움직임 — motion-safe: 일 때만 쓴다(움직임 줄이기 설정 존중) */
+    --animate-bob: bob 3.2s ease-in-out infinite;
+    --animate-sway: sway 4.6s ease-in-out infinite;
+
+    @keyframes bob {
+        0%,
+        100% {
+            transform: translateY(0) rotate(-3deg);
+        }
+        50% {
+            transform: translateY(-4px) rotate(2deg);
+        }
+    }
+    @keyframes sway {
+        0%,
+        100% {
+            transform: rotate(-2deg) translateY(0);
+        }
+        50% {
+            transform: rotate(2deg) translateY(-3px);
+        }
+    }
+
+    /* 2026-10-05 모션 업그레이드 — 모두 motion-safe: 로만 쓴다 */
+    --animate-float: float 6s ease-in-out infinite;
+    --animate-steam: steam 3.4s ease-out infinite;
+    --animate-twinkle: twinkle 2.6s ease-in-out infinite;
+    --animate-pan: pan 8s ease-in-out infinite;
+    --animate-marquee: marquee 22s linear infinite;
+    --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+    --animate-ping-soft: ping-soft 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    --animate-blob: blob 18s ease-in-out infinite;
+    --animate-rise: rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+    --animate-hk-jump: hk-jump 1.2s cubic-bezier(0.3, 0, 0.3, 1) infinite;
+    --animate-wiggle: wiggle 2.8s ease-in-out infinite;
+    --animate-breathe: breathe 3.4s ease-in-out infinite;
+    --animate-peek: peek 5s ease-in-out infinite;
+    --animate-bulb: bulb 2.4s ease-in-out infinite;
+    --animate-bokeh: bokeh 14s ease-in-out infinite;
+    --animate-lantern: lantern 3.6s ease-in-out infinite;
+
+    @keyframes bulb {
+        0%,
+        100% {
+            opacity: 1;
+            filter: drop-shadow(0 0 6px #ffd36b);
+        }
+        50% {
+            opacity: 0.55;
+            filter: drop-shadow(0 0 1px #ffd36b);
+        }
+    }
+    @keyframes bokeh {
+        0%,
+        100% {
+            transform: translate(0, 0) scale(1);
+            opacity: 0.35;
+        }
+        50% {
+            transform: translate(14px, -26px) scale(1.25);
+            opacity: 0.7;
+        }
+    }
+    @keyframes lantern {
+        0%,
+        100% {
+            transform: rotate(-5deg);
+        }
+        50% {
+            transform: rotate(5deg);
+        }
+    }
+
+    @keyframes wiggle {
+        0%,
+        70%,
+        100% {
+            transform: rotate(0deg);
+        }
+        76% {
+            transform: rotate(-9deg);
+        }
+        84% {
+            transform: rotate(8deg);
+        }
+        92% {
+            transform: rotate(-4deg);
+        }
+    }
+    @keyframes breathe {
+        0%,
+        100% {
+            transform: scale(1, 1);
+        }
+        50% {
+            transform: scale(1.04, 0.96) translateY(1px);
+        }
+    }
+    @keyframes peek {
+        0%,
+        15%,
+        85%,
+        100% {
+            transform: translateY(60%) rotate(0deg);
+        }
+        30%,
+        70% {
+            transform: translateY(0%) rotate(-6deg);
+        }
+    }
+
+    @keyframes hk-jump {
+        0%,
+        100% {
+            transform: translateY(0) scale(1, 1);
+        }
+        15% {
+            transform: translateY(0) scale(1.08, 0.9);
+        }
+        45% {
+            transform: translateY(-12px) scale(0.95, 1.06);
+        }
+        70% {
+            transform: translateY(0) scale(1.05, 0.95);
+        }
+    }
+
+    @keyframes rise {
+        from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    @keyframes float {
+        0%,
+        100% {
+            transform: translateY(0) rotate(-3deg);
+        }
+        50% {
+            transform: translateY(-10px) rotate(3deg);
+        }
+    }
+    @keyframes steam {
+        0% {
+            transform: translateY(0) scaleX(1);
+            opacity: 0;
+        }
+        20% {
+            opacity: 0.7;
+        }
+        100% {
+            transform: translateY(-46px) scaleX(1.6);
+            opacity: 0;
+        }
+    }
+    @keyframes twinkle {
+        0%,
+        100% {
+            transform: scale(0.6) rotate(0deg);
+            opacity: 0.3;
+        }
+        50% {
+            transform: scale(1.15) rotate(25deg);
+            opacity: 1;
+        }
+    }
+    @keyframes pan {
+        0%,
+        100% {
+            background-position: 0% 50%;
+        }
+        50% {
+            background-position: 100% 50%;
+        }
+    }
+    @keyframes marquee {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
+    @keyframes shimmer {
+        from {
+            background-position: -200% 0;
+        }
+        to {
+            background-position: 200% 0;
+        }
+    }
+    @keyframes ping-soft {
+        0% {
+            transform: scale(1);
+            opacity: 0.55;
+        }
+        80%,
+        100% {
+            transform: scale(2.1);
+            opacity: 0;
+        }
+    }
+    @keyframes blob {
+        0%,
+        100% {
+            transform: translate(0, 0) scale(1);
+        }
+        33% {
+            transform: translate(24px, -30px) scale(1.12);
+        }
+        66% {
+            transform: translate(-18px, 18px) scale(0.92);
+        }
+    }
+    @keyframes cta-shine {
+        0%,
+        55% {
+            transform: translateX(-120%) skewX(-18deg);
+        }
+        80%,
+        100% {
+            transform: translateX(320%) skewX(-18deg);
+        }
+    }
+}
+
+/* 주요 행동 버튼의 빛줄기 — 움직임 줄이기면 그리지 않는다 */
+@media (prefers-reduced-motion: no-preference) {
+    .cta-shine {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+    }
+    .cta-shine::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 30%;
+        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+        animation: cta-shine 4.2s ease-in-out infinite;
+        pointer-events: none;
+        z-index: -1;
+    }
+}
+
+/* 가로 스크롤 줄의 스크롤바 숨김 */
+.no-scrollbar {
+    scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* 은은한 종이 질감(헤더) */
+.grain {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 6px 6px;
 }
 
 body {
     margin: 0;
     background: #ffffff;
     color: #171717;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 자식 카드가 차례로 떠오르는 세로 목록(주문 완료·현황) */
+@media (prefers-reduced-motion: no-preference) {
+    .rise-children > * {
+        animation: var(--animate-rise);
+    }
+    .rise-children > :nth-child(2) {
+        animation-delay: 80ms;
+    }
+    .rise-children > :nth-child(3) {
+        animation-delay: 160ms;
+    }
+    .rise-children > :nth-child(4) {
+        animation-delay: 240ms;
+    }
+    .rise-children > :nth-child(n + 5) {
+        animation-delay: 320ms;
+    }
+}
+
+/* ── 야간 철판 공통 ─────────────────────────────────────── */
+.font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+    font-weight: 400;
+}
+.font-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+/* 무쇠 바탕 + 아래에서 번지는 숯불빛 */
+.iron-bg {
+    background-color: var(--color-iron);
+    background-image:
+        radial-gradient(70% 40% at 50% 105%, rgba(240, 120, 40, 0.14), transparent 70%),
+        radial-gradient(60% 30% at 80% -5%, rgba(255, 181, 71, 0.06), transparent 70%);
+    background-attachment: fixed;
+}
+/* 철판 카드 */
+.iron-card {
+    border: 1px solid var(--color-iron-line);
+    background: linear-gradient(155deg, var(--color-iron-3), var(--color-iron-2) 58%);
+}
+/* 시럽 버튼: 위쪽은 밝은 반죽빛, 아래로 시럽 */
+.syrup-btn {
+    background: linear-gradient(100deg, #ffd58a, var(--color-syrup) 45%, var(--color-syrup-2));
+    color: var(--color-molasses);
+    box-shadow:
+        0 10px 28px rgba(240, 138, 44, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+/* 시럽 그라데이션 글씨 */
+.syrup-text {
+    background: linear-gradient(180deg, #ffe2a6 0%, var(--color-syrup) 48%, var(--color-syrup-2) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+@media (prefers-reduced-motion: no-preference) {
+    /* 버튼 위를 지나가는 윤기 */
+    .sheen {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+    }
+    .sheen::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+        transform: translateX(-110%);
+        animation: sheen 3.6s ease-in-out infinite;
+        pointer-events: none;
+    }
+    /* 바닥에서 올라오는 불티 */
+    .ember {
+        animation: ember linear infinite;
+    }
+}
+@keyframes sheen {
+    0% {
+        transform: translateX(-110%);
+    }
+    38%,
+    100% {
+        transform: translateX(110%);
+    }
+}
+@keyframes ember {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(var(--drift, 20px), -100vh) scale(0.3);
+        opacity: 0;
+    }
+}
+/* "호떡" 글자가 반죽처럼 떨어져 눌린다 */
+@keyframes drop {
+    0% {
+        transform: translateY(-110px) scaleY(1.2);
+        opacity: 0;
+    }
+    52% {
+        transform: translateY(0) scale(1.22, 0.76);
+        opacity: 1;
+    }
+    70% {
+        transform: translateY(-10px) scale(0.94, 1.07);
+    }
+    86% {
+        transform: translateY(0) scale(1.03, 0.97);
+    }
+    100% {
+        transform: none;
+        opacity: 1;
+    }
+}
+@keyframes stick {
+    0% {
+        transform: rotate(-40deg) scale(0);
+    }
+    70% {
+        transform: rotate(2deg) scale(1.12);
+    }
+    100% {
+        transform: rotate(-6deg) scale(1);
+    }
+}
+@keyframes pulse-dot {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 181, 71, 0.55);
+    }
+    80%,
+    100% {
+        box-shadow: 0 0 0 10px rgba(255, 181, 71, 0);
+    }
+}
+@keyframes pulse-ok {
+    0% {
+        box-shadow: 0 0 0 0 rgba(166, 219, 134, 0.6);
+    }
+    80%,
+    100% {
+        box-shadow: 0 0 0 9px rgba(166, 219, 134, 0);
+    }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .anim-drop {
+        animation: drop 0.9s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+    }
+    .anim-stick {
+        animation: stick 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) both;
+    }
+    .pulse-dot {
+        animation: pulse-dot 1.8s ease-out infinite;
+    }
+    .pulse-ok {
+        animation: pulse-ok 1.8s ease-out infinite;
+    }
+}
+
+/* 굴러가는 숫자(RollingNumber): 자릿수마다 0~9 띠를 세로로 굴린다. 보이는 글자는 모두 의사 요소라
+   DOM 글자는 sr-only의 정확한 값 하나뿐이다(화면 읽기·검색·테스트가 같은 값을 본다). */
+.roll {
+    display: inline-flex;
+    align-items: flex-end;
+    white-space: nowrap;
+    line-height: 1.12em;
+}
+.roll-d {
+    display: inline-block;
+    height: 1.12em;
+    overflow: hidden;
+}
+.roll-d > i {
+    display: block;
+    font-style: normal;
+    transition: transform 0.75s cubic-bezier(0.2, 1.15, 0.3, 1);
+}
+.roll-d > i::before {
+    content: "0\a 1\a 2\a 3\a 4\a 5\a 6\a 7\a 8\a 9";
+    white-space: pre;
+    display: block;
+    line-height: 1.12em;
+}
+.roll-c::before {
+    content: attr(data-c);
+    white-space: pre;
+}
+@media (prefers-reduced-motion: reduce) {
+    .roll-d > i {
+        transition: none;
+    }
+}
+
+/* ── 야간 철판 이펙트 확장(2026-10-05) ─────────────────────────── */
+/* 무쇠 질감: 아주 옅은 노이즈를 바탕에 깐다 */
+.iron-grain {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@media (prefers-reduced-motion: no-preference) {
+    /* 열기 아지랑이: SVG 왜곡 필터(#heat-haze, MenuHero)를 제목에 씌운다 */
+    .heat-haze {
+        filter: url(#heat-haze);
+    }
+    /* 불티가 올라가며 깜빡인다 */
+    .ember-flicker {
+        animation:
+            ember linear infinite,
+            flicker 0.9s steps(2, jump-none) infinite;
+    }
+    /* 바닥에 깔린 연기가 천천히 흘러간다 */
+    .smoke-drift {
+        animation: smoke 26s ease-in-out infinite alternate;
+    }
+    /* 제목 글자가 가끔 젤리처럼 출렁인다(떨어진 뒤) */
+    .jelly {
+        animation:
+            drop 0.9s cubic-bezier(0.3, 0.7, 0.3, 1) both,
+            jelly 5.5s ease-in-out 2.2s infinite;
+    }
+    /* 시럽 버튼의 그라데이션이 천천히 흐른다 */
+    .syrup-flow {
+        background-size: 200% 100%;
+        animation: syrup-flow 4s ease-in-out infinite alternate;
+    }
+    /* 빛이 테두리를 따라 도는 카드 */
+    .glow-border::before {
+        animation: border-spin 4s linear infinite;
+    }
+    /* 가격이 바뀌면 시럽빛으로 번쩍 */
+    .heat-flash {
+        animation: heat-flash 0.8s ease-out;
+    }
+    .heat-pulse {
+        animation: heat-pulse 0.9s ease-out both;
+    }
+}
+@keyframes flicker {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}
+@keyframes smoke {
+    from {
+        transform: translateX(-12%) scale(1);
+    }
+    to {
+        transform: translateX(12%) scale(1.15);
+    }
+}
+@keyframes jelly {
+    0%,
+    86%,
+    100% {
+        transform: none;
+    }
+    89% {
+        transform: scale(1.12, 0.86);
+    }
+    92% {
+        transform: scale(0.94, 1.08);
+    }
+    95% {
+        transform: scale(1.03, 0.97);
+    }
+}
+@keyframes syrup-flow {
+    from {
+        background-position: 0% 50%;
+    }
+    to {
+        background-position: 100% 50%;
+    }
+}
+@property --border-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+.glow-border {
+    position: relative;
+    isolation: isolate;
+}
+.glow-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(from var(--border-angle), transparent 0 55%, rgba(255, 181, 71, 0.95) 70%, #fff3c9 75%, rgba(255, 181, 71, 0.95) 80%, transparent 95%);
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+        linear-gradient(#000 0 0) content-box exclude,
+        linear-gradient(#000 0 0);
+}
+@keyframes border-spin {
+    to {
+        --border-angle: 360deg;
+    }
+}
+@keyframes heat-flash {
+    0% {
+        color: #fff3c9;
+        text-shadow: 0 0 14px rgba(255, 181, 71, 0.9);
+    }
+    100% {
+        text-shadow: 0 0 0 rgba(255, 181, 71, 0);
+    }
+}
+/* 손가락·마우스를 따라 카드 위에 번지는 시럽빛 스포트라이트 */
+.spotlight {
+    --mx: 50%;
+    --my: 50%;
+}
+.spotlight::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(180px circle at var(--mx) var(--my), rgba(255, 181, 71, 0.16), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+.spotlight:hover::after,
+.spotlight:active::after {
+    opacity: 1;
+}
+@keyframes heat-pulse {
+    0% {
+        background: rgba(255, 243, 201, 0.35);
+        box-shadow: 0 0 22px rgba(255, 181, 71, 0.85);
+    }
+    100% {
+        background: transparent;
+        box-shadow: 0 0 0 rgba(255, 181, 71, 0);
+    }
+}
+
+/* ── 시간대 축제 테마(2026-10-05) ─────────────────────────────────
+   festivalTheme.applyFestival이 휴대폰 시각으로 <html>에 --fest-* 값을 넣는다(루트 <head> 인라인 스크립트 + 30초마다).
+   고객 화면 틀(.festival-root) 안에서만 철판 토큰을 이 값으로 바꿔, 아침 크림빛 → 낮 주황 → 16시 무쇠+시럽으로 섞인다.
+   등록된(@property) 색이라 값이 바뀔 때 부드럽게 전환된다. 기본값은 지금의 야간 철판(16시 최종)과 같다. */
+@property --fest-iron {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #15121a;
+}
+@property --fest-iron2 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #211c25;
+}
+@property --fest-iron3 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #2d2631;
+}
+@property --fest-line {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #3a3140;
+}
+@property --fest-dough {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #f7e8d0;
+}
+@property --fest-dim {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #b3a497;
+}
+@property --fest-sky1 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #15121a;
+}
+@property --fest-sky2 {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #1a1218;
+}
+@property --fest-glow {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(240, 120, 40, 0.14);
+}
+@property --fest-horizon {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(240, 120, 40, 0.28);
+}
+@property --fest-sil {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(10, 8, 12, 0.95);
+}
+@property --fest-crowd {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 0.55;
+}
+@property --fest-ember {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 1;
+}
+@property --fest-fx {
+    syntax: "<number>";
+    inherits: true;
+    initial-value: 1;
+}
+/* 첫 계산 뒤(FestivalStage가 data-fest-anim을 단 뒤)부터만 전환 — 새로 열 때는 바로 맞는 시간대 색으로 뜬다.
+   글씨색(dough·dim)은 바탕이 절반쯤 바뀐 순간 넘어가게 늦춰, 밝은↔어두운 전환(14시) 중에도 글씨가 묻히지 않게 한다. */
+html[data-fest-anim] {
+    transition:
+        --fest-iron 4s ease,
+        --fest-iron2 4s ease,
+        --fest-iron3 4s ease,
+        --fest-line 4s ease,
+        --fest-sky1 4s ease,
+        --fest-sky2 4s ease,
+        --fest-glow 4s ease,
+        --fest-ember 4s ease,
+        --fest-fx 4s ease,
+        --fest-horizon 4s ease,
+        --fest-sil 4s ease,
+        --fest-crowd 4s ease,
+        --fest-dough 0.8s ease 1.6s,
+        --fest-dim 0.8s ease 1.6s;
+}
+.festival-root {
+    --color-iron: var(--fest-iron);
+    --color-iron-2: var(--fest-iron2);
+    --color-iron-3: var(--fest-iron3);
+    --color-iron-line: var(--fest-line);
+    --color-dough: var(--fest-dough);
+    --color-dough-dim: var(--fest-dim);
+}
+/* 하늘: 위에서 아래로 시간대 그라데이션 + 바닥 숯불빛(화면에 고정) */
+.festival-sky {
+    background-image:
+        radial-gradient(70% 40% at 50% 105%, var(--fest-glow), transparent 70%),
+        radial-gradient(60% 30% at 80% -5%, rgba(255, 181, 71, 0.06), transparent 70%),
+        linear-gradient(180deg, var(--fest-sky1), var(--fest-sky2));
+}
+.festival-embers {
+    opacity: var(--fest-ember);
+}
+/* 밝은 시간대: 무쇠 위에서 쓰던 밝은 강조색을 크림 바탕에서도 읽히는 진한 색으로 */
+[data-daylight] .festival-root .text-syrup,
+[data-daylight] .festival-root .text-syrup\/90,
+[data-daylight] .festival-root .text-syrup-2 {
+    color: #a8480c;
+}
+[data-daylight] .festival-root .text-ok {
+    color: #3f7a2a;
+}
+[data-daylight] .festival-root .text-chili,
+[data-daylight] .festival-root .hover\:text-chili:hover {
+    color: #c0321f;
+}
+[data-daylight] .festival-root .syrup-text {
+    background-image: linear-gradient(180deg, #f59a3c 0%, #c2570c 52%, #8a3a0a 100%);
+}
+[data-daylight] .festival-root .iron-card {
+    box-shadow: 0 6px 20px rgba(160, 80, 30, 0.1);
+}
+
+/* 불타는 "호떡" 위로 피어오르는 연기 */
+@media (prefers-reduced-motion: no-preference) {
+    .title-smoke {
+        animation: title-smoke 3.8s ease-out infinite;
+    }
+}
+@keyframes title-smoke {
+    0% {
+        transform: translate(0, 10px) scale(0.35);
+        opacity: 0;
+    }
+    18% {
+        opacity: var(--smoke-alpha, 0.55);
+    }
+    100% {
+        transform: translate(var(--smoke-drift, 14px), -124px) scale(2.1);
+        opacity: 0;
+    }
+}
+.smoke-puff {
+    opacity: 0;
+    background: radial-gradient(closest-side, rgba(228, 214, 204, 0.75), rgba(200, 182, 170, 0.28) 62%, transparent);
+    filter: blur(5px);
+}
+[data-daylight] .festival-root .smoke-puff {
+    background: radial-gradient(closest-side, rgba(120, 84, 62, 0.42), rgba(120, 84, 62, 0.14) 62%, transparent);
+}
+/* 고객 화면 카드는 살짝 비쳐서 뒤의 불꽃·전구·군중 불빛이 은은하게 번져 보인다(글씨는 그대로 또렷) */
+.festival-root .iron-card {
+    background: linear-gradient(155deg, color-mix(in srgb, var(--color-iron-3) 86%, transparent), color-mix(in srgb, var(--color-iron-2) 90%, transparent) 58%);
+}
+/* 뒤에 다른 내용이 겹치는 카드(스와이프 삭제 줄, 떠 있는 알림)는 비치지 않게 */
+.festival-root .iron-card.iron-solid {
+    background: linear-gradient(155deg, var(--color-iron-3), var(--color-iron-2) 58%);
+}
+/* 밝은 시간대는 뒤 군중 실루엣이 글씨에 비치지 않게 카드를 거의 불투명하게 */
+[data-daylight] .festival-root .iron-card:not(.iron-solid) {
+    background: linear-gradient(155deg, color-mix(in srgb, var(--color-iron-3) 95%, transparent), color-mix(in srgb, var(--color-iron-2) 97%, transparent) 58%);
+}
+
+/* ── 축제 지평선(FestivalHorizon)·전구·축하 그림 ───────────────────────────────
+   그림(Flaticon)을 마스크로 써서 시간대 색으로 칠한다. --src: url(그림), --th: 나타나는 문턱값. */
+.fest-sil {
+    background-color: var(--fest-sil);
+    -webkit-mask-image: var(--src);
+    mask-image: var(--src);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center bottom;
+    mask-position: center bottom;
+}
+/* 군중이 모일수록(--fest-crowd) 문턱값을 넘은 사람부터 나타난다 */
+.fest-crowd-item {
+    opacity: clamp(0, calc((var(--fest-crowd) - var(--th, 0)) * 8), 1);
+}
+/* 축제 이펙트 강도(--fest-fx)에 따라 켜지는 장식 */
+.fest-fx-item {
+    opacity: clamp(0, calc((var(--fest-fx) - var(--th, 0)) * 3), 1);
+}
+.fest-horizon-glow {
+    background:
+        radial-gradient(70% 75% at 50% 100%, var(--fest-horizon), transparent 72%),
+        radial-gradient(30% 60% at 85% 85%, var(--fest-horizon), transparent 70%);
+}
+/* 밤에는 실루엣 윗선에 축제 불빛이 테두리처럼 비친다 */
+.fest-skyline {
+    filter: drop-shadow(0 -1px 3px var(--fest-horizon));
+}
+[data-daylight] .fest-skyline {
+    filter: none;
+}
+.fest-beam {
+    background: linear-gradient(to top, rgba(255, 214, 150, 0.55), rgba(255, 180, 90, 0.18) 45%, transparent);
+    clip-path: polygon(42% 100%, 58% 100%, 100% 0, 0 0);
+    transform: rotate(-24deg);
+    transform-origin: 50% 100%;
+}
+.fest-beam-b {
+    transform: rotate(20deg);
+}
+/* 전구 줄: 그림을 가로로 이어 붙이고 은은하게 빛나게 */
+.fest-lights {
+    background-image: var(--src);
+    background-repeat: repeat-x;
+    background-size: auto 100%;
+    filter: drop-shadow(0 0 6px rgba(255, 196, 100, 0.85));
+}
+[data-daylight] .fest-lights {
+    filter: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .fest-bob {
+        animation: fest-bob var(--dur, 2s) ease-in-out var(--delay, 0s) infinite;
+    }
+    .fest-jump {
+        animation: fest-jump var(--dur, 1.3s) cubic-bezier(0.3, 0.7, 0.4, 1) var(--delay, 0s) infinite;
+    }
+    .fest-sway {
+        animation: fest-sway var(--dur, 2s) ease-in-out var(--delay, 0s) infinite alternate;
+    }
+    .fest-walk {
+        animation: fest-walk var(--dur, 24s) linear var(--delay, 0s) infinite;
+    }
+    .fest-walk-reverse {
+        animation-direction: reverse;
+    }
+    .fest-beam {
+        animation: fest-beam 5.5s ease-in-out infinite alternate;
+    }
+    .fest-beam-b {
+        animation: fest-beam-b 6.5s ease-in-out infinite alternate;
+    }
+    .fest-twinkle {
+        animation: fest-twinkle 2.2s ease-in-out infinite alternate;
+    }
+    .fest-swing {
+        animation: fest-swing 5s ease-in-out infinite alternate;
+    }
+}
+@keyframes fest-bob {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+@keyframes fest-jump {
+    0%,
+    100% {
+        transform: translateY(0) scale(1, 1);
+    }
+    12% {
+        transform: translateY(1px) scale(1.06, 0.92);
+    }
+    45% {
+        transform: translateY(-9px) scale(0.96, 1.05);
+    }
+    75% {
+        transform: translateY(0) scale(1.04, 0.96);
+    }
+}
+@keyframes fest-sway {
+    from {
+        transform: rotate(-3deg);
+    }
+    to {
+        transform: rotate(3deg);
+    }
+}
+@keyframes fest-walk {
+    from {
+        transform: translateX(-14%);
+    }
+    to {
+        transform: translateX(110%);
+    }
+}
+@keyframes fest-beam {
+    from {
+        transform: rotate(-34deg);
+    }
+    to {
+        transform: rotate(-6deg);
+    }
+}
+@keyframes fest-beam-b {
+    from {
+        transform: rotate(30deg);
+    }
+    to {
+        transform: rotate(2deg);
+    }
+}
+@keyframes fest-twinkle {
+    from {
+        opacity: 0.55;
+    }
+    to {
+        opacity: 1;
+    }
+}
+@keyframes fest-swing {
+    from {
+        transform: rotate(-1.2deg);
+    }
+    to {
+        transform: rotate(1.2deg);
+    }
+}
+
+/* 오늘의 추천 띠: 밀면 가운데 카드가 앞으로, 양옆은 비스듬히 물러난다(스크롤 연동 애니메이션을 지원하는 브라우저) */
+@supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+        .feat-card {
+            animation: feat-focus linear both;
+            animation-timeline: view(inline);
+        }
+        .feat-img {
+            animation: feat-pan linear both;
+            animation-timeline: view(inline);
+        }
+    }
+}
+@keyframes feat-focus {
+    0% {
+        transform: scale(0.86) rotateY(16deg);
+        opacity: 0.6;
+    }
+    50% {
+        transform: none;
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.86) rotateY(-16deg);
+        opacity: 0.6;
+    }
+}
+@keyframes feat-pan {
+    from {
+        transform: translateX(10%);
+    }
+    to {
+        transform: translateX(-10%);
+    }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .ember-flicker-soft {
+        animation: flicker 1.4s ease-in-out infinite;
+    }
+}
+
+/* 유리 알약(검색창): 뒤의 하늘·불빛이 흐리게 비친다 */
+.fest-glass {
+    border: 1px solid color-mix(in srgb, var(--color-dough) 16%, transparent);
+    background: color-mix(in srgb, var(--color-iron-2) 58%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 24px rgba(0, 0, 0, 0.18);
+}
+[data-daylight] .festival-root .fest-glass {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(200, 120, 60, 0.22);
 }
