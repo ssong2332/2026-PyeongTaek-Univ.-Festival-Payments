@@ -121,6 +121,7 @@ describe("toOrderByTokenResult — 행 모양", () => {
       transferReportedAt: null,
       cancelRequestedAt: null,
       cancelRejectedAt: null,
+      pendingSince: null,
     });
   });
 });

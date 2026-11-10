@@ -4,8 +4,9 @@ const EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/;
 
 export function toUtcIsoString(instant: string): string;
 export function toUtcIsoString(instant: string | null): string | null;
-export function toUtcIsoString(instant: string | null): string | null {
-    if (instant === null) return null;
+export function toUtcIsoString(instant: string | null | undefined): string | null | undefined;
+export function toUtcIsoString(instant: string | null | undefined): string | null | undefined {
+    if (instant === null || instant === undefined) return instant;
     const timestamp = Date.parse(instant);
     if (!EXPLICIT_OFFSET.test(instant) || !Number.isFinite(timestamp)) {
         throw new RangeError(`Invalid timestamp: ${instant}`);
