@@ -245,7 +245,7 @@ describe("T-18 × 관리자 전환(T-16·T-17)", () => {
     await transition({ orderId: order.id, action: "confirm_payment", adminId }, { orderRepository });
 
     expect(await sweep()).toEqual({ expired: 0, completed: 0 });
-    expect((await stored(order.id)).status).toBe("paid");
+    expect((await stored(order.id)).status).toBe("cooking"); // DECISIONS #64: 입금 확인은 바로 조리중
     expect(await stock(order.menuId)).toBe(8);
     expect(await history(order.id)).toHaveLength(1);
   });
@@ -277,7 +277,7 @@ describe("T-18 × 관리자 전환(T-16·T-17)", () => {
   // 관리자 버튼과 스윕이 같은 순간에 같은 주문을 바꾸려는 경우. 관리자 쪽은 전환의 마지막 단계(DB 함수 호출 한 번)를
   // 스윕과 동시에 보낸다 — 주문마다 어느 쪽이 이길지는 정해져 있지 않다.
   test.each([
-    { name: "입금 확인(계좌이체)", paymentMethod: "transfer", to: "paid", action: "confirm_payment", reason: null, stockIfAdminWins: 8 },
+    { name: "입금 확인(계좌이체)", paymentMethod: "transfer", to: "cooking", action: "confirm_payment", reason: null, stockIfAdminWins: 8 },
     { name: "현금 수령 확인", paymentMethod: "cash", to: "cooking", action: "confirm_cash", reason: null, stockIfAdminWins: 8 },
     { name: "취소", paymentMethod: "transfer", to: "cancelled", action: "cancel", reason: "고객 요청", stockIfAdminWins: 10 },
   ] as const)(

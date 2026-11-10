@@ -152,9 +152,10 @@ describe("adminOrderService.transition", () => {
         const { repo, calls } = setup();
         const result = await transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo });
 
-        expect(result).toEqual({ id: ORDER_ID, status: "paid", paymentMethod: "transfer" });
+        // DECISIONS #64: 입금 확인은 바로 조리중
+        expect(result).toEqual({ id: ORDER_ID, status: "cooking", paymentMethod: "transfer" });
         expect(calls).toEqual([{
-            orderId: ORDER_ID, from: "pending", to: "paid", action: "confirm_payment",
+            orderId: ORDER_ID, from: "pending", to: "cooking", action: "confirm_payment",
             actorType: "admin", actorId: ADMIN_ID, reason: null, refundChannel: null,
         }]);
     });

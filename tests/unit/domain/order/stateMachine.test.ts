@@ -5,7 +5,7 @@ import { ADMIN_TRANSITION_ACTIONS, type OrderStatus, type RefundChannel, type Tr
 const statuses: OrderStatus[] = ["pending", "paid", "cooking", "completed", "cancelled", "refunded", "expired"];
 const actions: TransitionAction[] = ["confirm_payment", "confirm_cash", "start_cooking", "complete", "auto_complete", "cancel", "refund", "expire"];
 const allowed: Partial<Record<OrderStatus, Partial<Record<TransitionAction, OrderStatus>>>> = {
-  pending: { confirm_payment: "paid", confirm_cash: "cooking", cancel: "cancelled", expire: "expired" },
+  pending: { confirm_payment: "cooking", confirm_cash: "cooking", cancel: "cancelled", expire: "expired" },
   paid: { start_cooking: "cooking", cancel: "cancelled" },
   cooking: { complete: "completed", auto_complete: "completed", refund: "refunded" },
 };
@@ -32,6 +32,13 @@ describe("주문 상태 전환 표", () => {
       });
     }
   }
+});
+
+// DECISIONS #64(T-54): 계좌이체도 입금 확인 한 번으로 조리중 — 현금과 같은 흐름.
+it("입금 확인 한 번으로 조리중이 된다", () => {
+  const current = order("pending");
+  expect(resolveTransition(current, "confirm_payment", {})).toMatchObject({ ok: true, to: "cooking" });
+  expect(resolveTransition(current, "confirm_cash", {})).toEqual({ ok: false, code: "INVALID_TRANSITION" });
 });
 
 it("현금 수령 확인 한 번으로 조리중이 된다", () => {

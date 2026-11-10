@@ -19,8 +19,9 @@ type TransitionRule = {
   needsRefundChannel: boolean;
 };
 
+// DECISIONS #64: 입금 확인도 현금 수령 확인처럼 바로 조리중. paid·start_cooking은 기존 결제확인 주문용으로 남긴다.
 const TRANSITIONS: Record<TransitionAction, TransitionRule> = {
-  confirm_payment: { from: ["pending"], to: "paid", actor: "admin", paymentMethod: "transfer", restoreStock: false, needsReason: false, needsRefundChannel: false },
+  confirm_payment: { from: ["pending"], to: "cooking", actor: "admin", paymentMethod: "transfer", restoreStock: false, needsReason: false, needsRefundChannel: false },
   confirm_cash: { from: ["pending"], to: "cooking", actor: "admin", paymentMethod: "cash", restoreStock: false, needsReason: false, needsRefundChannel: false },
   start_cooking: { from: ["paid"], to: "cooking", actor: "admin", restoreStock: false, needsReason: false, needsRefundChannel: false },
   complete: { from: ["cooking"], to: "completed", actor: "admin", restoreStock: false, needsReason: false, needsRefundChannel: false },

@@ -72,17 +72,18 @@ test("계좌이체 주문 → 송금 신고 → 관리자 입금 확인", async 
         await expect(detail).toContainText("송금 신고됨");
         await expect(detail).toContainText("계좌이체");
         await detail.getByRole("button", { name: "입금 확인" }).click();
-        await expect(card).toHaveAttribute("data-status", "paid");
+        await expect(card).toHaveAttribute("data-status", "cooking"); // DECISIONS #64: 입금 확인은 바로 조리중
 
-        // 7. DB: 결제확인으로 한 번만 전환, 이력은 주문 생성 + 관리자 입금 확인 2행, 재고는 그대로
-        const paid = await db.from("orders").select("status, paid_at").eq("id", order.id).single();
-        expect(paid.data?.status).toBe("paid");
+        // 7. DB: 조리중으로 한 번만 전환(결제·조리 시작 시각 동시 기록), 이력은 주문 생성 + 관리자 입금 확인 2행, 재고는 그대로
+        const paid = await db.from("orders").select("status, paid_at, cooking_started_at").eq("id", order.id).single();
+        expect(paid.data?.status).toBe("cooking");
         expect(paid.data?.paid_at).not.toBeNull();
+        expect(paid.data?.cooking_started_at).toBe(paid.data?.paid_at);
         const history = await db.from("order_status_history")
             .select("from_status, to_status, action, actor_type, actor_id").eq("order_id", order.id).order("id");
         expect(history.data).toEqual([
             { from_status: null, to_status: "pending", action: "create", actor_type: "customer", actor_id: null },
-            { from_status: "pending", to_status: "paid", action: "confirm_payment", actor_type: "admin", actor_id: admin.id },
+            { from_status: "pending", to_status: "cooking", action: "confirm_payment", actor_type: "admin", actor_id: admin.id },
         ]);
         const after = await db.from("menu_items").select("stock").eq("id", menu.id).single();
         expect(after.data?.stock).toBe(menu.stock - 1);
