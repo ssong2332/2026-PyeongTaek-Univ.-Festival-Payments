@@ -178,6 +178,13 @@ describe("adminOrderService.transition", () => {
         expect(calls).toHaveLength(0);
     });
 
+    // DECISIONS #71(T-54)
+    it("고객 취소 요청이 대기 중이면 입금 확인은 409 INVALID_TRANSITION, repo.transition 미호출", async () => {
+        const { repo, calls } = setup({ cancelRequestedAt: "2026-11-10T09:00:00.000Z", cancelRejectedAt: null });
+        await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo }), "INVALID_TRANSITION", 409);
+        expect(calls).toHaveLength(0);
+    });
+
     it.each(["expire", "auto_complete"] as const)("관리자는 시스템 전용 %s를 쓸 수 없다 → 409 INVALID_TRANSITION", async (action) => {
         const { repo, calls } = setup({ status: action === "expire" ? "pending" : "cooking" });
         await expectAppError(transition({ orderId: ORDER_ID, action, adminId: ADMIN_ID }, { orderRepository: repo }), "INVALID_TRANSITION", 409);
