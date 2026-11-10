@@ -181,6 +181,8 @@ POST /api/orders (Route Handler)
 200 AdminOrderDto (갱신본)  +  Realtime UPDATE가 모든 대시보드에 전파  +  고객 상태 페이지는 다음 폴링(≤5초)에 반영
 ```
 
+**적용 예정(T-54, DECISIONS #71)**: 위 흐름의 `repo.findById`는 상태·결제수단과 함께 취소 요청 시각·거절 시각(`cancel_requested_at`·`cancel_rejected_at`)도 읽는다. 고객 취소 요청이 대기 중이면 `confirm_payment`·`confirm_cash`·`start_cooking`은 상태 머신 단계에서 409 `INVALID_TRANSITION`이 된다.
+
 ### 실시간 피드·연결 감시: ADR-0003. 시간 기반 스윕: ADR-0006.
 
 ## 데이터 모델과 인터페이스
@@ -192,7 +194,7 @@ POST /api/orders (Route Handler)
 | 값 | 한글 라벨 | 의미 | 터미널 |
 |---|---|---|---|
 | `pending` | 결제대기 | 생성됨, 결제 미확인 | 아니오 |
-| `paid` | 결제확인 | 송금 입금 확인됨 (현금은 거치지 않음) | 아니오 |
+| `paid` | 결제확인 | 송금 입금 확인됨 (현금은 거치지 않음). **적용 예정(T-54)**: 신규 계좌이체 흐름도 거치지 않음 — 기존 데이터·호환용으로 유지(DECISIONS #64) | 아니오 |
 | `cooking` | 조리중 | 조리 시작 | 아니오 |
 | `completed` | 완료 | 픽업 완료 | 예 |
 | `cancelled` | 취소 | 관리자 취소(결제대기·결제확인에서) | 예 |
@@ -211,6 +213,12 @@ POST /api/orders (Route Handler)
 | `cancel` | pending → cancelled, paid → cancelled | admin | — (고객 취소 요청 승인도 이 action) | **필수** | **예** | `closed_at` |
 | `refund` | cooking → refunded | admin | `refund_channel` 필수 (`cash` / `bank` — 주문의 결제수단과 일치해야 함: 현금 주문은 `cash`, 계좌이체 주문은 `bank`. 2026-09-24 간편결제 제외) | **필수** | **예** | `closed_at`, `refund_channel` |
 | `expire` | pending → expired | system | `transfer_reported_at IS NULL` AND `created_at + expire_minutes <= now` | 없음 | **예** | `closed_at` |
+
+**적용 예정(T-54·T-55)** — 코드 병합 때 위 표에 반영하고 이 블록의 해당 줄을 지운다 (DECISIONS #64·#65·#71):
+
+- (T-54) `confirm_payment`: pending → **cooking**, 타임스탬프 `paid_at`·`cooking_started_at` 동시 기록(`confirm_cash`와 같음). `start_cooking`(paid → cooking)은 기존 결제확인 주문용으로 남긴다.
+- (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 화면 버튼 비활성·안내 문구는 별도 UI 작업, 동시 요청까지 완전히 막는 처리는 T-55 DB 설계와 함께 확인.
+- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). DB 함수·컬럼·마이그레이션 번호는 T-55 DB 설계 후 확정.
 
 상태를 바꾸지 않는 이벤트(이력 행은 `from = to`로 기록):
 
@@ -235,6 +243,8 @@ function resolveTransition(order: { status: OrderStatus; paymentMethod: PaymentM
                            input: { reason?: string; refundChannel?: RefundChannel }): TransitionResult;
 function availableActions(order): TransitionAction[];   // 대시보드 버튼 활성/비활성의 근거
 ```
+
+**적용 예정(T-54, DECISIONS #71)**: 두 함수의 `order` 입력에 선택 항목 `cancelRequestedAt?: string | null`·`cancelRejectedAt?: string | null`을 더한다. 취소 요청이 대기 중이면(`cancelRequestedAt`가 있고 `cancelRejectedAt`가 없음) `availableActions`는 `confirm_payment`·`confirm_cash`·`start_cooking`을 빼고, `resolveTransition`은 이 세 동작에 `INVALID_TRANSITION`을 돌려준다. "취소 요청 대기 중" 판단은 도메인 함수 하나로 둔다. 두 항목을 넘기지 않으면 지금과 같은 결과다(기존 호출부 수정 불필요). 서버 차단은 `adminOrderService.transition`이 `findById` 결과(두 항목 포함)로 판단한다. 대시보드 버튼에 반영하려면 버튼을 계산하는 두 곳 — 목록 API(`adminOrderRepository`)와 실시간 갱신(`useOrdersFeed`) — 이 모두 두 항목을 넘겨야 한다(한 곳만 넘기면 실시간 갱신 때 버튼이 다시 켜진다). 화면 반영은 별도 UI 작업.
 
 고객 화면 버튼 노출 규칙(`GET /api/orders/{token}` 응답의 파생 필드): `canTransferReport = status='pending' && paymentMethod='transfer' && transferReportedAt==null`, `canCancelRequest = status∈{pending,paid} && cancelRequestedAt==null && cancelRejectedAt==null`.
 
@@ -388,7 +398,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | `GET /api/admin/orders?date=YYYY-MM-DD&status=&pickupNumber=` | `date` 기본 오늘(KST — 서버 시각 기준). 달력에 없는 날짜면 400 `VALIDATION_ERROR`. `status` 콤마 목록 선택. `pickupNumber` 정수(있으면 date 무시) | `{ orders: AdminOrderDto[], unacknowledgedCount }` — `created_at DESC` | `AdminOrderDto { id, pickupNumber, status, paymentMethod, totalAmount, items: [{ menuNameKo, quantity, options: [{ nameKo, extraPrice }], lineTotal }], createdAt, updatedAt, acknowledgedAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, paidAt, cookingStartedAt, completedAt, closedAt, refundChannel, lastReason, availableActions: TransitionAction[] }`. F-22: `pickupNumber` 결과 0건이면 `orders: []` |
 | `GET /api/admin/orders/{id}` | — | `AdminOrderDto` | Realtime INSERT 하이드레이션용 |
 | `POST /api/admin/orders/{id}/acknowledge` | — | `AdminOrderDto` | 이미 확인됨이면 그대로 200 |
-| `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id` |
+| `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id`. **적용 예정(T-55)**: 되돌리기 action 추가(사유 필수) |
 | `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` — 이미 거절된 요청(`cancel_rejected_at` 있음)·결제대기/결제확인이 아닌 주문도 409. `reason` 빈 문자열 400 `VALIDATION_ERROR`, 공백만 400 `REASON_REQUIRED`(승인·거절 모두 사유 필수) |
 | `GET /api/admin/menus` | — | `{ menus: AdminMenuDto[] }` · `AdminMenuDto { id, translations: { [locale]: { name, description } }, basePrice, stock, isSoldOutManual, isActive, sortOrder, imageUrl, optionGroups: [{ id, translations, minSelect, maxSelect, isActive, options: [{ id, translations, extraPrice, isActive }] }] }` | 비활성 포함(1차 UI는 수정만) |
 | `PATCH /api/admin/menus/{id}` | `{ basePrice?: int≥0, stock?: int≥0, isSoldOutManual?: bool, translations?: { [locale]: { name: string≥1, description?: string } } }` | `AdminMenuDto` | ko `name` 빈값 → 400. 재고 0이면 `isSoldOut` 파생(F-25) — 별도 플래그 저장 없음 |
@@ -445,7 +455,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | 항목 | 결정 |
 |---|---|
 | 의존성 방향 | `domain` ← `services` ← `infra/repositories`·`app/api`·`features` ← `app/(pages)`. `domain`은 어떤 것도 import하지 않는다(zod 포함 — 타입만). `services`는 `ports.ts`와 `domain`만 import. `next/*`·`@supabase/*`는 `infra`와 `app`에서만 |
-| Repository 포트 | `src/services/ports.ts`에 TS 인터페이스: `OrderRepository { createOrder(input): Promise<CreateOrderResult>; findByToken(token); findById(id); transition(...); setTransferReported(id); setCancelRequested(id); rejectCancelRequest(id, actorId, reason); acknowledge(id, actorId); list(filter); countWaitingBefore(createdAt?) }`, `MenuRepository`, `SettingsRepository`, `RateLimitRepository { consume(scope: string, key: string, limit: number, windowSeconds: number, now?: Date): Promise<boolean> }`(ADR-0009), `Clock { now(): Date }`. `OrderRepository`에 `findByIdempotencyKey(key)` 포함. 구현체는 `src/infra/repositories/supabase*.ts`. 주입은 함수 인자 기본값(`createOrder(dto, deps = defaultDeps())`) — DI 컨테이너 없음 |
+| Repository 포트 | `src/services/ports.ts`에 TS 인터페이스: `OrderRepository { createOrder(input): Promise<CreateOrderResult>; findByToken(token); findById(id); transition(...); setTransferReported(id); setCancelRequested(id); rejectCancelRequest(id, actorId, reason); acknowledge(id, actorId); list(filter); countWaitingBefore(createdAt?) }`, `MenuRepository`, `SettingsRepository`, `RateLimitRepository { consume(scope: string, key: string, limit: number, windowSeconds: number, now?: Date): Promise<boolean> }`(ADR-0009), `Clock { now(): Date }`. `OrderRepository`에 `findByIdempotencyKey(key)` 포함. **적용 예정(T-54)**: `findById(id)`가 돌려주는 `OrderForTransition`에 `cancelRequestedAt`·`cancelRejectedAt` 추가. 구현체는 `src/infra/repositories/supabase*.ts`. 주입은 함수 인자 기본값(`createOrder(dto, deps = defaultDeps())`) — DI 컨테이너 없음 |
 | DTO ↔ 도메인 변환 위치 | 요청: Route Handler에서 zod parse → 서비스에 DTO 타입 전달. 응답: DB 행 → 포트 타입 변환은 `src/infra/repositories/mappers.ts`(`toAdminOrderDto`, `toOrderByTokenResult`, `toMenuItemRecord`), 폴백·거르기·시각 표기처럼 규칙이 있는 응답 DTO 조립은 서비스(`getOrderByToken`, `getMenu`) — DB 행을 API로 직접 반환 금지(스프레드 금지, 필드 명시 나열 — 2차 `phone_encrypted` 누출 방지) |
 | 순환 의존성 | 금지. `features` ↔ `components` 사이도 단방향(features가 components를 렌더, components는 features를 모른다). ESLint `import/no-cycle` + `no-restricted-imports`(`domain`·`services`에서 `next`, `@supabase` 금지)를 T-01에 설정 |
 
