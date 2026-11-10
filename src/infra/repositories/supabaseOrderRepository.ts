@@ -6,6 +6,7 @@ import {
   toCreateOrderResponse,
   toExistingOrderResponse,
   toOrderForTransition,
+  toOrderForStateCheck,
   toOrderByTokenResult,
 } from "./mappers";
 
@@ -92,7 +93,7 @@ export function createSupabaseOrderRepository(
         .eq("id", id)
         .maybeSingle();
       if (error) throw toError("orders.findById", error);
-      return data ? toOrderForTransition(data) : null;
+      return data ? toOrderForStateCheck(data) : null;
     },
 
     async transition(command) {
