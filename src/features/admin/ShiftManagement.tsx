@@ -8,6 +8,7 @@ import { AppError } from "@/lib/api/errors";
 import { fetchJson } from "@/lib/api/client";
 import { ShiftInputSchema, ShiftSchema, ShiftsResponseSchema } from "@/lib/dto/shift";
 import { NowBoard, RosterImport, ShiftTimeline } from "./ShiftBoard";
+import { InventoryPhotoPanel } from "./InventoryPhotoPanel";
 
 export interface ShiftApi {
   list(): Promise<Shift[]>;
@@ -137,6 +138,7 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
     {error && <div role="alert" className="rounded-lg border border-chili/45 bg-chili/10 p-3 text-sm text-red-800">{error}</div>}
     {notice && <div role="status" className="rounded-lg bg-ok/10 p-3 text-sm text-ok">{notice}</div>}
     <NowBoard shifts={shifts} now={now} loading={loading} loaded={loaded} />
+    <InventoryPhotoPanel activeShifts={active} />
     {loaded && shifts.length > 0 && <ShiftTimeline shifts={shifts} now={now} />}
     <RosterImport shifts={shifts} now={now} disabled={locked} onImport={importRoster} />
     <section aria-labelledby="shift-form-heading" className="rounded-xl border border-iron-line bg-iron-2 p-5 ">
