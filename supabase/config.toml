@@ -37,7 +37,7 @@ enabled = false
 enabled = false
 
 [storage]
-enabled = false
+enabled = true
 
 [analytics]
 enabled = false

@@ -1,5 +1,7 @@
 # tests/integration — 로컬 Supabase 실물 대상(mock 없음, 파일 직렬). `npm run test:integration`은 T-02에서 등록. Docker 없는 PC는 CI 잡 ②(T-02)에 맡긴다.
 
+재고 사진 통합 검증은 로컬 Storage 서비스를 켜고 실제 업로드·서명 URL 조회·비공개 접근·만료 삭제를 확인한다. 운영 Storage와 운영 DB에는 접근하지 않는다.
+
 ## T-36 시드 검증
 
 `seed.sql`은 Vitest가 아닌 CI의 별도 `psql` 단계에서 실행한다. CI 로컬
