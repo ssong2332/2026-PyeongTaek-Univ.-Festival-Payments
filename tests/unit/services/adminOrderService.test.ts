@@ -233,4 +233,20 @@ describe("adminOrderService.transition", () => {
         };
         await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: racingRepo }), "STATE_CHANGED", 409);
     });
+
+    it("DECISIONS #71: 취소 요청 대기 중인 주문은 transition에서 confirm_payment, confirm_cash, start_cooking이 409 거부된다", async () => {
+        const { repo, calls } = setup({
+            status: "pending",
+            paymentMethod: "transfer",
+            cancelRequestedAt: "2026-11-10T10:00:00Z",
+            cancelRejectedAt: null,
+        });
+
+        await expectAppError(
+            transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo }),
+            "INVALID_TRANSITION",
+            409,
+        );
+        expect(calls).toHaveLength(0);
+    });
 });

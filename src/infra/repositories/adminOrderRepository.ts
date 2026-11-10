@@ -86,6 +86,8 @@ export function toAdminOrderDto(row: DbOrderRow): AdminOrderDto {
         availableActions: availableActions({
             status: row.status,
             paymentMethod: row.payment_method,
+            cancelRequestedAt: row.cancel_requested_at,
+            cancelRejectedAt: row.cancel_rejected_at,
         }),
         source: row.source ?? "customer",
         manualNumber: row.manual_number ?? null,

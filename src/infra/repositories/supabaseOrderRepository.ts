@@ -86,7 +86,11 @@ export function createSupabaseOrderRepository(
     },
 
     async findById(id) {
-      const { data, error } = await client.from("orders").select("id, status, payment_method").eq("id", id).maybeSingle();
+      const { data, error } = await client
+        .from("orders")
+        .select("id, status, payment_method, cancel_requested_at, cancel_rejected_at")
+        .eq("id", id)
+        .maybeSingle();
       if (error) throw toError("orders.findById", error);
       return data ? toOrderForTransition(data) : null;
     },

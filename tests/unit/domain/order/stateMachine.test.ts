@@ -99,3 +99,54 @@ it.each(["kakaopay", "toss"])("제외된 환불수단 %s를 거부한다", (chan
     })).toEqual({ ok: false, code: "INVALID_TRANSITION" });
   }
 });
+
+describe("DECISIONS #71: 고객 취소 요청 대기 중 조리중 진입 차단", () => {
+  it("취소 요청 대기 중인 주문은 confirm_payment, confirm_cash, start_cooking이 거부된다 (409 INVALID_TRANSITION)", () => {
+    const pendingTransfer = {
+      status: "pending" as const,
+      paymentMethod: "transfer" as const,
+      cancelRequestedAt: "2026-11-10T10:00:00Z",
+      cancelRejectedAt: null,
+    };
+    expect(resolveTransition(pendingTransfer, "confirm_payment", {})).toEqual({ ok: false, code: "INVALID_TRANSITION" });
+    expect(availableActions(pendingTransfer)).toEqual(["cancel"]);
+
+    const pendingCash = {
+      status: "pending" as const,
+      paymentMethod: "cash" as const,
+      cancelRequestedAt: "2026-11-10T10:00:00Z",
+      cancelRejectedAt: null,
+    };
+    expect(resolveTransition(pendingCash, "confirm_cash", {})).toEqual({ ok: false, code: "INVALID_TRANSITION" });
+    expect(availableActions(pendingCash)).toEqual(["cancel"]);
+
+    const paidOrder = {
+      status: "paid" as const,
+      paymentMethod: "transfer" as const,
+      cancelRequestedAt: "2026-11-10T10:00:00Z",
+      cancelRejectedAt: null,
+    };
+    expect(resolveTransition(paidOrder, "start_cooking", {})).toEqual({ ok: false, code: "INVALID_TRANSITION" });
+    expect(availableActions(paidOrder)).toEqual(["cancel"]);
+  });
+
+  it("취소 요청이 거절된 상태(cancelRejectedAt 존재)이면 정상적으로 조리중 진입이 허용된다", () => {
+    const rejectedTransfer = {
+      status: "pending" as const,
+      paymentMethod: "transfer" as const,
+      cancelRequestedAt: "2026-11-10T10:00:00Z",
+      cancelRejectedAt: "2026-11-10T10:01:00Z",
+    };
+    expect(resolveTransition(rejectedTransfer, "confirm_payment", {})).toMatchObject({ ok: true, to: "paid" });
+    expect(availableActions(rejectedTransfer)).toContain("confirm_payment");
+
+    const rejectedCash = {
+      status: "pending" as const,
+      paymentMethod: "cash" as const,
+      cancelRequestedAt: "2026-11-10T10:00:00Z",
+      cancelRejectedAt: "2026-11-10T10:01:00Z",
+    };
+    expect(resolveTransition(rejectedCash, "confirm_cash", {})).toMatchObject({ ok: true, to: "cooking" });
+    expect(availableActions(rejectedCash)).toContain("confirm_cash");
+  });
+});
