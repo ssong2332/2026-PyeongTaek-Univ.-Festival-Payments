@@ -9,13 +9,16 @@ import type { EmergencyContact } from "@/lib/emergencyContact";
 export function AdminShell({ email, emergency, children }: { email?: string | null; emergency?: EmergencyContact | null; children: React.ReactNode }) {
     return (
         <div className="iron-bg flex min-h-screen flex-col text-dough">
-            <div className="flex h-10 items-center gap-2 border-b border-iron-line bg-iron px-3 text-xs whitespace-nowrap sm:gap-4 sm:px-6">
-                <span className="min-w-0 truncate font-semibold text-dough">평택대 부스 관리자</span>
+            <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-2 border-b border-iron-line bg-iron px-3 py-2 text-xs whitespace-nowrap sm:gap-x-4 sm:px-6">
+                <span className="min-w-0 flex-1 truncate font-semibold text-dough sm:flex-none">평택대 부스 관리자</span>
                 <span className="shrink-0 rounded-full bg-syrup/15 px-2 py-0.5 text-[11px] font-semibold text-syrup">운영진</span>
                 {email && <span className="hidden font-num text-dough sm:inline-block">{email}</span>}
-                <nav aria-label="운영 화면 이동" className="ml-auto flex shrink-0 items-center gap-3 font-semibold sm:gap-4">
+                <nav aria-label="운영 화면 이동" className="order-3 flex w-full items-center justify-between gap-3 font-semibold sm:order-none sm:ml-auto sm:w-auto sm:justify-start sm:gap-4">
                     <Link href="/admin" className="text-dough-dim transition-colors hover:text-syrup">
                         주문 관리
+                    </Link>
+                    <Link href="/admin/manual-orders" className="text-dough-dim transition-colors hover:text-syrup">
+                        수기 주문
                     </Link>
                     <Link href="/admin/shifts" className="text-dough-dim transition-colors hover:text-syrup">
                         교대 스케줄

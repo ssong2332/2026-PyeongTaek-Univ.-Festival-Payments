@@ -107,7 +107,7 @@ describe("T-28 manual order input", () => {
         fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "1" } });
         fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
-        fireEvent.change(screen.getByLabelText("종이 주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
+        fireEvent.change(screen.getByLabelText("주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
         const save = screen.getByRole("button", { name: "수기 주문 저장" });
         expect((save as HTMLButtonElement).disabled).toBe(false);
         fireEvent.click(save);
@@ -128,7 +128,7 @@ describe("T-28 manual order input", () => {
         fireEvent.change(screen.getByLabelText("M 번호"), { target: { value: "7" } });
         fireEvent.change(screen.getByLabelText("메뉴 선택"), { target: { value: MENU_ID } });
         fireEvent.click(screen.getByLabelText(/치즈/));
-        fireEvent.change(screen.getByLabelText("종이 주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
+        fireEvent.change(screen.getByLabelText("주문 시각 (KST)"), { target: { value: "2026-10-03T20:00" } });
         fireEvent.click(screen.getByRole("button", { name: "수기 주문 저장" }));
         await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("M-007 번호는 이미 사용 중"));
         expect((screen.getByLabelText("M 번호") as HTMLInputElement).value).toBe("7");

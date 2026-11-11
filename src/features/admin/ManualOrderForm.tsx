@@ -70,8 +70,8 @@ export function ManualOrderForm({ menu, onSave }: Props) {
     return (
         <form onSubmit={save} className="space-y-6 rounded-xl bg-white p-4 shadow-sm sm:p-6">
             <div>
-                <h2 className="text-lg font-semibold">종이 주문 입력</h2>
-                <p className="text-sm text-gray-600">종이에 기록된 M 번호와 주문 시각을 그대로 입력하세요.</p>
+                <h2 className="text-lg font-semibold">주문 내용 입력</h2>
+                <p className="text-sm text-gray-600">현장에서 받은 주문의 M 번호와 실제 주문 시각을 입력하세요. 저장하면 완료 주문으로 기록됩니다.</p>
             </div>
             <label className="block text-sm font-medium">
                 M 번호
@@ -147,7 +147,7 @@ export function ManualOrderForm({ menu, onSave }: Props) {
                     </select>
                 </label>
                 <label className="block text-sm font-medium">
-                    종이 주문 시각 (KST)
+                    주문 시각 (KST)
                     <input className="mt-1 w-full rounded border p-2" type="datetime-local" value={localKstTime}
                         disabled={saving} onChange={(event) => setLocalKstTime(event.target.value)} />
                 </label>
