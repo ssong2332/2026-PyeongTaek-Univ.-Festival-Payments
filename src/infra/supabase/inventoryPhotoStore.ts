@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AppError } from "@/lib/api/errors";
+import { logger } from "@/lib/logger";
 
 export const INVENTORY_PHOTO_BUCKET = "inventory-photos";
 export const INVENTORY_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
@@ -55,16 +56,20 @@ export async function listInventoryPhotos(client: SupabaseClient, offset: number
         .range(offset, offset + PAGE_SIZE);
     if (error) throw new AppError("INTERNAL_ERROR", 500);
     const rows = (data ?? []) as PhotoRow[];
-    const photos = await Promise.all(rows.slice(0, PAGE_SIZE).map(async (row) => {
+    const page = rows.slice(0, PAGE_SIZE);
+    const resolved = await Promise.allSettled(page.map(async (row) => {
         const { data: signed, error: signError } = await client.storage.from(INVENTORY_PHOTO_BUCKET)
             .createSignedUrl(row.storage_path, URL_TTL_SECONDS);
-        if (signError || !signed) throw new AppError("INTERNAL_ERROR", 500);
+        if (signError || !signed?.signedUrl) throw signError ?? new Error("Signed URL unavailable");
         return {
             id: row.id, capturedBy: row.captured_by, capturedAt: row.captured_at,
             contentType: row.content_type, byteSize: row.byte_size, imageUrl: signed.signedUrl,
         };
     }));
-    return { photos, hasMore: rows.length > PAGE_SIZE };
+    const photos = resolved.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const unavailableCount = page.length - photos.length;
+    if (unavailableCount) logger.warn("inventory.photos.unavailable", { count: unavailableCount });
+    return { photos, hasMore: rows.length > PAGE_SIZE, nextOffset: offset + page.length, unavailableCount };
 }
 
 export async function saveInventoryPhoto(client: SupabaseClient, file: File, capturedBy: string, uploadedBy: string) {

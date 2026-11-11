@@ -45,6 +45,28 @@ describe("재고 사진 저장소", () => {
     expect(createSignedUrl).toHaveBeenCalledWith(row.storage_path, 3600);
   });
 
+  it("서명 실패 행만 건너뛰고 DB 행 기준으로 다음 페이지를 읽는다", async () => {
+    const rows = Array.from({ length: 31 }, (_, index) => ({
+      ...row, id: `photo-${index}`, storage_path: index === 0 ? "missing.jpg" : `photo-${index}.jpg`,
+    }));
+    const range = vi.fn().mockImplementation(async (start: number, end: number) => ({ data: rows.slice(start, end + 1), error: null }));
+    const createSignedUrl = vi.fn().mockImplementation(async (path: string) =>
+      path === "missing.jpg" ? { data: null, error: new Error("not found") }
+        : { data: { signedUrl: `https://example.com/${path}` }, error: null });
+    const client = {
+      from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ order: vi.fn().mockReturnThis(), range }) }),
+      storage: { from: vi.fn().mockReturnValue({ createSignedUrl }) },
+    } as unknown as SupabaseClient;
+    const first = await listInventoryPhotos(client, 0);
+    expect(first).toMatchObject({ hasMore: true, nextOffset: 30, unavailableCount: 1 });
+    expect(first.photos).toHaveLength(29);
+    expect(first.photos[0].id).toBe("photo-1");
+    const second = await listInventoryPhotos(client, first.nextOffset);
+    expect(second).toMatchObject({ hasMore: false, nextOffset: 31, unavailableCount: 0 });
+    expect(second.photos.map((photo) => photo.id)).toEqual(["photo-30"]);
+    expect(range).toHaveBeenLastCalledWith(30, 60);
+  });
+
   it("30일 지난 사진만 Storage API와 DB 양쪽에서 삭제한다", async () => {
     const lt = vi.fn().mockReturnThis();
     const limit = vi.fn().mockResolvedValue({ data: [row], error: null });
@@ -58,5 +80,34 @@ describe("재고 사진 저장소", () => {
     expect(lt).toHaveBeenCalledWith("captured_at", "2026-10-11T00:00:00.000Z");
     expect(remove).toHaveBeenCalledWith([row.storage_path]);
     expect(inIds).toHaveBeenCalledWith("id", [row.id]);
+  });
+
+  it("파일 삭제 후 DB 삭제 실패로 남은 행을 다음 정리에서 지운다", async () => {
+    let remains = true;
+    let fileExists = true;
+    let failDelete = true;
+    const limit = vi.fn().mockImplementation(async () => ({ data: remains ? [row] : [], error: null }));
+    const remove = vi.fn().mockImplementation(async () => {
+      fileExists = false;
+      return { error: null };
+    });
+    const inIds = vi.fn().mockImplementation(async () => {
+      if (failDelete) { failDelete = false; return { error: new Error("db unavailable") }; }
+      remains = false;
+      return { error: null };
+    });
+    const client = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({ lt: vi.fn().mockReturnThis(), order: vi.fn().mockReturnValue({ limit }) }),
+        delete: vi.fn().mockReturnValue({ in: inIds }),
+      }),
+      storage: { from: vi.fn().mockReturnValue({ remove }) },
+    } as unknown as SupabaseClient;
+    const now = new Date("2026-11-10T00:00:00Z");
+    await expect(deleteExpiredInventoryPhotos(client, now)).rejects.toMatchObject({ status: 500 });
+    expect({ remains, fileExists }).toEqual({ remains: true, fileExists: false });
+    expect(await deleteExpiredInventoryPhotos(client, now)).toEqual({ deleted: 1 });
+    expect({ remains, fileExists }).toEqual({ remains: false, fileExists: false });
+    expect(remove).toHaveBeenCalledTimes(2);
   });
 });

@@ -68,4 +68,18 @@ test("실제 Storage에서 저장·비공개 조회·30일 만료 삭제", async
   expect(afterCleanup.data).toEqual([{ id: current.id }]);
   expect((await bucket.download(expired.path)).error).not.toBeNull();
   expect((await bucket.download(current.path)).error).toBeNull();
+
+  // Storage 삭제 후 DB 삭제가 실패한 상태를 실제 서비스에 만든다.
+  const stale = await record(`중단된정리-${randomUUID()}`);
+  const staleTime = await db.from("inventory_photos").update({ captured_at: oldTime }).eq("id", stale.id);
+  expect(staleTime.error).toBeNull();
+  expect((await bucket.remove([stale.path])).error).toBeNull();
+  const partial = await listInventoryPhotos(db, 0);
+  expect(partial.photos.map((item) => item.id)).toContain(current.id);
+  expect(partial.photos.map((item) => item.id)).not.toContain(stale.id);
+  expect(partial.unavailableCount).toBe(1);
+  expect(await deleteExpiredInventoryPhotos(db)).toEqual({ deleted: 1 });
+  const recovered = await db.from("inventory_photos").select("id").eq("id", stale.id);
+  expect(recovered.error).toBeNull();
+  expect(recovered.data).toEqual([]);
 }, 30_000);

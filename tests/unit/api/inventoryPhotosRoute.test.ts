@@ -25,7 +25,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAdmin).mockResolvedValue({ id: "admin-id" } as Awaited<ReturnType<typeof requireAdmin>>);
   vi.mocked(createServiceClient).mockReturnValue({} as ReturnType<typeof createServiceClient>);
-  vi.mocked(listInventoryPhotos).mockResolvedValue({ photos: [], hasMore: false });
+  vi.mocked(listInventoryPhotos).mockResolvedValue({ photos: [], hasMore: false, nextOffset: 0, unavailableCount: 0 });
   vi.mocked(deleteExpiredInventoryPhotos).mockResolvedValue({ deleted: 0 });
   vi.mocked(saveInventoryPhoto).mockResolvedValue({ id: "photo-id", capturedBy: "김혁", capturedAt: "2026-11-10T00:00:00Z", contentType: "image/jpeg", byteSize: 3 });
 });

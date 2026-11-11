@@ -16,6 +16,8 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
     const router = useRouter();
     const [photos, setPhotos] = useState<InventoryPhoto[]>([]);
     const [hasMore, setHasMore] = useState(false);
+    const [nextOffset, setNextOffset] = useState(0);
+    const [unavailableCount, setUnavailableCount] = useState(0);
     const [loaded, setLoaded] = useState(false);
     const [busy, setBusy] = useState(false);
     const [file, setFile] = useState<File | null>(null);
@@ -31,6 +33,8 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
         const result = InventoryPhotosResponseSchema.parse(await response.json());
         setPhotos((current) => offset === 0 ? result.photos : [...current, ...result.photos]);
         setHasMore(result.hasMore);
+        setNextOffset(result.nextOffset);
+        setUnavailableCount((count) => offset === 0 ? result.unavailableCount : count + result.unavailableCount);
         setLoaded(true);
     }, [router]);
 
@@ -104,6 +108,9 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
             새 교대가 시작됐습니다. 재고 사진을 촬영해 주세요.
         </p>}
         {error && <p role="alert" className="text-sm text-chili">{error}</p>}
+        {unavailableCount > 0 && <p role="status" className="text-sm text-chili">
+            사진 {unavailableCount}건을 표시하지 못했습니다. 새로고침하거나 30일 지난 기록을 정리해 주세요.
+        </p>}
         {message && <p role="status" className="text-sm text-ok">{message}</p>}
         <form onSubmit={upload} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <label className="grid gap-1 text-sm">촬영자 이름
@@ -128,7 +135,9 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
             </button>
         </div>
         {!loaded ? <p role="status" className="text-sm text-dough-dim">사진을 불러오는 중…</p>
-            : photos.length === 0 ? <p className="text-sm text-dough-dim">아직 촬영 기록이 없습니다.</p>
+            : photos.length === 0 ? <p className="text-sm text-dough-dim">
+                {unavailableCount > 0 ? "표시할 수 있는 사진이 없습니다." : "아직 촬영 기록이 없습니다."}
+            </p>
                 : <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {photos.map((photo) => <li key={photo.id} className="overflow-hidden rounded-lg border border-iron-line bg-iron">
                         {/* 관리자 전용 서명 URL로 제공하는 현장 기록 사진이다. */}
@@ -140,7 +149,7 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
                         </div>
                     </li>)}
                 </ol>}
-        {hasMore && <button type="button" disabled={busy} onClick={() => void load(photos.length).catch(() => setError("이전 사진을 불러오지 못했습니다."))}
+        {hasMore && <button type="button" disabled={busy} onClick={() => void load(nextOffset).catch(() => setError("이전 사진을 불러오지 못했습니다."))}
             className="rounded-lg border border-iron-line px-4 py-2 text-sm disabled:opacity-50">이전 사진 더 보기</button>}
     </section>;
 }
