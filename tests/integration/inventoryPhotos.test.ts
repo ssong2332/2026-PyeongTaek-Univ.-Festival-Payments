@@ -61,7 +61,7 @@ test("실제 Storage에서 저장·비공개 조회·30일 만료 삭제", async
   const oldTime = new Date(Date.now() - 31 * 24 * 60 * 60_000).toISOString();
   const marked = await db.from("inventory_photos").update({ captured_at: oldTime }).eq("id", expired.id);
   expect(marked.error).toBeNull();
-  expect(await deleteExpiredInventoryPhotos(db)).toEqual({ deleted: 1 });
+  expect(await deleteExpiredInventoryPhotos(db)).toEqual({ deleted: 1, failed: 0 });
 
   const afterCleanup = await db.from("inventory_photos").select("id").in("id", [current.id, expired.id]);
   expect(afterCleanup.error).toBeNull();
@@ -78,7 +78,7 @@ test("실제 Storage에서 저장·비공개 조회·30일 만료 삭제", async
   expect(partial.photos.map((item) => item.id)).toContain(current.id);
   expect(partial.photos.map((item) => item.id)).not.toContain(stale.id);
   expect(partial.unavailableCount).toBe(1);
-  expect(await deleteExpiredInventoryPhotos(db)).toEqual({ deleted: 1 });
+  expect(await deleteExpiredInventoryPhotos(db)).toEqual({ deleted: 1, failed: 0 });
   const recovered = await db.from("inventory_photos").select("id").eq("id", stale.id);
   expect(recovered.error).toBeNull();
   expect(recovered.data).toEqual([]);

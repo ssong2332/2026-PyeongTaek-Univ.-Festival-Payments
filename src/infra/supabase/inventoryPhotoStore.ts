@@ -24,6 +24,24 @@ const extension: Record<string, string> = {
     "image/png": "png",
     "image/webp": "webp",
 };
+const allowedTypes = Object.keys(extension).sort();
+
+type StorageFailure = { status?: number; statusCode?: string; message?: string };
+function isMissingObject(error: unknown) {
+    if (!error || typeof error !== "object") return false;
+    const failure = error as StorageFailure;
+    return failure.statusCode === "NoSuchKey" ||
+        (failure.status === 404 && failure.message === "Object not found");
+}
+
+function assertPrivateBucket(bucket: { public: boolean; file_size_limit?: number; allowed_mime_types?: string[] }) {
+    const types = bucket.allowed_mime_types?.slice().sort();
+    if (bucket.public || bucket.file_size_limit !== INVENTORY_PHOTO_MAX_BYTES ||
+        JSON.stringify(types) !== JSON.stringify(allowedTypes)) {
+        logger.error("inventory.photos.bucket_policy_mismatch");
+        throw new AppError("INTERNAL_ERROR", 500);
+    }
+}
 
 function matchesContentType(bytes: Uint8Array, type: string) {
     if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
@@ -36,17 +54,22 @@ function matchesContentType(bytes: Uint8Array, type: string) {
 
 async function ensureBucket(client: SupabaseClient) {
     const { data } = await client.storage.getBucket(INVENTORY_PHOTO_BUCKET);
-    if (data) return;
+    if (data) { assertPrivateBucket(data); return; }
     const { error } = await client.storage.createBucket(INVENTORY_PHOTO_BUCKET, {
         public: false,
         fileSizeLimit: INVENTORY_PHOTO_MAX_BYTES,
-        allowedMimeTypes: Object.keys(extension),
+        allowedMimeTypes: allowedTypes,
     });
     if (error) {
         // 다른 관리자 요청이 동시에 버킷을 만들었을 수 있다.
         const retry = await client.storage.getBucket(INVENTORY_PHOTO_BUCKET);
         if (!retry.data) throw new AppError("INTERNAL_ERROR", 500);
+        assertPrivateBucket(retry.data);
+        return;
     }
+    const confirmed = await client.storage.getBucket(INVENTORY_PHOTO_BUCKET);
+    if (!confirmed.data) throw new AppError("INTERNAL_ERROR", 500);
+    assertPrivateBucket(confirmed.data);
 }
 
 export async function listInventoryPhotos(client: SupabaseClient, offset: number) {
@@ -57,18 +80,27 @@ export async function listInventoryPhotos(client: SupabaseClient, offset: number
     if (error) throw new AppError("INTERNAL_ERROR", 500);
     const rows = (data ?? []) as PhotoRow[];
     const page = rows.slice(0, PAGE_SIZE);
-    const resolved = await Promise.allSettled(page.map(async (row) => {
-        const { data: signed, error: signError } = await client.storage.from(INVENTORY_PHOTO_BUCKET)
-            .createSignedUrl(row.storage_path, URL_TTL_SECONDS);
-        if (signError || !signed?.signedUrl) throw signError ?? new Error("Signed URL unavailable");
-        return {
-            id: row.id, capturedBy: row.captured_by, capturedAt: row.captured_at,
-            contentType: row.content_type, byteSize: row.byte_size, imageUrl: signed.signedUrl,
-        };
+    const bucket = client.storage.from(INVENTORY_PHOTO_BUCKET);
+    const resolved = await Promise.all(page.map(async (row) => {
+        try {
+            const { data: signed, error: signError } = await bucket.createSignedUrl(row.storage_path, URL_TTL_SECONDS);
+            if (signed?.signedUrl && !signError) return { kind: "photo" as const, photo: {
+                id: row.id, capturedBy: row.captured_by, capturedAt: row.captured_at,
+                contentType: row.content_type, byteSize: row.byte_size, imageUrl: signed.signedUrl,
+            } };
+            if (isMissingObject(signError)) return { kind: "missing" as const };
+            const info = await bucket.info(row.storage_path);
+            return { kind: isMissingObject(info.error) ? "missing" as const : "error" as const };
+        } catch {
+            return { kind: "error" as const };
+        }
     }));
-    const photos = resolved.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const photos = resolved.flatMap((result) => result.kind === "photo" ? [result.photo] : []);
     const unavailableCount = page.length - photos.length;
     if (unavailableCount) logger.warn("inventory.photos.unavailable", { count: unavailableCount });
+    if (!photos.length && resolved.some((result) => result.kind === "error")) {
+        throw new AppError("INTERNAL_ERROR", 500);
+    }
     return { photos, hasMore: rows.length > PAGE_SIZE, nextOffset: offset + page.length, unavailableCount };
 }
 
@@ -107,12 +139,24 @@ export async function deleteExpiredInventoryPhotos(client: SupabaseClient, now =
         .lt("captured_at", cutoff).order("captured_at").limit(100);
     if (error) throw new AppError("INTERNAL_ERROR", 500);
     const rows = (data ?? []) as Pick<PhotoRow, "id" | "storage_path">[];
-    if (!rows.length) return { deleted: 0 };
-    const { error: removeError } = await client.storage.from(INVENTORY_PHOTO_BUCKET)
-        .remove(rows.map((row) => row.storage_path));
-    if (removeError) throw new AppError("INTERNAL_ERROR", 500);
-    const { error: deleteError } = await client.from("inventory_photos").delete()
-        .in("id", rows.map((row) => row.id));
-    if (deleteError) throw new AppError("INTERNAL_ERROR", 500);
-    return { deleted: rows.length };
+    const bucket = client.storage.from(INVENTORY_PHOTO_BUCKET);
+    let deleted = 0;
+    let failed = 0;
+    for (const row of rows) {
+        try {
+            const info = await bucket.info(row.storage_path);
+            if (info.error && !isMissingObject(info.error)) { failed += 1; continue; }
+            if (!info.error) {
+                const removed = await bucket.remove([row.storage_path]);
+                if (removed.error && !isMissingObject(removed.error)) { failed += 1; continue; }
+            }
+            const result = await client.from("inventory_photos").delete().eq("id", row.id).select("id");
+            if (result.error) { failed += 1; continue; }
+            deleted += result.data?.length ?? 0;
+        } catch {
+            failed += 1;
+        }
+    }
+    if (failed) logger.warn("inventory.photos.cleanup_failed", { count: failed });
+    return { deleted, failed };
 }

@@ -86,9 +86,10 @@ export function InventoryPhotoPanel({ activeShifts }: { activeShifts: Shift[] })
             const response = await fetch(endpoint, { method: "DELETE" });
             if (response.status === 401) { router.replace("/admin/login"); return; }
             if (!response.ok) throw new Error("cleanup failed");
-            const result = await response.json() as { deleted: number };
+            const result = await response.json() as { deleted: number; failed: number };
             await load();
-            setMessage(`30일 지난 사진 ${result.deleted}건을 정리했습니다.`);
+            if (result.failed) setError(`${result.deleted}건 정리, ${result.failed}건 실패했습니다. 잠시 후 다시 시도해 주세요.`);
+            else setMessage(`30일 지난 사진 ${result.deleted}건을 정리했습니다.`);
         } catch {
             setError("지난 사진을 정리하지 못했습니다. 다시 시도해 주세요.");
         } finally { setBusy(false); }
