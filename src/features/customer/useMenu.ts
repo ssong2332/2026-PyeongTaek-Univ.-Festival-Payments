@@ -49,7 +49,8 @@ export function useMenu(locale: MenuLocale = DEFAULT_LOCALE, options: { pollQueu
         const timer = setInterval(() => {
             fetchJson("/api/queue", {}, { parse: (data) => QueueResponseSchema.parse(data) })
                 .then((queue) => {
-                    if (!cancelled) setState((prev) => ({ ...prev, waitingCount: queue.waitingCount }));
+                    // 값이 같으면 상태를 그대로 둬 메뉴판을 다시 그리지 않는다.
+                    if (!cancelled) setState((prev) => (prev.waitingCount === queue.waitingCount ? prev : { ...prev, waitingCount: queue.waitingCount }));
                 })
                 // 대기 수 갱신 실패는 화면에 알리지 않는다 — 이전 값을 두고 다음 주기에 다시 읽는다.
                 .catch(() => {});

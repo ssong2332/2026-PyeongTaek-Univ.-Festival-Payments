@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
+import { memo } from "react";
 import type { PointerEvent } from "react";
 import { ChevronRightIcon, FlameIcon, PlusIcon } from "@/components/ui/icons";
 import { menuImageUrl } from "@/features/customer/menuImages";
@@ -13,7 +14,7 @@ import { ArtIcon } from "@/components/ui/ArtIcon";
 // "오늘의 추천" 큰 사진 카드 띠(가로로 밀어 보기). 아래 전체 메뉴의 바로가기라 화면 읽기·키보드는 목록 쪽을 쓰고
 // 여기는 숨긴다(aria-hidden, 탭 이동 제외). 손가락으로 밀면 가운데 카드가 앞으로 나오고 양옆은 비스듬히 물러나며
 // (스크롤 연동 CSS — 지원하는 브라우저에서), 사진은 카드보다 느리게 흘러 깊이감을 준다. 카드를 기울이면 빛이 따라온다.
-export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItemDto[]; onSelect: (menuId: string) => void }) {
+export const FeaturedCarousel = memo(function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItemDto[]; onSelect: (menuId: string) => void }) {
     const t = useT();
     if (items.length === 0) return null;
     return (
@@ -37,7 +38,7 @@ export function FeaturedCarousel({ items, onSelect }: { items: readonly MenuItem
             </div>
         </section>
     );
-}
+});
 
 function FeaturedCard({ item, onSelect }: { item: MenuItemDto; onSelect: () => void }) {
     const locale = useLocale();
