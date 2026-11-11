@@ -138,7 +138,7 @@ describe("재고 사진 저장소", () => {
     const limit = vi.fn().mockImplementation(async () => ({ data: remains ? [row] : [], error: null }));
     const info = vi.fn().mockImplementation(async () => fileExists
       ? { data: { name: "photo.jpg" }, error: null }
-      : { data: null, error: { status: 404, message: "Object not found" } });
+      : { data: null, error: { status: 400, statusCode: "404", message: "Object not found" } });
     const remove = vi.fn().mockImplementation(async () => {
       fileExists = false;
       return { error: null };

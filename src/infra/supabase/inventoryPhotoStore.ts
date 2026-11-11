@@ -31,7 +31,7 @@ function isMissingObject(error: unknown) {
     if (!error || typeof error !== "object") return false;
     const failure = error as StorageFailure;
     return failure.statusCode === "NoSuchKey" ||
-        (failure.status === 404 && failure.message === "Object not found");
+        ((failure.statusCode === "404" || failure.status === 404) && failure.message === "Object not found");
 }
 
 function assertPrivateBucket(bucket: { public: boolean; file_size_limit?: number; allowed_mime_types?: string[] }) {

@@ -74,7 +74,6 @@ test("실제 Storage에서 저장·비공개 조회·30일 만료 삭제", async
   const staleTime = await db.from("inventory_photos").update({ captured_at: oldTime }).eq("id", stale.id);
   expect(staleTime.error).toBeNull();
   expect((await bucket.remove([stale.path])).error).toBeNull();
-  console.log("missing object info", JSON.stringify((await bucket.info(stale.path)).error));
   const partial = await listInventoryPhotos(db, 0);
   expect(partial.photos.map((item) => item.id)).toContain(current.id);
   expect(partial.photos.map((item) => item.id)).not.toContain(stale.id);
