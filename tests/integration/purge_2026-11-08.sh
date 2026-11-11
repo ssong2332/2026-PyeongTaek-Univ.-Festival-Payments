@@ -11,8 +11,12 @@ fi
 psql -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE festival_purge_test'
 trap 'psql -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE festival_purge_test WITH (FORCE)" >/dev/null' EXIT
 
-# Supabase creates this publication during project bootstrap; a plain CREATE DATABASE does not.
-psql -d festival_purge_test -v ON_ERROR_STOP=1 -c 'CREATE PUBLICATION supabase_realtime' >/dev/null
+# Supabase creates these before migrations; a plain CREATE DATABASE does not copy them.
+psql -d festival_purge_test -v ON_ERROR_STOP=1 <<'SQL' >/dev/null
+CREATE SCHEMA extensions;
+CREATE EXTENSION pgcrypto WITH SCHEMA extensions;
+CREATE PUBLICATION supabase_realtime;
+SQL
 
 mapfile -t migrations < <(find supabase/migrations -maxdepth 1 -type f \
   -name '[0-9][0-9][0-9][0-9]_*.sql' | LC_ALL=C sort)
