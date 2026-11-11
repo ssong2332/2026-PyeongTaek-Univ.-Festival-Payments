@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { makePreviewOrders } from "@/features/admin/DashboardPreview";
 import { LiveOrderDashboard } from "@/features/admin/LiveOrderDashboard";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const reloadOrders = vi.hoisted(() => vi.fn(async () => {}));
 const refreshOrders = vi.hoisted(() => vi.fn(async () => {}));
+const playSound = vi.hoisted(() => vi.fn(async () => {}));
+const feedControls = vi.hoisted(() => ({ pushOrder: null as null | ((order: AdminOrderDto) => void) }));
 // reload()/refresh()가 서버에서 다시 받아 올 주문 목록. null이면 목록을 바꾸지 않는다.
 const server = vi.hoisted(() => ({ orders: null as AdminOrderDto[] | null }));
 const monitorState = vi.hoisted(() => ({
@@ -20,9 +22,13 @@ const monitorState = vi.hoisted(() => ({
 vi.mock("@/features/admin/useOrdersFeed", async () => {
     const { useState } = await import("react");
     return {
-        useOrdersFeed: () => {
+        useOrdersFeed: (options?: { onNewOrder?: (order: AdminOrderDto) => void }) => {
             const [orders, setOrders] = useState(makePreviewOrders);
             const applyServer = () => { if (server.orders) setOrders(server.orders); };
+            feedControls.pushOrder = (order) => {
+                setOrders((current) => [order, ...current]);
+                options?.onNewOrder?.(order);
+            };
             return {
                 orders, isLoading: false, error: null, channelStatus: "SUBSCRIBED",
                 reload: async () => { await reloadOrders(); applyServer(); },
@@ -31,6 +37,9 @@ vi.mock("@/features/admin/useOrdersFeed", async () => {
         },
     };
 });
+vi.mock("@/features/admin/useNewOrderSound", () => ({
+    useNewOrderSound: () => ({ enabled: false, enable: vi.fn(), disable: vi.fn(), play: playSound }),
+}));
 vi.mock("@/features/admin/useConnectionMonitor", () => ({
     useConnectionMonitor: (options: typeof monitorState.options) => {
         monitorState.options = options;
@@ -46,6 +55,32 @@ vi.mock("@/features/admin/useStaffCallsFeed", () => ({
 afterEach(() => {
     cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); server.orders = null;
     monitorState.disconnected = false; monitorState.options = null;
+    feedControls.pushOrder = null;
+});
+
+it("limits new-order sound and cards to once per 10 seconds while keeping every order in the unread count", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    render(<LiveOrderDashboard />);
+    const newOrder = (id: string, pickupNumber: number): AdminOrderDto => ({
+        ...makePreviewOrders()[0], id, pickupNumber, source: "customer", acknowledgedAt: null,
+    });
+
+    act(() => feedControls.pushOrder?.(newOrder("order-5", 5)));
+    expect(playSound).toHaveBeenCalledTimes(1);
+    expect(within(screen.getByRole("region", { name: "새 알림" })).getByText("#005")).toBeTruthy();
+
+    clock.mockReturnValue(5_000);
+    act(() => feedControls.pushOrder?.(newOrder("order-6", 6)));
+    expect(playSound).toHaveBeenCalledTimes(1);
+    expect(within(screen.getByRole("region", { name: "새 알림" })).queryByText("#006")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("미확인 주문 4건");
+
+    clock.mockReturnValue(11_000);
+    act(() => feedControls.pushOrder?.(newOrder("order-7", 7)));
+    expect(playSound).toHaveBeenCalledTimes(2);
+    expect(within(screen.getByRole("region", { name: "새 알림" })).getByText("#007")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("미확인 주문 5건");
+    clock.mockRestore();
 });
 
 it("reflects the validated acknowledge response even before a realtime update", async () => {

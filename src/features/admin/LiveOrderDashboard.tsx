@@ -18,6 +18,8 @@ import { AdminOrderDtoSchema, AdminOrdersResponseSchema, type AdminOrderDto } fr
 import { AdminReviewsResponseSchema } from "@/lib/dto/review";
 import { StatsDtoSchema } from "@/lib/dto/stats";
 
+const NEW_ORDER_ALERT_INTERVAL_MS = 10_000;
+
 async function fetchStats(date: string) {
     const response = await fetch(`/api/admin/stats?date=${encodeURIComponent(date)}`, { cache: "no-store" });
     if (!response.ok) throw new Error("Stats request failed");
@@ -35,10 +37,16 @@ export function LiveOrderDashboard() {
     const sound = useNewOrderSound();
     // 소리를 못 들어도 알 수 있게 화면 알림(테두리 빛·알림 카드·탭 제목 깜빡임·진동)을 함께 띄운다
     const attention = useAttention();
+    const lastOrderAlertAt = useRef<number | null>(null);
 
     const feed = useOrdersFeed({
         onNewOrder: (order) => {
             if (!shouldAlertNewOrder(order)) return;
+            // 소리·화면 알림만 제한한다. 주문 목록과 미확인 건수는 피드가 모두 반영한다.
+            const now = Date.now();
+            const elapsed = lastOrderAlertAt.current === null ? NEW_ORDER_ALERT_INTERVAL_MS : now - lastOrderAlertAt.current;
+            if (elapsed >= 0 && elapsed < NEW_ORDER_ALERT_INTERVAL_MS) return;
+            lastOrderAlertAt.current = now;
             void sound.play();
             attention.push(orderAlert(order));
         },

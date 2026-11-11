@@ -181,6 +181,8 @@ POST /api/orders (Route Handler)
 200 AdminOrderDto (갱신본)  +  Realtime UPDATE가 모든 대시보드에 전파  +  고객 상태 페이지는 다음 폴링(≤5초)에 반영
 ```
 
+**적용 예정(T-54, DECISIONS #71)**: 위 흐름의 `repo.findById`는 상태·결제수단과 함께 취소 요청 시각·거절 시각(`cancel_requested_at`·`cancel_rejected_at`)도 읽는다. 고객 취소 요청이 대기 중이면 `confirm_payment`·`confirm_cash`·`start_cooking`은 상태 머신 단계에서 409 `INVALID_TRANSITION`이 된다. 이 세 동작은 `transition_order` 대신 `0106`의 새 DB 함수를 호출해, 조회 뒤 고객 취소 요청이 저장됐으면 409 `STATE_CHANGED`로 거부된다(취소 요청이 없어 기대값이 `null`이어도 항상 비교).
+
 ### 실시간 피드·연결 감시: ADR-0003. 시간 기반 스윕: ADR-0006.
 
 ## 데이터 모델과 인터페이스
@@ -192,7 +194,7 @@ POST /api/orders (Route Handler)
 | 값 | 한글 라벨 | 의미 | 터미널 |
 |---|---|---|---|
 | `pending` | 결제대기 | 생성됨, 결제 미확인 | 아니오 |
-| `paid` | 결제확인 | 송금 입금 확인됨 (현금은 거치지 않음) | 아니오 |
+| `paid` | 결제확인 | 송금 입금 확인됨 (현금은 거치지 않음). **적용 예정(T-54)**: 신규 계좌이체 흐름도 거치지 않음 — 기존 데이터·호환용으로 유지(DECISIONS #64) | 아니오 |
 | `cooking` | 조리중 | 조리 시작 | 아니오 |
 | `completed` | 완료 | 픽업 완료 | 예 |
 | `cancelled` | 취소 | 관리자 취소(결제대기·결제확인에서) | 예 |
@@ -211,6 +213,12 @@ POST /api/orders (Route Handler)
 | `cancel` | pending → cancelled, paid → cancelled | admin | — (고객 취소 요청 승인도 이 action) | **필수** | **예** | `closed_at` |
 | `refund` | cooking → refunded | admin | `refund_channel` 필수 (`cash` / `bank` — 주문의 결제수단과 일치해야 함: 현금 주문은 `cash`, 계좌이체 주문은 `bank`. 2026-09-24 간편결제 제외) | **필수** | **예** | `closed_at`, `refund_channel` |
 | `expire` | pending → expired | system | `transfer_reported_at IS NULL` AND `created_at + expire_minutes <= now` | 없음 | **예** | `closed_at` |
+
+**적용 예정(T-54·T-55)** — 코드 병합 때 위 표에 반영하고 이 블록의 해당 줄을 지운다 (DECISIONS #64·#65·#71):
+
+- (T-54) `confirm_payment`: pending → **cooking**, 타임스탬프 `paid_at`·`cooking_started_at` 동시 기록(`confirm_cash`와 같음). `start_cooking`(paid → cooking)은 기존 결제확인 주문용으로 남긴다.
+- (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 조회 뒤 고객 요청이 끼어드는 동시 요청은 T-54의 `0106` DB 함수가 막는다(행 잠금 뒤 조회 시점 취소 요청 값과 비교, 다르면 409 `STATE_CHANGED`). 운영 DB에 `0106` 적용 후 앱 배포. 화면 버튼 비활성·안내 문구는 별도 UI 작업.
+- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). 마이그레이션 번호는 `0107`(#155, 2026-11-11), DB 함수·컬럼은 T-55 DB 설계 후 확정.
 
 상태를 바꾸지 않는 이벤트(이력 행은 `from = to`로 기록):
 
@@ -235,6 +243,8 @@ function resolveTransition(order: { status: OrderStatus; paymentMethod: PaymentM
                            input: { reason?: string; refundChannel?: RefundChannel }): TransitionResult;
 function availableActions(order): TransitionAction[];   // 대시보드 버튼 활성/비활성의 근거
 ```
+
+**적용 예정(T-54, DECISIONS #71)**: 두 함수의 `order` 입력에 선택 항목 `cancelRequestedAt?: string | null`·`cancelRejectedAt?: string | null`을 더한다. 취소 요청이 대기 중이면(`cancelRequestedAt`가 있고 `cancelRejectedAt`가 없음) `availableActions`는 `confirm_payment`·`confirm_cash`·`start_cooking`을 빼고, `resolveTransition`은 이 세 동작에 `INVALID_TRANSITION`을 돌려준다. "취소 요청 대기 중" 판단은 도메인 함수 하나로 둔다. 두 항목을 넘기지 않으면 지금과 같은 결과다(기존 호출부 수정 불필요). 서버 차단은 `adminOrderService.transition`이 `findById` 결과(두 항목 포함)로 판단한다. 대시보드 버튼에 반영하려면 버튼을 계산하는 두 곳 — 목록 API(`adminOrderRepository`)와 실시간 갱신(`useOrdersFeed`) — 이 모두 두 항목을 넘겨야 한다(한 곳만 넘기면 실시간 갱신 때 버튼이 다시 켜진다). 화면 반영은 별도 UI 작업.
 
 고객 화면 버튼 노출 규칙(`GET /api/orders/{token}` 응답의 파생 필드): `canTransferReport = status='pending' && paymentMethod='transfer' && transferReportedAt==null`, `canCancelRequest = status∈{pending,paid} && cancelRequestedAt==null && cancelRejectedAt==null`.
 
@@ -266,6 +276,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|
 | `create_order` | `(p_idempotency_key uuid, p_payment_method payment_method, p_locale text, p_items jsonb) RETURNS jsonb` — ADR-0002 | `OUT_OF_STOCK` (detail: menu_item_id, available) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `EMPTY_ITEMS` |
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
+| 이름 확정 예정 (`0106`, T-54) **적용 예정(T-54)** | `transition_order` 입력 + 조회 시점의 `cancel_requested_at`·`cancel_rejected_at` 기대값. `SELECT ... FOR UPDATE` 뒤 NULL 포함 비교(`IS NOT DISTINCT FROM`) → 같으면 같은 트랜잭션에서 `transition_order` 호출. `confirm_payment`·`confirm_cash`·`start_cooking`에만 사용. `SECURITY INVOKER`·제한된 `search_path`·`service_role`만 EXECUTE | `STATE_CHANGED` (취소 요청 값 불일치) + `transition_order`의 예외 |
 | `create_manual_order` (`0104_manual_orders.sql`) | `(p_idempotency_key uuid, p_payment_method payment_method, p_manual_ordered_at timestamptz, p_manual_number integer, p_actor_id uuid, p_items jsonb) RETURNS jsonb` — T-28 수기 주문 사후 입력(F-34, DECISIONS #62). 완료 상태 주문(`source='manual'`·`manual_ordered_at`·`manual_number`) + 상태 이력(`manual_create`, admin) + 재고 차감을 한 트랜잭션으로. 재고는 `greatest(stock - 수량, 0)`(모자라도 저장), 가격은 DB 값, 비활성 메뉴·옵션 허용. 같은 멱등키 재요청은 기존 주문 반환(`created=false`). `pickup_number`는 고객 번호와 겹치지 않게 `2100000000 + manual_number` | `MANUAL_NUMBER_TAKEN` (detail: manualNumber) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `INVALID_MANUAL_ORDERED_AT`(미래) · `INVALID_MANUAL_NUMBER` · `EMPTY_ITEMS` · `INVALID_ITEMS` · `IDEMPOTENCY_KEY_CONFLICT`(고객 주문의 키) |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
@@ -305,9 +316,9 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. 저장 API는 아래 고객 API 규격, 고객 폼 연결은 후속 |
 | 0104 | `0104_manual_orders.sql` | 수기 주문 사후 입력: `orders.source`·`manual_ordered_at`·`manual_number`, `create_manual_order`, `get_stats` 날짜 기준 변경 | T-28 · BE1 | 0103(운영 적용 순서) | 신규 배정(DECISIONS #62). 운영 DB는 0103까지 적용(2026-10-06 팀장 확인) — 병합 후 DB1 적용 |
 | 0105 | `0105_create_admin_menu.sql` | 관리자 메뉴 신규 등록 RPC `create_admin_menu`: 메뉴·번역·옵션 그룹·옵션을 한 트랜잭션으로 생성 | T-37 · FE2 | 0104(운영 적용 순서) | #139로 dev 병합. 운영에서 신규 메뉴 등록 전 DB1이 운영 DB에 적용·검증 |
-| 0106 | T-54 마이그레이션(파일명 미정) | 취소 요청과 결제 확인의 원자적 방어 | T-54 | 0105(운영 적용 순서) | #155에서 우선 배정, 선행 작업 |
-| 0107 | T-55 마이그레이션(파일명 미정) | 주문 되돌리기 DB 및 만료 기준 변경 | T-55 · DB1 | 0106(운영 적용 순서) | #155에서 우선 배정, 선행 작업 |
-| 0108 | `0108_inventory_photos.sql` | 교대 재고 사진 메타데이터, 관리자 API 전용 접근 | 재고 사진 기록 · 김혁 | 0107(운영 적용 순서) | PR 제안. 0106·0107 병합·적용 후 DB1이 앱 배포 전에 운영 DB에 적용 |
+| 0106 | 이름 확정 예정 | T-54 취소 요청·조리중 전환 원자성 방어: 조회 시점 취소 요청 값 비교 후 `transition_order` 호출하는 새 함수(`0009` 수정 없음) | T-54 · DB1(SQL·권한) / BE1(서비스 연결·경합 테스트) | 0105(운영 적용 순서) | 신규 배정(#155, 2026-11-11). DB1이 앱 배포 전에 운영 DB에 적용·권한 확인 |
+| 0107 | 이름 확정 예정 | T-55 되돌리기 함수·입금 대기 시작 시각·자동 만료 기준 | T-55 · DB1 | 0106(운영 적용 순서) | 신규 배정(#155, 2026-11-11) |
+| 0108 | `0108_inventory_photos.sql` | 교대 재고 사진 메타데이터, 관리자 API 전용 접근 | 재고 사진 기록 · 김혁(#158) | 0107(운영 적용 순서) | #155에 따라 재번호화. 0106·0107 병합·운영 적용 후 DB1이 앱 배포 전에 적용 |
 
 > **운영 DB 적용 현황(마지막 확인 2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). `0018`은 dev에 병합됐으나 운영 적용 여부는 재확인이 필요하다. `0019` 적용 전 운영 마이그레이션 이력에서 `0018` 적용을 확인한다. 기존 `0014`·`0015`는 규칙 4에 따라 `0018`·`0019`로 이름을 바꿨다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
@@ -359,7 +370,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `OUT_OF_STOCK` | 409 | 재고 부족 (`details: [{menuItemId, requested, available}]`) |
 | `INVALID_OPTION` | 409 | 옵션 ID가 메뉴에 속하지 않거나 min/max 위반 |
 | `INVALID_TRANSITION` | 409 | 상태 머신 불허 |
-| `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내 |
+| `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내. **적용 예정(T-54)**: `confirm_payment`·`confirm_cash`·`start_cooking`은 조회 뒤 고객 취소 요청이 저장된 경우에도 이 코드(`0106` DB 함수) |
 | `CANCEL_REQUEST_NOT_ALLOWED` | 409 | 조리중 이후 또는 거절됨/이미 요청됨 이외의 불가 상태 |
 | `REVIEW_NOT_ALLOWED` | 409 | 완료 외 주문의 후기 제출(조회 후 상태 변경 경합 포함) |
 | `REVIEW_ALREADY_SUBMITTED` | 409 | 이미 후기가 있는 주문의 재제출·동시 중복 제출 — 기존 내용·시각 유지 |
@@ -391,7 +402,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | `GET /api/admin/orders?date=YYYY-MM-DD&status=&pickupNumber=` | `date` 기본 오늘(KST — 서버 시각 기준). 달력에 없는 날짜면 400 `VALIDATION_ERROR`. `status` 콤마 목록 선택. `pickupNumber` 정수(있으면 date 무시) | `{ orders: AdminOrderDto[], unacknowledgedCount }` — `created_at DESC` | `AdminOrderDto { id, pickupNumber, status, paymentMethod, totalAmount, items: [{ menuNameKo, quantity, options: [{ nameKo, extraPrice }], lineTotal }], createdAt, updatedAt, acknowledgedAt, transferReportedAt, cancelRequestedAt, cancelRejectedAt, paidAt, cookingStartedAt, completedAt, closedAt, refundChannel, lastReason, availableActions: TransitionAction[] }`. F-22: `pickupNumber` 결과 0건이면 `orders: []` |
 | `GET /api/admin/orders/{id}` | — | `AdminOrderDto` | Realtime INSERT 하이드레이션용 |
 | `POST /api/admin/orders/{id}/acknowledge` | — | `AdminOrderDto` | 이미 확인됨이면 그대로 200 |
-| `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id` |
+| `POST /api/admin/orders/{id}/transition` | `{ action: 'confirm_payment'|'confirm_cash'|'start_cooking'|'complete'|'cancel'|'refund', reason?: string(1..200), refundChannel?: RefundChannel }` | `AdminOrderDto` | 상태 머신 절. `actor_type='admin', actor_id=user.id`. **적용 예정(T-55)**: 되돌리기 action 추가(사유 필수) |
 | `POST /api/admin/orders/{id}/cancel-request` | `{ decision: 'approve'|'reject', reason: string(1..200) }` | `AdminOrderDto` | approve = `transition(action='cancel', reason)`; reject = `cancel_rejected_at` 설정 + 이력(`cancel_request_reject`). `cancel_requested_at` 없으면 409 `INVALID_TRANSITION` — 이미 거절된 요청(`cancel_rejected_at` 있음)·결제대기/결제확인이 아닌 주문도 409. `reason` 빈 문자열 400 `VALIDATION_ERROR`, 공백만 400 `REASON_REQUIRED`(승인·거절 모두 사유 필수) |
 | `GET /api/admin/menus` | — | `{ menus: AdminMenuDto[] }` · `AdminMenuDto { id, translations: { [locale]: { name, description } }, basePrice, stock, isSoldOutManual, isActive, sortOrder, imageUrl, optionGroups: [{ id, translations, minSelect, maxSelect, isActive, options: [{ id, translations, extraPrice, isActive }] }] }` | 비활성 포함(1차 UI는 수정만) |
 | `PATCH /api/admin/menus/{id}` | `{ basePrice?: int≥0, stock?: int≥0, isSoldOutManual?: bool, translations?: { [locale]: { name: string≥1, description?: string } } }` | `AdminMenuDto` | ko `name` 빈값 → 400. 재고 0이면 `isSoldOut` 파생(F-25) — 별도 플래그 저장 없음 |
@@ -448,7 +459,7 @@ T-46 교대 스케줄: `GET /api/admin/shifts` → `{ shifts: Shift[] }`(날짜�
 | 항목 | 결정 |
 |---|---|
 | 의존성 방향 | `domain` ← `services` ← `infra/repositories`·`app/api`·`features` ← `app/(pages)`. `domain`은 어떤 것도 import하지 않는다(zod 포함 — 타입만). `services`는 `ports.ts`와 `domain`만 import. `next/*`·`@supabase/*`는 `infra`와 `app`에서만 |
-| Repository 포트 | `src/services/ports.ts`에 TS 인터페이스: `OrderRepository { createOrder(input): Promise<CreateOrderResult>; findByToken(token); findById(id); transition(...); setTransferReported(id); setCancelRequested(id); rejectCancelRequest(id, actorId, reason); acknowledge(id, actorId); list(filter); countWaitingBefore(createdAt?) }`, `MenuRepository`, `SettingsRepository`, `RateLimitRepository { consume(scope: string, key: string, limit: number, windowSeconds: number, now?: Date): Promise<boolean> }`(ADR-0009), `Clock { now(): Date }`. `OrderRepository`에 `findByIdempotencyKey(key)` 포함. 구현체는 `src/infra/repositories/supabase*.ts`. 주입은 함수 인자 기본값(`createOrder(dto, deps = defaultDeps())`) — DI 컨테이너 없음 |
+| Repository 포트 | `src/services/ports.ts`에 TS 인터페이스: `OrderRepository { createOrder(input): Promise<CreateOrderResult>; findByToken(token); findById(id); transition(...); setTransferReported(id); setCancelRequested(id); rejectCancelRequest(id, actorId, reason); acknowledge(id, actorId); list(filter); countWaitingBefore(createdAt?) }`, `MenuRepository`, `SettingsRepository`, `RateLimitRepository { consume(scope: string, key: string, limit: number, windowSeconds: number, now?: Date): Promise<boolean> }`(ADR-0009), `Clock { now(): Date }`. `OrderRepository`에 `findByIdempotencyKey(key)` 포함. **적용 예정(T-54)**: `findById(id)`가 돌려주는 `OrderForTransition`에 `cancelRequestedAt`·`cancelRejectedAt` 추가. 구현체는 `src/infra/repositories/supabase*.ts`. 주입은 함수 인자 기본값(`createOrder(dto, deps = defaultDeps())`) — DI 컨테이너 없음 |
 | DTO ↔ 도메인 변환 위치 | 요청: Route Handler에서 zod parse → 서비스에 DTO 타입 전달. 응답: DB 행 → 포트 타입 변환은 `src/infra/repositories/mappers.ts`(`toAdminOrderDto`, `toOrderByTokenResult`, `toMenuItemRecord`), 폴백·거르기·시각 표기처럼 규칙이 있는 응답 DTO 조립은 서비스(`getOrderByToken`, `getMenu`) — DB 행을 API로 직접 반환 금지(스프레드 금지, 필드 명시 나열 — 2차 `phone_encrypted` 누출 방지) |
 | 순환 의존성 | 금지. `features` ↔ `components` 사이도 단방향(features가 components를 렌더, components는 features를 모른다). ESLint `import/no-cycle` + `no-restricted-imports`(`domain`·`services`에서 `next`, `@supabase` 금지)를 T-01에 설정 |
 
@@ -489,7 +500,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 | 예외를 잡는 위치 | Route Handler를 `withHandler(fn)`으로 감싸 여기서만 catch. 서비스·리포지토리는 `AppError(code, httpStatus, details?)`를 던진다. 리포지토리는 supabase/Postgres 에러(RPC의 `RAISE EXCEPTION 'OUT_OF_STOCK'` 등, `unique_violation`)를 `AppError`로 변환하는 유일한 곳. 클라이언트: `features/*` 훅이 `fetchJson` 실패를 `{ status:'error', code }`로 상태화 — 컴포넌트는 try/catch 없음. React 렌더 오류는 `app/(customer)/error.tsx`·`app/admin/error.tsx`(다시 시도 버튼) |
 | 실패가 사용자에게 드러나는 방식 | HTTP 상태 + 봉투 `{ error: { code, message, details } }`(5절 표). 고객 화면은 `code`를 `messages/*.json`의 `errors.{code}` 문구로 표시(언어별), 알 수 없는 코드는 `errors.INTERNAL_ERROR`. 관리자 화면은 토스트 + 서버 최신 상태로 되돌림(낙관적 갱신 없음). 500은 상세 미노출(security-audit 4) |
 | 경계 간 전파 | domain: 반환값 유니온(`TransitionResult { ok:false, code }`) — 던지지 않음. services: domain의 `ok:false`를 `AppError`로 승격해 던짐. infra: DB 예외 → `AppError`. api: `AppError` → 봉투, 그 외 → 500 + `logger.error`. 클라이언트 재시도는 5xx·네트워크·타임아웃만(DECISIONS #24) |
-| 동시성 충돌 | `STATE_CHANGED`(409): 관리자 2명이 같은 카드를 조작 → 두 번째는 실패 토스트 + Realtime으로 최신 상태 수신. 재시도 없음(사용자가 다시 판단) |
+| 동시성 충돌 | `STATE_CHANGED`(409): 관리자 2명이 같은 카드를 조작 → 두 번째는 실패 토스트 + Realtime으로 최신 상태 수신. 재시도 없음(사용자가 다시 판단). **적용 예정(T-54)**: 관리자가 입금 확인·현금 수령 확인·조리 시작을 누르는 사이 고객 취소 요청이 먼저 저장된 경우도 같은 409 — 최신 상태에서 취소 요청을 승인/거절한 뒤 다시 처리 |
 
 ## 관측성
 

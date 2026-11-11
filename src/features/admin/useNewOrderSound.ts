@@ -44,73 +44,44 @@ export function useNewOrderSound() {
         setEnabled(false);
     }, []);
 
-    /**
-     * 짧은 2음 띵동 효과음.
-     * 외부 mp3/wav 파일 없이 Web Audio API로 생성한다.
-     */
-const play = useCallback(async () => {
-    if (!enabled) return;
+    /** 외부 파일 없이 두 음을 또렷하게 재생한다. */
+    const play = useCallback(async () => {
+        if (!enabled) return;
 
-    const context = audioContextRef.current;
+        const context = audioContextRef.current;
+        if (!context) return;
 
-    if (!context) {
-        return;
-    }
+        try {
+            // 백그라운드/절전 등으로 AudioContext가 중지된 경우 다시 활성화
+            if (context.state === "suspended") await context.resume();
+            if (context.state !== "running") return;
 
-    try {
-        // 백그라운드/절전 등으로 AudioContext가 중지된 경우 다시 활성화
-        if (context.state === "suspended") {
-            await context.resume();
+            const playTone = (frequency: number, startTime: number) => {
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+
+                oscillator.type = "triangle";
+                oscillator.frequency.setValueAtTime(frequency, startTime);
+
+                gain.gain.setValueAtTime(0.0001, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.36, startTime + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.32);
+
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.32);
+            };
+
+            const now = context.currentTime;
+            // 두 음을 겹치지 않게 울려 현장 소음 속에서도 구분하기 쉽게 한다.
+            playTone(880, now);
+            playTone(659.25, now + 0.38);
+        } catch (error) {
+            // 알림음 실패가 주문 처리에 영향을 주지 않도록 한다.
+            console.warn("[NewOrderSound] 알림음 재생 실패", error);
         }
-
-        // resume 후에도 실행 상태가 아니라면 재생하지 않음
-        if (context.state !== "running") {
-            return;
-        }
-
-        const playTone = (
-            frequency: number,
-            startTime: number,
-            duration: number,
-        ) => {
-            const oscillator = context.createOscillator();
-            const gain = context.createGain();
-
-            oscillator.type = "sine";
-            oscillator.frequency.setValueAtTime(
-                frequency,
-                startTime,
-            );
-
-            gain.gain.setValueAtTime(0.0001, startTime);
-            gain.gain.exponentialRampToValueAtTime(
-                0.18,
-                startTime + 0.02,
-            );
-            gain.gain.exponentialRampToValueAtTime(
-                0.0001,
-                startTime + duration,
-            );
-
-            oscillator.connect(gain);
-            gain.connect(context.destination);
-
-            oscillator.start(startTime);
-            oscillator.stop(startTime + duration);
-        };
-
-        const now = context.currentTime;
-
-        // 띵
-        playTone(659.25, now, 0.28);
-
-        // 동
-        playTone(523.25, now + 0.2, 0.35);
-    } catch (error) {
-        // 알림음 실패가 주문 처리에 절대 영향을 주지 않도록 한다.
-        console.warn("[NewOrderSound] 알림음 재생 실패", error);
-    }
-}, [enabled]);
+    }, [enabled]);
 
     /**
      * 컴포넌트가 완전히 사라질 때 AudioContext 정리.
