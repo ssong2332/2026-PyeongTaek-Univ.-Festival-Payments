@@ -64,6 +64,8 @@ SELECT public.create_manual_order(
 DO $$ BEGIN
     IF (SELECT count(*) FROM public.orders) <> 9
        OR (SELECT count(*) FROM public.orders WHERE source = 'manual') <> 2
+       OR (SELECT count(*) FROM public.orders WHERE source = 'manual' AND payment_method = 'cash') <> 1
+       OR (SELECT count(*) FROM public.orders WHERE source = 'manual' AND payment_method = 'transfer') <> 1
        OR (SELECT count(DISTINCT status) FROM public.orders) <> 7
        OR (SELECT count(DISTINCT payment_method) FROM public.orders) <> 2
        OR (SELECT count(*) FROM public.order_items) <> 9
