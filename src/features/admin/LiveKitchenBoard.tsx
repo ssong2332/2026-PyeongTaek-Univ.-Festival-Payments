@@ -5,14 +5,14 @@ import { ConnectionBanner } from "@/components/admin/ConnectionBanner";
 import { KitchenBoard } from "@/components/admin/KitchenBoard";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { useConnectionMonitor } from "@/features/admin/useConnectionMonitor";
-import { useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { pickNewerOrder, useOrdersFeed } from "@/features/admin/useOrdersFeed";
 import { AdminOrderDtoSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const REFRESH_INTERVAL_MS = 15_000;
 
-// 조리 화면 데이터 연결. 주문 관리와 같은 주문 피드·상태 변경 API를 쓴다.
+// 조리 화면 데이터 연결. 주문 관리와 같은 상태 변경 API를 쓰되, 주문 목록은 날짜와 상관없는 조리중 주문(scope=kitchen)을 받는다.
 export function LiveKitchenBoard({ initialNow }: { initialNow: string }) {
-    const feed = useOrdersFeed();
+    const feed = useOrdersFeed({ scope: "kitchen" });
     const { refresh, reload } = feed;
     const monitor = useConnectionMonitor({
         channelStatus: feed.channelStatus,
@@ -34,10 +34,11 @@ export function LiveKitchenBoard({ initialNow }: { initialNow: string }) {
     }, [refresh]);
 
     // 완료 응답을 실시간 이벤트보다 먼저 반영해, 누른 주문이 바로 목록에서 빠지게 한다.
+    // 어느 쪽이 최신인지는 시각 값으로 비교한다(문자열은 소수초 자릿수·시간대 표기가 다르면 틀린다).
     const [confirmed, setConfirmed] = useState<Record<string, AdminOrderDto>>({});
     const orders = feed.orders.map((order) => {
         const response = confirmed[order.id];
-        return response && response.updatedAt >= order.updatedAt ? response : order;
+        return response ? pickNewerOrder(order, response) : order;
     });
 
     async function completeOrder(id: string) {
@@ -52,7 +53,16 @@ export function LiveKitchenBoard({ initialNow }: { initialNow: string }) {
             throw code ? new TransitionRequestError(code) : new Error("Order transition failed");
         }
         const updated = AdminOrderDtoSchema.parse(await response.json());
-        setConfirmed((previous) => ({ ...previous, [updated.id]: updated }));
+        // 오래 켜 두는 화면이라, 피드에서 빠졌거나 피드가 더 최신이 된 응답은 정리해 쌓이지 않게 한다.
+        setConfirmed((previous) => {
+            const next: Record<string, AdminOrderDto> = {};
+            for (const order of feed.orders) {
+                const kept = previous[order.id];
+                if (kept && pickNewerOrder(order, kept) === kept) next[order.id] = kept;
+            }
+            next[updated.id] = updated;
+            return next;
+        });
     }
 
     return (

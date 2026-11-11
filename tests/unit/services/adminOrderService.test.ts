@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     listAdminOrders,
+    listKitchenOrders,
+    KITCHEN_ORDER_LIMIT,
     getAdminOrderById,
     acknowledgeAdminOrder,
     transition,
@@ -232,5 +234,14 @@ describe("adminOrderService.transition", () => {
             },
         };
         await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: racingRepo }), "STATE_CHANGED", 409);
+    });
+});
+
+describe("listKitchenOrders (조리 화면: 날짜 무관 조리중 주문)", () => {
+    it("날짜를 채우지 않고 조리중만, 오래된 순으로 한도까지 조회한다", async () => {
+        const list = vi.fn().mockResolvedValue([]);
+        const repo: AdminOrderRepository = { list, findById: vi.fn(), acknowledge: vi.fn() };
+        await listKitchenOrders(repo);
+        expect(list).toHaveBeenCalledWith({ status: ["cooking"], oldestFirst: true, limit: KITCHEN_ORDER_LIMIT });
     });
 });

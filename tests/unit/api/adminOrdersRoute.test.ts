@@ -74,6 +74,32 @@ describe("Admin Orders Route Handlers", () => {
             }
         });
 
+        it("scope=kitchen이면 날짜와 다른 조건 없이 조리중 주문만 조회한다", async () => {
+            const list = vi.fn().mockResolvedValue([]);
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list } as unknown as SupabaseAdminOrderRepository;
+            });
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=kitchen&date=2026-10-01&status=pending"));
+            expect(res.status).toBe(200);
+            expect(list).toHaveBeenCalledWith({ status: ["cooking"], oldestFirst: true, limit: 200 });
+        });
+
+        it("모르는 scope는 400", async () => {
+            const list = vi.fn().mockResolvedValue([]);
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list } as unknown as SupabaseAdminOrderRepository;
+            });
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=all"));
+            expect(res.status).toBe(400);
+            expect(list).not.toHaveBeenCalled();
+        });
+
+        it("scope=kitchen도 관리자 인증이 먼저다", async () => {
+            vi.mocked(requireAdmin).mockRejectedValue(new AppError("UNAUTHORIZED", 401));
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=kitchen"));
+            expect(res.status).toBe(401);
+        });
+
         it("픽업 번호 검색에서는 명시된 날짜도 무시한다", async () => {
             const list = vi.fn().mockResolvedValue([]);
             vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {

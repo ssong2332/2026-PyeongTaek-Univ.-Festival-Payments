@@ -15,6 +15,9 @@ export interface OrderListFilter {
     date?: string;
     status?: OrderStatus[];
     pickupNumber?: number;
+    // 조리 화면용: 오래된 주문부터, 최대 limit건.
+    oldestFirst?: boolean;
+    limit?: number;
 }
 
 export interface AdminOrderRepository {

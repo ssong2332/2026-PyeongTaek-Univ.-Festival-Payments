@@ -179,3 +179,11 @@ describe("useOrdersFeed — 응답 순서가 뒤바뀌어도 최신 상태 유�
         expect(statusOf(result.current.orders)).toEqual({ [A]: "paid" });
     });
 });
+
+describe("useOrdersFeed — 조리 화면 범위", () => {
+    it("scope=kitchen이면 날짜 대신 조리 화면 범위로 목록을 부른다", async () => {
+        renderHook(() => useOrdersFeed({ scope: "kitchen", initialDate: "2026-10-07" }));
+        expect(requests.map((request) => request.url)).toEqual(["/api/admin/orders?scope=kitchen"]);
+        await requests[0].respond({ orders: [] });
+    });
+});

@@ -31,6 +31,18 @@ export async function listAdminOrders(
     };
 }
 
+// 조리 화면(/admin/kitchen)은 날짜와 상관없이 지금 조리중인 주문을 모두 본다.
+// 자정 전에 들어와 자정 뒤에도 조리중인 주문이 오늘 범위에서 빠지지 않게 날짜를 채우지 않는다.
+export const KITCHEN_ORDER_LIMIT = 200;
+
+export async function listKitchenOrders(repository: AdminOrderRepository): Promise<AdminOrdersResponse> {
+    const orders = await repository.list({ status: ["cooking"], oldestFirst: true, limit: KITCHEN_ORDER_LIMIT });
+    return {
+        orders,
+        unacknowledgedCount: orders.filter((o) => o.acknowledgedAt === null).length,
+    };
+}
+
 export async function getAdminOrderById(
     repository: Pick<AdminOrderRepository, "findById">,
     id: string,

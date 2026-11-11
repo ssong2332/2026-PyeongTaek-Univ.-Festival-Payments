@@ -167,6 +167,8 @@ export function mergeOrdersSnapshot(
 
 export interface UseOrdersFeedOptions {
     initialDate?: string;
+    // "kitchen": 날짜와 상관없이 조리중 주문만 불러온다(GET /api/admin/orders?scope=kitchen).
+    scope?: "kitchen";
     onNewOrder?: (order: AdminOrderDto) => void;
 }
 
@@ -187,7 +189,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         ? { initialDate: optionsOrDate }
         : optionsOrDate ?? {};
 
-    const { initialDate, onNewOrder } = options;
+    const { initialDate, onNewOrder, scope } = options;
 
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -217,7 +219,9 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
 
     const loadOrders = useCallback(async () => {
         try {
-            const query = dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
+            const query = scope
+                ? `?scope=${scope}`
+                : dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
             const res = await fetch(`/api/admin/orders${query}`);
             if (!res.ok) {
                 throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -234,7 +238,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
                 error: err instanceof Error ? err.message : "Unknown error",
             };
         }
-    }, []);
+    }, [scope]);
 
     const hydrateOrder = useCallback(async (id: string, notify = false) => {
         try {

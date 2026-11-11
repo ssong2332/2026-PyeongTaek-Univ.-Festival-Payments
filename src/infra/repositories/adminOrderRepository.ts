@@ -131,7 +131,11 @@ export class SupabaseAdminOrderRepository implements AdminOrderRepository {
         let query = this.client
             .from("orders")
             .select(ORDER_QUERY_SELECT)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: filter?.oldestFirst ?? false });
+
+        if (filter?.limit !== undefined) {
+            query = query.limit(filter.limit);
+        }
 
         if (filter?.pickupNumber !== undefined) {
             // F-22: pickupNumber 지정 시 date 무시
