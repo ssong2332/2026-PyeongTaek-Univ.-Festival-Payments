@@ -218,7 +218,7 @@ POST /api/orders (Route Handler)
 
 - (T-54) `confirm_payment`: pending → **cooking**, 타임스탬프 `paid_at`·`cooking_started_at` 동시 기록(`confirm_cash`와 같음). `start_cooking`(paid → cooking)은 기존 결제확인 주문용으로 남긴다.
 - (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 조회 뒤 고객 요청이 끼어드는 동시 요청은 T-54의 `0106` DB 함수가 막는다(행 잠금 뒤 조회 시점 취소 요청 값과 비교, 다르면 409 `STATE_CHANGED`). 운영 DB에 `0106` 적용 후 앱 배포. 화면 버튼 비활성·안내 문구는 별도 UI 작업.
-- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). DB 함수·컬럼·마이그레이션 번호는 T-55 DB 설계 후 확정.
+- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). 마이그레이션 번호는 `0107`(#155, 2026-11-11), DB 함수·컬럼은 T-55 DB 설계 후 확정.
 
 상태를 바꾸지 않는 이벤트(이력 행은 `from = to`로 기록):
 
@@ -370,7 +370,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | `OUT_OF_STOCK` | 409 | 재고 부족 (`details: [{menuItemId, requested, available}]`) |
 | `INVALID_OPTION` | 409 | 옵션 ID가 메뉴에 속하지 않거나 min/max 위반 |
 | `INVALID_TRANSITION` | 409 | 상태 머신 불허 |
-| `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내 |
+| `STATE_CHANGED` | 409 | CAS 실패(다른 관리자가 먼저 바꿈) — 클라이언트는 최신 상태로 갱신 후 안내. **적용 예정(T-54)**: `confirm_payment`·`confirm_cash`·`start_cooking`은 조회 뒤 고객 취소 요청이 저장된 경우에도 이 코드(`0106` DB 함수) |
 | `CANCEL_REQUEST_NOT_ALLOWED` | 409 | 조리중 이후 또는 거절됨/이미 요청됨 이외의 불가 상태 |
 | `REVIEW_NOT_ALLOWED` | 409 | 완료 외 주문의 후기 제출(조회 후 상태 변경 경합 포함) |
 | `REVIEW_ALREADY_SUBMITTED` | 409 | 이미 후기가 있는 주문의 재제출·동시 중복 제출 — 기존 내용·시각 유지 |
@@ -500,7 +500,7 @@ docs/PRD.md의 "배포·운영" 항목이 요구사항이라면, 여기는 그 �
 | 예외를 잡는 위치 | Route Handler를 `withHandler(fn)`으로 감싸 여기서만 catch. 서비스·리포지토리는 `AppError(code, httpStatus, details?)`를 던진다. 리포지토리는 supabase/Postgres 에러(RPC의 `RAISE EXCEPTION 'OUT_OF_STOCK'` 등, `unique_violation`)를 `AppError`로 변환하는 유일한 곳. 클라이언트: `features/*` 훅이 `fetchJson` 실패를 `{ status:'error', code }`로 상태화 — 컴포넌트는 try/catch 없음. React 렌더 오류는 `app/(customer)/error.tsx`·`app/admin/error.tsx`(다시 시도 버튼) |
 | 실패가 사용자에게 드러나는 방식 | HTTP 상태 + 봉투 `{ error: { code, message, details } }`(5절 표). 고객 화면은 `code`를 `messages/*.json`의 `errors.{code}` 문구로 표시(언어별), 알 수 없는 코드는 `errors.INTERNAL_ERROR`. 관리자 화면은 토스트 + 서버 최신 상태로 되돌림(낙관적 갱신 없음). 500은 상세 미노출(security-audit 4) |
 | 경계 간 전파 | domain: 반환값 유니온(`TransitionResult { ok:false, code }`) — 던지지 않음. services: domain의 `ok:false`를 `AppError`로 승격해 던짐. infra: DB 예외 → `AppError`. api: `AppError` → 봉투, 그 외 → 500 + `logger.error`. 클라이언트 재시도는 5xx·네트워크·타임아웃만(DECISIONS #24) |
-| 동시성 충돌 | `STATE_CHANGED`(409): 관리자 2명이 같은 카드를 조작 → 두 번째는 실패 토스트 + Realtime으로 최신 상태 수신. 재시도 없음(사용자가 다시 판단) |
+| 동시성 충돌 | `STATE_CHANGED`(409): 관리자 2명이 같은 카드를 조작 → 두 번째는 실패 토스트 + Realtime으로 최신 상태 수신. 재시도 없음(사용자가 다시 판단). **적용 예정(T-54)**: 관리자가 입금 확인·현금 수령 확인·조리 시작을 누르는 사이 고객 취소 요청이 먼저 저장된 경우도 같은 409 — 최신 상태에서 취소 요청을 승인/거절한 뒤 다시 처리 |
 
 ## 관측성
 
