@@ -11,6 +11,7 @@ const menuResponse: MenuResponse = {
         description: "기본호떡",
         price: 2000,
         stock: 5,
+        isRecommended: false,
         isAvailable: true,
         isSoldOut: false,
         imageUrl: null,

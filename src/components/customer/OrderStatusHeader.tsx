@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { ChevronLeftIcon } from "@/components/ui/icons";
 import type { OrderStatus } from "@/domain/order/status";
+import { useT } from "@/lib/i18n/locale";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { PickupNumberDisplay } from "./PickupNumberDisplay";
 
@@ -18,16 +19,17 @@ export function OrderStatusHeader({
   aheadCount: number | null;
   onBack?: () => void;
 }) {
+  const t = useT();
   return (
     <header className="px-5 pt-5 pb-2">
-      <h1 className="sr-only">주문 현황</h1>
+      <h1 className="sr-only">{t("order.statusTitle")}</h1>
       {onBack && (
         <button
           type="button"
           onClick={onBack}
           className="iron-card mb-4 flex h-10 items-center gap-1 rounded-xl pr-3 pl-2 text-sm font-semibold text-dough transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
         >
-          <ChevronLeftIcon className="size-5" /> 뒤로
+          <ChevronLeftIcon className="size-5" /> {t("common.back")}
         </button>
       )}
       <div className="flex items-end justify-between gap-3">
@@ -42,7 +44,7 @@ export function OrderStatusHeader({
           <OrderStatusBadge status={status} />
           {aheadCount !== null && (
             <span className="rounded-full border border-iron-line bg-iron-2 px-3 py-1.5 text-xs font-semibold text-dough">
-              {aheadCount > 0 ? `내 앞 대기 ${aheadCount}건` : "대기 없음"}
+              {aheadCount > 0 ? t("order.ahead", { count: aheadCount }) : t("queue.none")}
             </span>
           )}
           {aheadCount !== null && <LiveRing />}
@@ -54,6 +56,7 @@ export function OrderStatusHeader({
 
 // 5초마다 자동으로 다시 확인하고 있음을 보여 주는 "실시간" 표시(장식) — 링이 5초에 한 바퀴 채워진다.
 function LiveRing() {
+  const t = useT();
   return (
     <span aria-hidden="true" className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-dough-dim">
       <svg viewBox="0 0 20 20" className="size-3.5 -rotate-90">
@@ -71,7 +74,7 @@ function LiveRing() {
           transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
         />
       </svg>
-      실시간
+      {t("order.live")}
     </span>
   );
 }

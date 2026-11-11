@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { LayoutGroup, motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, UtensilsCrossed, XCircle } from "lucide-react";
 import { sharedLayoutId } from "@/components/motion/presets";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import type { AdminOrderDto, OrderStatus, TransitionAction } from "@/lib/dto/adminOrder";
+import type { AdminReviewsResponse } from "@/lib/dto/review";
 import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
@@ -27,6 +29,11 @@ const time = (value: string) => new Date(value).toLocaleString("ko-KR", {
     timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
 });
 const pickup = (value: number) => String(value).padStart(3, "0");
+const manualNumber = (value: number) => `M-${String(value).padStart(3, "0")}`;
+const orderNumber = (order: AdminOrderDto) =>
+    order.source === "manual" && order.manualNumber ? manualNumber(order.manualNumber) : `#${pickup(order.pickupNumber)}`;
+const orderTime = (order: AdminOrderDto) =>
+    order.source === "manual" && order.manualOrderedAt ? order.manualOrderedAt : order.createdAt;
 // 주문표의 짧은 시각(KST HH:MM)
 const clockOf = (value: string) => new Date(value).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
@@ -39,6 +46,8 @@ export interface OrderDashboardProps {
     onAcknowledge: (id: string) => Promise<void>;
     onSearch: (pickupNumber: number) => Promise<AdminOrderDto[]>;
     onLoadStats: (date: string) => Promise<StatsDto>;
+    // T-42 매출 통계 화면의 후기 목록. 없으면 후기 영역을 숨긴다.
+    onLoadReviews?: (date: string) => Promise<AdminReviewsResponse>;
     onTransition: (id: string, action: TransitionAction, input?: CancelRefundInput) => Promise<void>;
     settingsPanel?: ReactNode;
     // T-20 메뉴·재고 관리 화면. 없으면 탭을 숨긴다.
@@ -48,7 +57,7 @@ export interface OrderDashboardProps {
 }
 
 export function OrderDashboard({ orders, isLoading = false, error, preview = false,
-    onReload, onAcknowledge, onSearch, onLoadStats, onTransition, settingsPanel, menuPanel, onCancelRequestDecision }: OrderDashboardProps) {
+    onReload, onAcknowledge, onSearch, onLoadStats, onLoadReviews, onTransition, settingsPanel, menuPanel, onCancelRequestDecision }: OrderDashboardProps) {
     const [page, setPage] = useState<"dashboard" | "orders" | "menus" | "stats" | "settings">("dashboard");
     const [filter, setFilter] = useState<Filter>("all");
     const [query, setQuery] = useState("");
@@ -194,19 +203,22 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
         {preview && <div className={styles.preview}>목업 미리보기 · 실제 주문과 연결되지 않습니다.</div>}
 
         <div className={styles.content}>
-            {page === "stats" ? <StatsPanel loadStats={onLoadStats} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : page === "menus" ? menuPanel : <>
+            {page === "stats" ? <StatsPanel loadStats={onLoadStats} loadReviews={onLoadReviews} initialDate={preview ? "all" : undefined} /> : page === "settings" ? settingsPanel : page === "menus" ? menuPanel : <>
                 <div className={styles.heading}>
                     <div>
                         <p className={styles.eyebrow}>{pageTitle}</p>
                         <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1>
                     </div>
-                    <form className={styles.search} onSubmit={search}>
-                        <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
-                        <Search size={16} aria-hidden="true" />
-                        <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
-                        <button type="submit" aria-label="검색"><ArrowRight size={16} /></button>
-                        {searchNumber !== null && <button type="button" onClick={clearSearch} className={styles.reset}>초기화</button>}
-                    </form>
+                    <div className={styles.headingActions}>
+                        {!preview && <Link href="/admin/manual-orders" className={styles.manualOrderLink}>수기 주문 입력 <ArrowRight size={16} aria-hidden="true" /></Link>}
+                        <form className={styles.search} onSubmit={search}>
+                            <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
+                            <Search size={16} aria-hidden="true" />
+                            <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
+                            <button type="submit" aria-label="검색"><ArrowRight size={16} /></button>
+                            {searchNumber !== null && <button type="button" onClick={clearSearch} className={styles.reset}>초기화</button>}
+                        </form>
+                    </div>
                 </div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
                 {(error || actionError) && <div role="alert" className={styles.error}>{actionError || "주문을 불러오지 못했습니다. 새로고침해 주세요."}</div>}
@@ -253,11 +265,11 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                         {selected ? <motion.div key={selected.id} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", stiffness: 320, damping: 30 }}>
                             <button type="button" className={styles.back} onClick={() => setSelectedId(null)}>목록으로</button>
                             <div className={styles.pickup}>
-                                <span>픽업 번호</span>
-                                <strong>#{pickup(selected.pickupNumber)}</strong>
+                                <span>{selected.source === "manual" ? "수기 번호" : "픽업 번호"}</span>
+                                <strong>{orderNumber(selected)}</strong>
                                 <span className={styles.pickupStatus} data-status={selected.status}>{LABELS[selected.status]}</span>
                             </div>
-                            <div className={styles.info}><div>주문 시각<strong>{time(selected.createdAt)}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
+                            <div className={styles.info}><div>주문 시각<strong>{time(orderTime(selected))}</strong></div><div>결제 수단<strong>{selected.paymentMethod === "cash" ? "현금" : "계좌이체"}</strong></div></div>
                             <div className={styles.items}><h2>주문 내역</h2>{selected.items.map((item, index) => <div key={index}>
                                 <p><span>{item.menuNameKo} × {item.quantity}</span><strong>{money(item.lineTotal)}</strong></p>
                                 {item.options.map((option, i) => <small key={i}>{option.nameKo} (+{money(option.extraPrice)})</small>)}
@@ -344,16 +356,16 @@ function Clock3Text() {
 
 // 반죽색 종이 주문표: 집게 · 큰 픽업 번호 · 몇 분 전 · 메뉴 · 결제 · (결제대기면) 만료 막대 · (끝났으면) 도장
 function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now: number; selected: boolean; onSelect: () => void }) {
-    const minutesAgo = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60000));
+    const minutesAgo = Math.max(0, Math.floor((now - new Date(orderTime(order)).getTime()) / 60000));
     const left = EXPIRE_MS - (now - new Date(order.createdAt).getTime());
     const stamp = STAMP[order.status];
     const unread = isUnacknowledged(order);
     return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
-        onClick={onSelect} aria-label={`픽업 ${pickup(order.pickupNumber)} 주문 상세`} data-status={order.status}>
+        onClick={onSelect} aria-label={order.source === "manual" && order.manualNumber ? `수기 ${manualNumber(order.manualNumber)} 주문 상세` : `픽업 ${pickup(order.pickupNumber)} 주문 상세`} data-status={order.status}>
         <span aria-hidden="true" className={styles.clip} />
-        <div className={styles.cardTop}><strong>#{pickup(order.pickupNumber)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(order.createdAt)}</span></div>
+        <div className={styles.cardTop}><strong>{orderNumber(order)}</strong><span className={styles.ago}>{minutesAgo < 60 ? `${minutesAgo}분 전` : clockOf(orderTime(order))}</span></div>
         <ul className={styles.lines}>{order.items.map((item, index) => <li key={index}><span>{item.menuNameKo}</span><span>×{item.quantity}</span></li>)}</ul>
-        <div className={styles.cardMeta}><span>{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><span className={styles.badge}>{LABELS[order.status]}</span></div>
+        <div className={styles.cardMeta}><span>{order.source === "manual" ? "수기 입력 · " : ""}{order.paymentMethod === "cash" ? "현금" : "계좌이체"} · {money(order.totalAmount)}</span><span className={styles.badge}>{LABELS[order.status]}</span></div>
         {order.status === "pending" && left > 0 && <span className={styles.expiry} data-urgent={left < 2 * 60 * 1000 || undefined}>
             <span className={styles.expiryTrack}><span className={styles.expiryFill} style={{ width: `${(left / EXPIRE_MS) * 100}%` }} /></span>
             <span>만료까지 {Math.floor(left / 60000)}:{String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}</span>

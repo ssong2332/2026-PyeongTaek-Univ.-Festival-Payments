@@ -18,9 +18,10 @@ describe("/privacy — 개인정보 고지 1차 (T-12, F-12·N-15)", () => {
   it("이 기기에 주문 현황 링크·픽업 번호를 24시간 보관하고 서버로 보내지 않는다고 알린다 (#89, DECISIONS #54)", () => {
     render(<PrivacyPage />);
 
-    const collected = screen.getByRole("region", { name: "수집하는 개인정보" });
-    expect(collected.textContent).toContain("이 기기에 최근 주문의 현황 링크와 픽업 번호를 24시간 보관합니다.");
-    expect(collected.textContent).toContain("서버로 보내지 않습니다.");
+    const device = screen.getByRole("region", { name: "이 기기에만 보관" });
+    expect(device.textContent).toContain("24시간");
+    expect(device.textContent).toContain("이 기기에 최근 주문의 현황 링크와 픽업 번호를 24시간 보관합니다.");
+    expect(device.textContent).toContain("서버로 보내지 않습니다.");
   });
 
   it("주문 데이터 파기 시점 2026-11-08(축제 종료 2026-10-08 후 한 달)을 보여준다", () => {

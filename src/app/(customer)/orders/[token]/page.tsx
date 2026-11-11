@@ -17,6 +17,9 @@ import { TransferGuide } from "@/components/customer/TransferGuide";
 import type { OrderStatus } from "@/domain/order/status";
 import { useOrderStatus } from "@/features/customer/useOrderStatus";
 import type { OrderStatusDto } from "@/lib/dto/order";
+import { useT } from "@/lib/i18n/locale";
+import { ArtIcon } from "@/components/ui/ArtIcon";
+import { motion } from "motion/react";
 
 type PageProps = {
   params: Promise<{ token: string }>;
@@ -28,15 +31,10 @@ const PROGRESS_STATUSES: readonly OrderStatus[] = ["pending", "paid", "cooking",
 // F-11 "내 앞의 미완료 주문 수"를 보여 줄 상태
 const WAITING_STATUSES: readonly OrderStatus[] = ["pending", "paid", "cooking"];
 
-// PRD 화면 표 "만료·취소 → 상태와 안내 문구" — 스테퍼 대신 보여 준다.
-const CLOSED_NOTICES: Partial<Record<OrderStatus, { title: string; body: string }>> = {
-  cancelled: { title: "주문이 취소됐어요", body: "궁금한 점은 부스 직원에게 문의해 주세요." },
-  refunded: { title: "주문이 환불됐어요", body: "궁금한 점은 부스 직원에게 문의해 주세요." },
-  expired: {
-    title: "주문이 만료됐어요",
-    body: "결제가 제시간에 확인되지 않았어요. 필요하면 메뉴에서 다시 주문해 주세요.",
-  },
-};
+// PRD 화면 표 "만료·취소 → 상태와 안내 문구" — 스테퍼 대신 보여 준다(사전 closed.{상태}.title/body).
+const CLOSED_STATUSES = ["cancelled", "refunded", "expired"] as const;
+type ClosedStatus = (typeof CLOSED_STATUSES)[number];
+const isClosedStatus = (status: OrderStatus): status is ClosedStatus => (CLOSED_STATUSES as readonly OrderStatus[]).includes(status);
 
 const CARD = "iron-card rounded-3xl p-5";
 const FOCUS_RING = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup";
@@ -116,9 +114,10 @@ function Screen({ children, bottom }: { children: ReactNode; bottom?: ReactNode 
 }
 
 function MenuLinkButton() {
+  const t = useT();
   return (
     <Link href="/" className={SECONDARY_CTA}>
-      메뉴로 돌아가기
+      {t("order.backToMenu")}
     </Link>
   );
 }
@@ -151,16 +150,17 @@ function CompleteView({
   onRefresh: () => void;
   onShowStatus: () => void;
 }) {
+  const t = useT();
   const cashDue = order.paymentMethod === "cash" && order.status === "pending";
   return (
     <Screen
       bottom={
         <>
           <button type="button" onClick={onShowStatus} className={PRIMARY_CTA}>
-            주문 현황 보기 <ArrowRightIcon className="ml-auto size-5" />
+            {t("order.viewStatus")} <ArrowRightIcon className="ml-auto size-5" />
           </button>
           <Link href="/" className={`self-center px-1 py-2 text-sm text-dough-dim ${FOCUS_RING}`}>
-            메뉴로 돌아가기
+            {t("order.backToMenu")}
           </Link>
         </>
       }
@@ -177,9 +177,9 @@ function CompleteView({
         {cashDue && (
           <section aria-labelledby="payment-guide" className={CARD}>
             <h2 id="payment-guide" className="font-display text-lg text-dough">
-              결제 안내
+              {t("order.paymentGuide")}
             </h2>
-            <p className="mt-1 text-sm text-dough-dim">부스에서 현금으로 결제해 주세요.</p>
+            <p className="mt-1 text-sm text-dough-dim">{t("payment.cash.notice")}</p>
           </section>
         )}
         <TransferDue token={token} order={order} onRefresh={onRefresh} />
@@ -201,7 +201,8 @@ function StatusView({
   onRefresh: () => void;
   onBack?: () => void;
 }) {
-  const closedNotice = CLOSED_NOTICES[order.status];
+  const t = useT();
+  const closed = isClosedStatus(order.status) ? order.status : null;
   return (
     <Screen bottom={<MenuLinkButton />}>
       <OrderStatusHeader
@@ -217,20 +218,20 @@ function StatusView({
         {isProgressStatus(order.status) && (
           <section aria-labelledby="progress-heading" className={CARD}>
             <h2 id="progress-heading" className="font-display text-lg text-dough">
-              진행 상황
+              {t("order.progress")}
             </h2>
             <div className="mt-4">
               <OrderProgressStepper status={order.status} />
             </div>
           </section>
         )}
-        {closedNotice && (
+        {closed && (
           <section aria-labelledby="closed-heading" className={CARD}>
             <div>
               <h2 id="closed-heading" className="font-display text-xl text-dough">
-                {closedNotice.title}
+                {t(`closed.${closed}.title` as const)}
               </h2>
-              <p className="mt-1 text-sm text-dough-dim">{closedNotice.body}</p>
+              <p className="mt-1 text-sm text-dough-dim">{t(`closed.${closed}.body` as const)}</p>
             </div>
           </section>
         )}
@@ -250,57 +251,82 @@ function StatusView({
 }
 
 function RefreshFailedNotice({ onRetry }: { onRetry: () => void }) {
+  const t = useT();
   return (
     <div
       role="status"
       className="flex items-center justify-between gap-3 rounded-2xl border border-syrup/40 bg-syrup/10 px-4 py-3 text-sm text-dough"
     >
-      <p>최신 상태를 불러오지 못했어요. 5초마다 자동으로 다시 확인해요.</p>
+      <p>{t("order.refreshFailed")}</p>
       <button type="button" onClick={onRetry} className={`shrink-0 font-semibold text-syrup underline ${FOCUS_RING}`}>
-        다시 시도
+        {t("common.retry")}
       </button>
     </div>
   );
 }
 
 function LoadingState() {
+  const t = useT();
   return (
     <Screen>
       <div className="px-4 pt-10">
-        <p role="status" className={`${CARD} text-center text-dough-dim`}>
-          주문 정보를 불러오는 중이에요…
-        </p>
+        <div role="status" className={`${CARD} flex flex-col items-center gap-3 py-8 text-center`}>
+          <ArtIcon name="pan" size={84} motion="sizzle" />
+          <p className="font-display text-lg text-dough">{t("order.loading")}</p>
+          <span aria-hidden="true" className="flex gap-1.5">
+            {[0, 1, 2].map((index) => (
+              <motion.span
+                key={index}
+                className="size-2 rounded-full bg-syrup"
+                animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
+                transition={{ duration: 0.9, repeat: Infinity, delay: index * 0.15 }}
+              />
+            ))}
+          </span>
+        </div>
       </div>
     </Screen>
   );
 }
 
 function NotFoundState() {
+  const t = useT();
   return (
     <Screen bottom={<MenuLinkButton />}>
       <div className="px-4 pt-10">
-        <section className={CARD}>
-          <h1 className="font-display text-2xl text-dough">주문을 찾을 수 없습니다</h1>
-          <p className="mt-2 text-sm text-dough-dim">주문 완료 화면의 주소가 맞는지 확인해 주세요.</p>
-        </section>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${CARD} flex flex-col items-center py-8 text-center`}
+        >
+          <ArtIcon name="search" size={84} motion="float" />
+          <h1 className="font-display mt-3 text-2xl text-dough">{t("order.notFound.title")}</h1>
+          <p className="mt-2 text-sm text-dough-dim">{t("order.notFound.body")}</p>
+        </motion.section>
       </div>
     </Screen>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const t = useT();
   return (
     <Screen bottom={<MenuLinkButton />}>
       <div className="px-4 pt-10">
-        <section className={CARD}>
-          <h1 className="font-display text-2xl text-dough">주문 정보를 불러오지 못했어요</h1>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${CARD} flex flex-col items-center py-8 text-center`}
+        >
+          <ArtIcon name="warning" size={80} motion="wiggle" />
+          <h1 className="font-display mt-3 text-2xl text-dough">{t("order.error.title")}</h1>
           <p className="mt-2 text-sm text-dough-dim">
-            네트워크 연결을 확인해 주세요. 5초마다 자동으로 다시 확인해요.
+            {t("order.error.body")}
           </p>
           <button type="button" onClick={onRetry} className={`${PRIMARY_CTA} mt-4`}>
-            다시 시도
+            {t("common.retry")}
           </button>
-        </section>
+        </motion.section>
       </div>
     </Screen>
   );

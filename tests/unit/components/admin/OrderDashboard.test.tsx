@@ -8,11 +8,21 @@ afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
     onAcknowledge: vi.fn(async () => {}), onSearch: vi.fn(async () => []),
     onLoadStats: vi.fn(async () => ({ date: "all", sales: 0, orderCount: 0, refundedAmount: 0,
-        refundedCount: 0, byMenu: [], totals: { pending: 0, paid: 0, cooking: 0, completed: 0,
+        refundedCount: 0, byMenu: [], hourlyByMenu: [], totals: { pending: 0, paid: 0, cooking: 0, completed: 0,
             cancelled: 0, refunded: 0, expired: 0 } })),
     onTransition: vi.fn(async () => {}) });
 
 describe("T-15 order dashboard", () => {
+    it("shows the manual order shortcut on the live dashboard and order list only", () => {
+        render(<OrderDashboard {...base()} />);
+        const shortcut = screen.getByRole("link", { name: "수기 주문 입력" });
+        expect(shortcut.getAttribute("href")).toBe("/admin/manual-orders");
+        fireEvent.click(within(screen.getByRole("navigation", { name: "관리자 메뉴" })).getByRole("button", { name: /^주문 관리/ }));
+        expect(screen.getByRole("link", { name: "수기 주문 입력" })).toBeTruthy();
+        cleanup();
+        render(<OrderDashboard {...base()} preview />);
+        expect(screen.queryByRole("link", { name: "수기 주문 입력" })).toBeNull();
+    });
     it("keeps sales statistics and operating settings available in the same menu", async () => {
         const props = base();
         render(<OrderDashboard {...props} settingsPanel={<section>설정 입력 화면</section>} />);

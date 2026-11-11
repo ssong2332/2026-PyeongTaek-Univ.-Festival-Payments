@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { CustomerFooter } from "@/components/customer/CustomerFooter";
+import { DocumentLang } from "@/components/customer/LanguageToggle";
 import { CustomerMotion } from "@/components/motion/CustomerMotion";
 import { DemoBadge } from "@/features/demo/DemoBadge";
 import { FestivalStage } from "@/features/festival/FestivalStage";
@@ -8,7 +9,7 @@ import { FestivalStage } from "@/features/festival/FestivalStage";
 // festival-root: 휴대폰 시각에 따라 바탕·글씨 토큰이 아침 크림빛 → 16시 무쇠로 바뀐다(globals.css, festivalTheme).
 // 장식(하늘·연기·불티·축제 무대 캔버스)은 모두 z-0, 본문은 z-10 — 이펙트가 내용과 버튼을 가리지 않는다.
 // 불티: 위치·속도·흔들림을 고정값으로 흩어 둔다(다시 그려도 같다).
-const EMBERS = Array.from({ length: 24 }, (_, index) => ({
+const EMBERS = Array.from({ length: 12 }, (_, index) => ({
     left: `${(index * 37 + 11) % 100}%`,
     size: index % 7 === 0 ? 5 : 2 + (index % 3),
     duration: 8 + ((index * 7) % 9),
@@ -21,6 +22,7 @@ export default function CustomerLayout({ children }: Readonly<{ children: React.
     return (
         <CustomerMotion>
             <DemoBadge />
+            <DocumentLang />
             <div className="festival-root iron-bg relative min-h-dvh overflow-x-clip text-dough">
                 <div aria-hidden="true" className="iron-grain pointer-events-none fixed inset-0 z-0 overflow-hidden">
                     <span className="festival-sky absolute inset-0" />
@@ -52,15 +54,7 @@ export default function CustomerLayout({ children }: Readonly<{ children: React.
                 <FestivalStage />
                 <div className="relative z-10 mx-auto flex min-h-dvh max-w-md flex-col">
                     <div className="flex-1">{children}</div>
-                    <footer className="px-4 pt-10 pb-32 text-center text-xs text-dough-dim">
-                        <Link href="/privacy" className="underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-syrup">
-                            개인정보 안내
-                        </Link>
-                        <span aria-hidden="true" className="mx-2">·</span>
-                        <Link href="/credits" className="underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-syrup">
-                            이미지 출처
-                        </Link>
-                    </footer>
+                    <CustomerFooter />
                 </div>
             </div>
         </CustomerMotion>

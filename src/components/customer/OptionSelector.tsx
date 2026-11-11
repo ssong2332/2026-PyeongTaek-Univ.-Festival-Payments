@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import type { MenuOptionGroupDto } from "@/lib/dto/menu";
 import { formatOptionPrice } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
 
 // hint: 그룹의 min/max 안내 문구(예: "원하는 것만 선택", "필수 · 1개 선택") — 화면(훅)이 만들어 넘긴다.
 export type OptionGroupView = MenuOptionGroupDto & { hint: string };
@@ -16,6 +17,8 @@ export interface OptionSelectorProps {
 // 옵션 행. 고르면 체크가 선으로 그려지고, 행의 가격표가 아래 "담을 구성" 칸으로 날아가 붙는다(같은 layoutId).
 // 빼면 가격표가 다시 행으로 돌아온다. 빠르게 여러 개를 눌러도 각 가격표가 자기 자리로만 움직여 겹치지 않는다.
 export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelectorProps) {
+    const locale = useLocale();
+    const t = useT();
     if (groups.length === 0) return null;
     return (
         <div className="flex flex-col gap-5">
@@ -35,7 +38,7 @@ export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelector
                                 {group.hint}
                             </span>
                         </div>
-                        {group.options.length === 0 && <p className="text-sm text-dough-dim">지금은 고를 수 있는 옵션이 없어요.</p>}
+                        {group.options.length === 0 && <p className="text-sm text-dough-dim">{t("option.noneAvailable")}</p>}
                         <div className="flex flex-col gap-2">
                             {group.options.map((option) => {
                                 const checked = selectedIds.includes(option.id);
@@ -65,7 +68,7 @@ export function OptionSelector({ groups, selectedIds, onToggle }: OptionSelector
                                                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                                                     className="font-num rounded-full border border-iron-line px-2.5 py-1 text-xs text-dough-dim"
                                                 >
-                                                    {formatOptionPrice(option.extraPrice)}
+                                                    {formatOptionPrice(option.extraPrice, locale)}
                                                 </motion.span>
                                             )}
                                         </span>

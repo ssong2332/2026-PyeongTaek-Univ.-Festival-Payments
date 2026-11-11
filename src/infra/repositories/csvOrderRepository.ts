@@ -26,6 +26,8 @@ interface DbStatusHistory {
 interface DbOrder {
     id: string;
     pickup_number: number;
+    manual_number: number | null;
+    manual_ordered_at: string | null;
     created_at: string;
     payment_method: CsvOrder["paymentMethod"];
     status: CsvOrder["status"];
@@ -38,7 +40,7 @@ interface DbOrder {
 
 const PAGE_SIZE = 500;
 const ORDER_SELECT = `
-    id, pickup_number, created_at, payment_method, status, total_amount, paid_at, completed_at,
+    id, pickup_number, manual_number, manual_ordered_at, created_at, payment_method, status, total_amount, paid_at, completed_at,
     order_items ( id, sort_order, menu_name_ko, quantity, line_total,
         order_item_options ( id, option_name_ko ) ),
     order_status_history ( id, to_status, reason )
@@ -52,7 +54,9 @@ function toCsvOrder(row: DbOrder): CsvOrder {
     return {
         id: row.id,
         pickupNumber: row.pickup_number,
-        createdAt: row.created_at,
+        manualNumber: row.manual_number,
+        // 수기 주문(T-28)은 종이에 적힌 주문 시각이 매출 날짜다(DECISIONS #62).
+        createdAt: row.manual_ordered_at ?? row.created_at,
         paymentMethod: row.payment_method,
         status: row.status,
         totalAmount: row.total_amount,
@@ -82,7 +86,11 @@ export async function loadCsvOrders(client: SupabaseClient, range: CsvDateRange)
     const orders: CsvOrder[] = [];
     for (let offset = 0; ; offset += PAGE_SIZE) {
         const query = client.from("orders").select(ORDER_SELECT);
-        const selected = start === null || end === null ? query : query.gte("created_at", start).lt("created_at", end);
+        // 날짜 기준: 수기 주문은 manual_ordered_at, 그 밖은 created_at(get_stats 0104와 같은 조건).
+        const selected = start === null || end === null ? query : query.or(
+            `and(manual_ordered_at.is.null,created_at.gte."${start}",created_at.lt."${end}"),`
+            + `and(manual_ordered_at.gte."${start}",manual_ordered_at.lt."${end}")`,
+        );
         const { data, error } = await selected
             .order("created_at", { ascending: true })
             .order("id", { ascending: true })
@@ -93,5 +101,6 @@ export async function loadCsvOrders(client: SupabaseClient, range: CsvDateRange)
         orders.push(...page.map(toCsvOrder));
         if (page.length < PAGE_SIZE) break;
     }
-    return orders;
+    // DB는 created_at 순으로 페이지를 나눈다. 내보낼 때는 주문 시각(수기는 종이 시각) 순으로 다시 놓는다.
+    return orders.toSorted((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
 }

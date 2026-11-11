@@ -39,13 +39,48 @@ export function createFakeAdminMenuRepository(initial: MenuItemRecord[] = []) {
             const item = items.find((candidate) => candidate.id === id);
             return item ? structuredClone(item) : null;
         },
+        async createMenuItem(input) {
+            calls.push("createMenuItem");
+            const id = `90000000-0000-4000-8000-${String(items.length + 1).padStart(12, "0")}`;
+            items.push({
+                id,
+                basePrice: input.basePrice,
+                stock: input.stock,
+                isRecommended: false,
+                isSoldOutManual: false,
+                isActive: true,
+                sortOrder: input.sortOrder,
+                imageUrl: null,
+                translations: input.translations.map((translation) => ({
+                    locale: translation.locale, name: translation.name, description: translation.description ?? null,
+                })),
+                optionGroups: input.optionGroups.map((group, groupIndex) => ({
+                    id: `91000000-0000-4000-8000-${String(groupIndex + 1).padStart(12, "0")}`,
+                    minSelect: group.minSelect,
+                    maxSelect: group.maxSelect,
+                    sortOrder: group.sortOrder,
+                    isActive: true,
+                    translations: structuredClone(group.translations),
+                    options: group.options.map((option, optionIndex) => ({
+                        id: `92000000-0000-4000-8000-${String(optionIndex + 1).padStart(12, "0")}`,
+                        extraPrice: option.extraPrice,
+                        sortOrder: option.sortOrder,
+                        isActive: true,
+                        translations: structuredClone(option.translations),
+                    })),
+                })),
+            });
+            return id;
+        },
         async updateMenuItem(id, patch) {
             calls.push("updateMenuItem");
             const item = items.find((candidate) => candidate.id === id);
             if (!item) return false;
             if (patch.basePrice !== undefined) item.basePrice = patch.basePrice;
             if (patch.stock !== undefined) item.stock = patch.stock;
+            if (patch.isRecommended !== undefined) item.isRecommended = patch.isRecommended;
             if (patch.isSoldOutManual !== undefined) item.isSoldOutManual = patch.isSoldOutManual;
+            if (patch.isActive !== undefined) item.isActive = patch.isActive;
             return true;
         },
         async upsertMenuTranslation(menuItemId, translation) {

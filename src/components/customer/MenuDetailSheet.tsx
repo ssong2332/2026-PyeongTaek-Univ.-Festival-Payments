@@ -6,6 +6,7 @@ import { RollingNumber } from "@/components/motion/RollingNumber";
 import { CTA_DISABLED, CTA_ENABLED } from "@/components/ui/cta";
 import { CartIcon, CloseIcon } from "@/components/ui/icons";
 import { formatOptionPrice, formatWon } from "@/lib/format";
+import { useLocale, useT } from "@/lib/i18n/locale";
 import { MenuThumbnail } from "./MenuThumbnail";
 import { OptionSelector, type OptionGroupView } from "./OptionSelector";
 import { QuantityStepper } from "./QuantityStepper";
@@ -39,6 +40,8 @@ const DISMISS_VELOCITY = 600;
 // 누른 카드의 호떡 사진이 시트 위 큰 사진으로 이어지고, 고른 옵션의 가격표가 "담을 구성" 칸으로 날아와 쌓인다.
 export function MenuDetailSheet(props: MenuDetailSheetProps) {
     const { name, description, price, imageUrl, onClose } = props;
+    const locale = useLocale();
+    const t = useT();
     const titleId = useId();
     const dialogRef = useRef<HTMLDivElement>(null);
     const closeRef = useRef<HTMLButtonElement>(null);
@@ -109,7 +112,7 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                 <button
                     ref={closeRef}
                     type="button"
-                    aria-label="닫기"
+                    aria-label={t("common.close")}
                     onClick={onClose}
                     className="absolute top-4 right-4 z-20 flex size-10 items-center justify-center rounded-full border border-iron-line bg-iron text-dough transition-transform active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup"
                 >
@@ -145,7 +148,7 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                         <h2 id={titleId} className="font-display text-[30px] leading-tight text-dough">
                             {name}
                         </h2>
-                        <p className="font-num mt-1.5 text-2xl text-syrup">{formatWon(price)}</p>
+                        <p className="font-num mt-1.5 text-2xl text-syrup">{formatWon(price, locale)}</p>
                         {description && <p className="mt-2 text-sm leading-relaxed text-dough-dim">{description}</p>}
                     </motion.div>
 
@@ -166,7 +169,7 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                         transition={{ delay: 0.22, type: "spring", stiffness: 300, damping: 26 }}
                         className="mt-6 flex items-center justify-between"
                     >
-                        <p className="font-display text-lg text-dough">수량</p>
+                        <p className="font-display text-lg text-dough">{t("quantity.label")}</p>
                         <QuantityStepper value={props.quantity} max={props.maxQuantity} onChange={props.onQuantityChange} />
                     </motion.div>
                 </div>
@@ -174,8 +177,8 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                 <div className="shrink-0 border-t border-iron-line bg-iron/80 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
                     {/* 담을 구성: 고른 옵션의 가격표가 날아와 쌓인다 */}
                     <div aria-hidden="true" className="no-scrollbar mb-3 flex min-h-8 items-center gap-1.5 overflow-x-auto">
-                        <span className="shrink-0 text-xs text-dough-dim">담을 구성</span>
-                        <span className="font-num shrink-0 rounded-full bg-iron-3 px-2.5 py-1 text-xs text-dough">기본 {formatWon(price)}</span>
+                        <span className="shrink-0 text-xs text-dough-dim">{t("menu.detail.composition")}</span>
+                        <span className="font-num shrink-0 rounded-full bg-iron-3 px-2.5 py-1 text-xs text-dough">{t("menu.detail.base", { price: formatWon(price, locale) })}</span>
                         <AnimatePresence initial={false}>
                             {chosen.map((option) => (
                                 <motion.span
@@ -184,7 +187,7 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                                     className="font-num flex shrink-0 items-center gap-1 rounded-full bg-syrup px-2.5 py-1 text-xs whitespace-nowrap text-molasses"
                                 >
-                                    {option.name} {formatOptionPrice(option.extraPrice)}
+                                    {option.name} {formatOptionPrice(option.extraPrice, locale)}
                                 </motion.span>
                             ))}
                         </AnimatePresence>
@@ -203,11 +206,11 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                     </AnimatePresence>
                     <button type="button" disabled={!props.canAdd} onClick={props.onAdd} className={props.canAdd ? CTA_ENABLED : CTA_DISABLED}>
                         <CartIcon className="size-5" />
-                        <span>담기</span>
+                        <span>{t("menu.detail.add")}</span>
                         <span className="font-num relative ml-auto">
                             {/* 금액이 바뀔 때마다 숫자 뒤가 시럽빛으로 번쩍(숫자는 그대로 굴러간다) */}
                             <span key={props.total} aria-hidden="true" className="heat-pulse pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-lg" />
-                            <RollingNumber value={formatWon(props.total)} />
+                            <RollingNumber value={formatWon(props.total, locale)} />
                         </span>
                     </button>
                 </div>

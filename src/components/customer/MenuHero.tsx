@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform } from "motion/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useCartBump } from "@/components/motion/cartBump";
 import { SPRING } from "@/components/motion/presets";
-import { CartIcon } from "@/components/ui/icons";
+import { CartIcon, FlameIcon } from "@/components/ui/icons";
 import { FESTIVAL_ART } from "@/features/festival/festivalArt";
 import { FestivalHorizon } from "@/features/festival/FestivalHorizon";
+import { useT } from "@/lib/i18n/locale";
+import { LanguageToggle } from "./LanguageToggle";
 
 // 제목 위 연기 덩어리: 시작 위치·크기·흐르는 방향을 고정값으로 흩어 둔다(다시 그려도 같다).
-const SMOKE_PUFFS = Array.from({ length: 9 }, (_, index) => ({
+const SMOKE_PUFFS = Array.from({ length: 5 }, (_, index) => ({
     left: `${8 + ((index * 23) % 78)}%`,
     top: `${30 + ((index * 17) % 40)}%`,
     size: 34 + ((index * 11) % 30),
@@ -22,11 +24,12 @@ const SMOKE_PUFFS = Array.from({ length: 9 }, (_, index) => ({
 
 // 메뉴판 머리 — "호떡" 글자가 반죽처럼 떨어져 눌리고(drop), "부스" 딱지가 척 붙고(stick), 제목 위로 열기가 일렁이며 연기가 오른다.
 // 스크롤하면 제목이 천천히 밀려나며 흐려지고, 머리를 지나면 위에 작은 바가 내려온다. 위쪽 진행 막대가 스크롤만큼 찬다.
-export function MenuHero({ cartCount }: { cartCount: number }) {
+export const MenuHero = memo(function MenuHero({ cartCount }: { cartCount: number }) {
     const { scrollY, scrollYProgress } = useScroll();
     const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
     const titleY = useTransform(scrollY, [0, 260], [0, 60]);
     const titleOpacity = useTransform(scrollY, [0, 220], [1, 0.15]);
+    const t = useT();
     const [compact, setCompact] = useState(false);
     const [dropKey, setDropKey] = useState(0);
     useMotionValueEvent(scrollY, "change", (y) => setCompact(y > 240));
@@ -44,24 +47,19 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                 >
                     <span className="fest-lights fest-swing fest-twinkle block size-full" style={{ "--src": `url(${FESTIVAL_ART.lightsString})` } as React.CSSProperties} />
                 </span>
-                <div className="relative flex items-center justify-between">
-                    <p className="font-num flex items-center gap-2 text-xs text-dough-dim">
-                        <span className="pulse-dot size-2 rounded-full bg-syrup" />
-                        2026 평택대학교 대동제
+                <div className="relative flex items-center justify-between gap-3">
+                    {/* 축제 입장권 딱지: 왼쪽 표 머리(연도) | 절취선 | 축제 이름 */}
+                    <p className="fest-ticket min-w-0 -rotate-2 text-[13px] leading-none">
+                        <span className="fest-ticket-stub font-num flex items-center px-2.5 py-2 text-[11px] font-bold tracking-wider">{t("hero.festivalYear")}</span>
+                        <span className="font-display flex min-w-0 items-center truncate px-2.5 py-2">{t("hero.festivalName")}</span>
                     </p>
-                    <CartButton count={cartCount} />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <LanguageToggle />
+                        <CartButton count={cartCount} />
+                    </div>
                 </div>
 
                 <motion.div style={{ y: titleY, opacity: titleOpacity }} className="relative mt-6">
-                    {/* 열기 아지랑이 필터(장식) — 난류 노이즈가 천천히 바뀌며 제목을 일렁이게 한다 */}
-                    <svg aria-hidden="true" className="absolute size-0">
-                        <filter id="heat-haze" x="-10%" y="-20%" width="120%" height="140%">
-                            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.06" numOctaves="2" seed="3" result="noise">
-                                <animate attributeName="baseFrequency" dur="6s" values="0.012 0.06;0.016 0.09;0.012 0.06" repeatCount="indefinite" />
-                            </feTurbulence>
-                            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-                        </filter>
-                    </svg>
                     {/* 제목 위로 피어오르는 열기(장식) */}
                     <span aria-hidden="true" className="pointer-events-none absolute -top-10 left-0 flex gap-5">
                         {[0, 1, 2, 3, 4].map((index) => (
@@ -94,7 +92,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                         ))}
                     </span>
                     <h1 className="relative flex items-end gap-3">
-                        {/* 글자를 누르면 다시 반죽처럼 떨어진다(장식 놀이) */}
+                        {/* 글자를 누르면 다시 반죽처럼 떨어진다(장식 놀이). 줄 높이가 촘촘해 ㅎ 꼭지가 그라데이션 칠 밖으로 나가지 않게 글자 상자를 위로 늘린다(pt·-mt) */}
                         <span
                             key={dropKey}
                             onPointerDown={() => {
@@ -105,12 +103,12 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                                     // 진동이 없어도 화면 연출은 그대로다.
                                 }
                             }}
-                            className="heat-haze font-display relative cursor-pointer text-[96px] leading-[0.9] drop-shadow-[0_10px_30px_rgba(240,138,44,0.35)] select-none"
+                            className="font-display relative cursor-pointer text-[96px] leading-[0.9] drop-shadow-[0_10px_30px_rgba(240,138,44,0.35)] select-none"
                         >
-                            <span className="jelly syrup-text inline-block origin-bottom" style={{ animationDelay: "0.05s, 2.2s" }}>
+                            <span className="jelly syrup-text -mt-[0.18em] inline-block origin-bottom pt-[0.18em]" style={{ animationDelay: "0.05s, 2.2s" }}>
                                 호
                             </span>
-                            <span className="jelly syrup-text inline-block origin-bottom" style={{ animationDelay: "0.18s, 2.45s" }}>
+                            <span className="jelly syrup-text -mt-[0.18em] inline-block origin-bottom pt-[0.18em]" style={{ animationDelay: "0.18s, 2.45s" }}>
                                 떡
                             </span>
                             {/* 바닥 그림자: 글자가 닿는 순간 납작하게 퍼진다 */}
@@ -142,16 +140,25 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                             className="font-display anim-stick mb-3 inline-block -rotate-6 rounded-xl bg-[#f7e8d0] px-3 py-1 text-2xl text-molasses shadow-[0_8px_20px_rgba(0,0,0,0.45)]"
                             style={{ animationDelay: "0.75s" }}
                         >
-                            부스
+                            {t("hero.sticker")}
                         </span>
                     </h1>
                     <motion.p
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.9, type: "spring", stiffness: 300, damping: 26 }}
-                        className="mt-3 text-sm text-dough-dim"
+                        className="font-display mt-4 flex items-center gap-2 text-[17px] leading-snug text-dough"
                     >
-                        바삭하게 구워낸 따끈한 호떡
+                        <FlameIcon className="ember-flicker-soft size-[18px] shrink-0 text-syrup" />
+                        <span>
+                            {t("hero.taglineLead")}{" "}
+                            <span className="syrup-swash syrup-text">
+                                {t("hero.taglineAccent")}
+                                <svg aria-hidden="true" viewBox="0 0 100 10" preserveAspectRatio="none">
+                                    <path d="M2 7 C 25 2, 50 2, 72 5 S 94 8, 98 3" pathLength={1} fill="none" stroke="var(--color-syrup)" strokeWidth="2.6" strokeLinecap="round" />
+                                </svg>
+                            </span>
+                        </span>
                     </motion.p>
                 </motion.div>
                 <FestivalHorizon />
@@ -162,7 +169,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                 {compact && (
                     <motion.div initial={{ y: -72 }} animate={{ y: 0 }} exit={{ y: -72 }} transition={SPRING} className="fixed inset-x-0 top-0 z-30">
                         <div className="mx-auto flex max-w-md items-center gap-3 border-b border-iron-line bg-iron/85 px-5 py-2.5 backdrop-blur-xl">
-                            <p className="font-display syrup-text flex-1 text-xl">호떡 부스</p>
+                            <p className="font-display syrup-text flex-1 text-xl">{t("hero.compactTitle")}</p>
                             <CartButton count={cartCount} compact />
                         </div>
                     </motion.div>
@@ -170,15 +177,16 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
             </AnimatePresence>
         </>
     );
-}
+});
 
 function CartButton({ count, compact = false }: { count: number; compact?: boolean }) {
     const bump = useCartBump();
+    const t = useT();
     return (
         <motion.div animate={bump} whileTap={{ scale: 0.9 }}>
             <Link
                 href="/cart"
-                aria-label={`장바구니 ${count}개`}
+                aria-label={t("hero.cartLabel", { count })}
                 data-cart-target={compact ? "compact" : "hero"}
                 className={`iron-card relative flex items-center justify-center rounded-2xl text-dough focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup ${
                     compact ? "size-10" : "size-12"

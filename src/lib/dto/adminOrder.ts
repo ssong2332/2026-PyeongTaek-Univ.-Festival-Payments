@@ -45,6 +45,11 @@ export const AdminOrderDtoSchema = z.object({
     refundChannel: z.enum(REFUND_CHANNELS).nullable(),
     lastReason: z.string().nullable(),
     availableActions: z.array(z.enum(TRANSITION_ACTIONS)),
+    // T-28 수기 주문 사후 입력(F-34). 수기 주문이면 source = "manual", manualNumber = 종이의 M 번호(화면은 M-001로 표시),
+    // manualOrderedAt = 종이에 적힌 주문 시각. 고객 주문은 "customer"·null·null.
+    source: z.enum(["customer", "manual"]).optional(),
+    manualNumber: z.number().int().positive().nullable().optional(),
+    manualOrderedAt: z.string().nullable().optional(),
 });
 export type AdminOrderDto = z.infer<typeof AdminOrderDtoSchema>;
 

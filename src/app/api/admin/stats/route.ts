@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { kstDayUtcRange } from "@/domain/stats/aggregate";
 import { loadStats } from "@/infra/repositories/statsRepository";
+import { loadHourlyMenuSales } from "@/infra/repositories/hourlySalesRepository";
 import { requireAdmin } from "@/infra/supabase/session";
 import { createServiceClient } from "@/infra/supabase/server";
 import { AppError } from "@/lib/api/errors";
@@ -22,8 +23,11 @@ export const GET = withHandler(async (request: NextRequest) => {
         try { kstDayUtcRange(date); }
         catch { throw new AppError("VALIDATION_ERROR", 400); }
     }
-    const summary = await loadStats(createServiceClient(), date);
-    const parsed = StatsDtoSchema.safeParse(summary);
+    const client = createServiceClient();
+    const [summary, hourlyByMenu] = await Promise.all([
+        loadStats(client, date), loadHourlyMenuSales(client, date),
+    ]);
+    const parsed = StatsDtoSchema.safeParse({ ...summary, hourlyByMenu });
     if (!parsed.success) throw new AppError("INTERNAL_ERROR", 500);
     return NextResponse.json(parsed.data, { headers: { "Cache-Control": "private, no-store" } });
 }, { route: "/api/admin/stats" });

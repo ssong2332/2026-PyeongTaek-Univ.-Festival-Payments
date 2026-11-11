@@ -20,3 +20,15 @@ describe("formatOptionPrice — 옵션 추가 가격(디자인: +₩500 / 무료
         expect(formatOptionPrice(amount)).toBe(expected);
     });
 });
+
+describe("영어 화면 금액 표기(T-04)", () => {
+    it("formatWon: ₩ 앞 표기", () => {
+        expect(formatWon(2500, "en")).toBe("₩2,500");
+        expect(formatWon(2500, "ko")).toBe("2,500원");
+    });
+
+    it("formatOptionPrice: 0원은 Free", () => {
+        expect(formatOptionPrice(0, "en")).toBe("Free");
+        expect(formatOptionPrice(500, "en")).toBe("+₩500");
+    });
+});

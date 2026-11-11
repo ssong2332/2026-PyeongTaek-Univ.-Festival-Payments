@@ -1,0 +1,119 @@
+/* 새 주문·직원 호출 시각 알림 — 소리를 못 들어도 알아보게 화면 테두리·카드·탭 제목으로 알린다 */
+.edge {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    box-shadow:
+        inset 0 0 0 5px var(--glow),
+        inset 0 0 70px 14px var(--glow);
+    opacity: 0;
+    animation:
+        edge-pulse 0.9s ease-in-out 6,
+        edge-breath 2.6s ease-in-out 5.4s infinite;
+}
+.edge[data-kind="order"] { --glow: rgba(255, 170, 60, 0.95); }
+.edge[data-kind="staff"] { --glow: rgba(255, 90, 70, 0.95); }
+@keyframes edge-pulse {
+    0%, 100% { opacity: 0; }
+    45% { opacity: 1; }
+}
+@keyframes edge-breath {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 0.6; }
+}
+
+/* 도착하는 순간 화면 위쪽이 한 번 번쩍 */
+.flash {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    pointer-events: none;
+    background: radial-gradient(circle at 50% 0%, var(--glow), transparent 70%);
+    opacity: 0;
+    animation: flash 0.7s ease-out 1;
+}
+.flash[data-kind="order"] { --glow: rgba(255, 200, 110, 0.55); }
+.flash[data-kind="staff"] { --glow: rgba(255, 110, 90, 0.55); }
+@keyframes flash {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.stack {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    z-index: 61;
+    display: grid;
+    gap: 10px;
+    width: min(94vw, 440px);
+    transform: translateX(-50%);
+    word-break: keep-all;
+}
+.card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    overflow: hidden;
+    border-radius: 20px;
+    padding: 14px 14px 18px;
+    color: #3b1a08;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(255, 255, 255, 0.35) inset;
+}
+.card[data-kind="order"] { background: linear-gradient(120deg, #ffe2a6, #ffb547 55%, #f08a2c); }
+.card[data-kind="staff"] { background: linear-gradient(120deg, #ffd0c2, #ff8a6e 55%, #ff5a46); }
+.icon {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: #3b1a08;
+    color: #ffd27a;
+}
+.icon::after {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border: 2px solid rgba(59, 26, 8, 0.55);
+    border-radius: 20px;
+    animation: ring 1.2s ease-out infinite;
+}
+@keyframes ring {
+    from { transform: scale(0.85); opacity: 1; }
+    to { transform: scale(1.35); opacity: 0; }
+}
+.body { min-width: 0; flex: 1; }
+.kicker { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; opacity: 0.8; }
+.title { margin: 2px 0 0; font-family: var(--font-display); font-size: 26px; line-height: 1.1; }
+.detail { margin: 4px 0 0; overflow: hidden; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; opacity: 0.85; }
+.ok {
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 14px;
+    background: #3b1a08;
+    color: #fff3e0;
+    padding: 12px 16px;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+.ok:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.timer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 5px;
+    background: rgba(59, 26, 8, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .edge { animation: none; opacity: 0.55; }
+    .flash { display: none; }
+    .icon::after { animation: none; }
+}

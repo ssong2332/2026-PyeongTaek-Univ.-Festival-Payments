@@ -167,6 +167,7 @@ export function mergeOrdersSnapshot(
 
 export interface UseOrdersFeedOptions {
     initialDate?: string;
+    onNewOrder?: (order: AdminOrderDto) => void;
 }
 
 export interface UseOrdersFeedReturn {
@@ -186,12 +187,16 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         ? { initialDate: optionsOrDate }
         : optionsOrDate ?? {};
 
-    const { initialDate } = options;
+    const { initialDate, onNewOrder } = options;
 
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [channelStatus, setChannelStatus] = useState<string | null>(null);
+    const onNewOrderRef = useRef(onNewOrder);
+    useEffect(() => {
+        onNewOrderRef.current = onNewOrder;
+    }, [onNewOrder]);
     const dateRef = useRef(initialDate);
     useEffect(() => {
         dateRef.current = initialDate;
@@ -199,6 +204,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
     // 실시간 이벤트·상세 조회로 바뀐 주문 id와 그때의 순번 — 목록 조회 중에 들어온 주문을 목록 결과가 지우지 않게 한다.
     const liveSeqRef = useRef(0);
     const liveChangedRef = useRef(new Map<string, number>());
+    const notifiedOrderIdsRef = useRef(new Set<string>());
     const markLive = useCallback((id: string) => {
         liveSeqRef.current += 1;
         liveChangedRef.current.set(id, liveSeqRef.current);
@@ -230,20 +236,40 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         }
     }, []);
 
-    const hydrateOrder = useCallback(async (id: string) => {
+    const hydrateOrder = useCallback(async (id: string, notify = false) => {
         try {
             const res = await fetch(`/api/admin/orders/${id}`);
             if (res.ok) {
                 const freshOrder: AdminOrderDto = await res.json();
+
                 markLive(freshOrder.id);
+
                 setOrdersMap((prev) => {
                     const current = prev.get(freshOrder.id);
                     const chosen = pickNewerOrder(current, freshOrder);
+
                     if (chosen === current) return prev;
+
                     const next = new Map(prev);
                     next.set(freshOrder.id, chosen);
+
                     return next;
                 });
+                if (
+                    notify &&
+                    !notifiedOrderIdsRef.current.has(freshOrder.id)
+                ) {
+                    notifiedOrderIdsRef.current.add(freshOrder.id);
+
+                    try {
+                            onNewOrderRef.current?.(freshOrder);
+                    } catch (error) {
+                        console.warn(
+                            "[useOrdersFeed] New order notification failed:",
+                            error,
+                        );
+                    }
+                }
             }
         } catch (err) {
             console.error("[useOrdersFeed] Failed to hydrate order:", id, err);
@@ -299,7 +325,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
                     if (payload.eventType === "INSERT") {
                         const newId = payload.new?.id as string;
                         if (newId) {
-                            hydrateOrder(newId);
+                            hydrateOrder(newId, true);
                         }
                     } else if (payload.eventType === "UPDATE") {
                         const updatedId = payload.new?.id as string;

@@ -1,0 +1,7 @@
+.control { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.name { flex:1; min-width:120px; font-weight:600; }
+.control button { min-height:44px; padding:8px 12px; border:1px solid #3a3140; border-radius:999px; background:#15121a; color:#f7e8d0; font:inherit; font-size:13px; font-weight:700; white-space:nowrap; cursor:pointer; }
+.control button[aria-checked="true"] { border-color:#ffb547; background:rgba(255,181,71,.14); color:#ffd58a; }
+.control button:disabled { opacity:.6; cursor:not-allowed; }
+.control button:focus-visible { outline:2px solid #ffb547; outline-offset:3px; }
+.error { width:100%; margin:0; color:#ff6a55; font-size:13px; }

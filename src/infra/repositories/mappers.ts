@@ -155,6 +155,7 @@ interface DbMenuItemRow {
   id: string;
   base_price: number;
   stock: number;
+  is_recommended: boolean;
   is_sold_out_manual: boolean;
   is_active: boolean;
   sort_order: number;
@@ -196,6 +197,7 @@ export function toMenuItemRecord(data: unknown): MenuItemRecord {
     id: row.id,
     basePrice: row.base_price,
     stock: row.stock,
+    isRecommended: row.is_recommended ?? false,
     isSoldOutManual: row.is_sold_out_manual,
     isActive: row.is_active,
     sortOrder: row.sort_order,

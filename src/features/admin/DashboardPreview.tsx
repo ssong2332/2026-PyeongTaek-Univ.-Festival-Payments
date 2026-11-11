@@ -6,16 +6,37 @@ import { MenuManagementPanel, type MenuAdminApi } from "@/components/admin/MenuM
 import { SettingsPanel, type SettingsApi } from "@/components/admin/SettingsPanel";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
+import type { AdminReviewDto, AdminReviewsResponse } from "@/lib/dto/review";
 import { aggregateStats } from "@/domain/stats/aggregate";
+import { aggregateHourlyMenuSales } from "@/domain/stats/hourlySales";
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
+import { summarizeRatings } from "@/domain/review/summary";
+import { kstDate } from "@/domain/time/kst";
+import { MenuLifecyclePanel } from "@/components/admin/MenuLifecyclePanel";
+import { AttentionLayer, orderAlert, staffAlert, useAttention } from "@/components/admin/AttentionLayer";
 
 async function loadPreviewStats(date: string) {
-    return aggregateStats(makePreviewOrders().map(order => ({
+    const orders = makePreviewOrders().map(order => ({
         id: order.id, status: order.status, totalAmount: order.totalAmount,
-        createdAt: order.createdAt, items: order.items.map(item => ({
+        createdAt: order.source === "manual" && order.manualOrderedAt ? order.manualOrderedAt : order.createdAt,
+        items: order.items.map(item => ({
             menuItemId: order.id, nameKo: item.menuNameKo, quantity: item.quantity,
         })),
-    })), date);
+    }));
+    return { ...aggregateStats(orders, date), hourlyByMenu: aggregateHourlyMenuSales(orders, date) };
+}
+
+// 목업 후기(메모리) — 통계 화면의 후기 영역을 DB 없이 볼 수 있게 한다.
+async function loadPreviewReviews(date: string): Promise<AdminReviewsResponse> {
+    const reviews: AdminReviewDto[] = [
+        { orderId: "00000000-0000-4000-8000-000000000004", pickupNumber: 4, manualNumber: null, rating: 5,
+            text: "말차 화이트초코 호떡 최고예요! 또 올게요", createdAt: "2026-09-25T10:40:00.000Z" },
+        { orderId: "00000000-0000-4000-8000-000000000005", pickupNumber: 2_100_000_001, manualNumber: 1, rating: 4,
+            text: null, createdAt: "2026-09-25T10:35:00.000Z" },
+        { orderId: "00000000-0000-4000-8000-000000000006", pickupNumber: 6, manualNumber: null, rating: 4,
+            text: "줄이 조금 길었지만 맛있었어요", createdAt: "2026-09-25T10:20:00.000Z" },
+    ].filter(review => date === "all" || kstDate(review.createdAt) === date);
+    return { date, ...summarizeRatings(reviews.map(review => review.rating)), reviews };
 }
 
 export function makePreviewOrders(): AdminOrderDto[] {
@@ -40,7 +61,7 @@ export function makePreviewOrders(): AdminOrderDto[] {
 function previewMenus(): AdminMenuDto[] {
     const item = (id: string, ko: string, en: string, price: number, stock: number, extra: Partial<AdminMenuDto> = {}): AdminMenuDto => ({
         id, translations: { ko: { name: ko, description: null }, en: { name: en, description: null } },
-        basePrice: price, stock, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
+        basePrice: price, stock, isRecommended: false, isSoldOutManual: false, isActive: true, sortOrder: 0, imageUrl: null, optionGroups: [], ...extra,
     });
     return [
         item("11111111-1111-1111-1111-111111111111", "기본 호떡", "Original Hotteok", 2000, 42, {
@@ -67,15 +88,36 @@ function createPreviewMenuApi(): MenuAdminApi {
     const ownerOf = (predicate: (menu: AdminMenuDto) => boolean) => menus.find(predicate)?.id ?? menus[0].id;
     return {
         load: async () => structuredClone(menus),
+        // 미리보기에서도 메뉴 추가(T-37)가 실제 화면처럼 동작하게 메모리에 더한다
+        createMenu: async input => {
+            const id = crypto.randomUUID();
+            const created: AdminMenuDto = {
+                id,
+                translations: {
+                    ko: { name: input.translations.ko.name, description: input.translations.ko.description || null },
+                    en: { name: input.translations.en.name, description: input.translations.en.description || null },
+                },
+                basePrice: input.basePrice, stock: input.stock, isRecommended: false, isSoldOutManual: false, isActive: true,
+                sortOrder: menus.length, imageUrl: null,
+                optionGroups: (input.optionGroups ?? []).map(group => ({
+                    id: crypto.randomUUID(), translations: group.translations, minSelect: group.minSelect, maxSelect: group.maxSelect, isActive: true,
+                    options: group.options.map(option => ({ id: crypto.randomUUID(), translations: option.translations, extraPrice: option.extraPrice, isActive: true })),
+                })),
+            };
+            menus = [...menus, created];
+            return structuredClone(created);
+        },
         updateMenu: async (id, patch) => save(id, menu => ({
             ...menu,
             basePrice: patch.basePrice ?? menu.basePrice,
             stock: patch.stock ?? menu.stock,
             isSoldOutManual: patch.isSoldOutManual ?? menu.isSoldOutManual,
+            isActive: patch.isActive ?? menu.isActive,
+            isRecommended: patch.isRecommended ?? menu.isRecommended,
             translations: {
                 ...menu.translations,
                 ...(patch.translations?.ko ? { ko: { name: patch.translations.ko.name, description: patch.translations.ko.description === undefined ? menu.translations.ko?.description ?? null : patch.translations.ko.description || null } } : {}),
-                ...(patch.translations?.en ? { en: { name: patch.translations.en.name, description: menu.translations.en?.description ?? null } } : {}),
+                ...(patch.translations?.en ? { en: { name: patch.translations.en.name, description: patch.translations.en.description === undefined ? menu.translations.en?.description ?? null : patch.translations.en.description || null } } : {}),
             },
         })),
         updateOptionGroup: async (id, patch) => save(ownerOf(menu => menu.optionGroups.some(group => group.id === id)), menu => ({
@@ -110,9 +152,27 @@ export function DashboardPreview() {
     });
     const [menuApi] = useState(createPreviewMenuApi);
     function replace(next: AdminOrderDto[]) { current.current = next; setOrders(next); }
-    return <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<MenuManagementPanel api={menuApi} />}
+    // 화면 알림 미리보기: 새 주문·직원 호출이 들어온 것처럼 알림만 띄운다(주문판 데이터는 그대로)
+    const attention = useAttention();
+    const demoCount = useRef(44);
+    function demoAlert(kind: "order" | "staff") {
+        demoCount.current += 1;
+        const pickupNumber = demoCount.current;
+        attention.push(kind === "order"
+            ? orderAlert({ id: `demo-${pickupNumber}`, pickupNumber, paymentMethod: "cash", totalAmount: 7000, items: [{ menuNameKo: "기본 호떡", quantity: 2 }, { menuNameKo: "뿌링클 호떡", quantity: 1 }] })
+            : staffAlert({ id: `demo-${pickupNumber}`, pickupNumber }));
+    }
+    return <>
+    <AttentionLayer alerts={attention.alerts} onDismiss={attention.dismiss} />
+    <div className="flex flex-wrap justify-end gap-2 px-4 pt-3 text-sm font-bold sm:px-6">
+        <span className="mr-auto self-center text-xs text-dough-dim">알림 미리보기</span>
+        <button type="button" onClick={() => demoAlert("order")} className="rounded-lg border border-syrup/50 px-3 py-2 text-syrup">새 주문 알림 시험</button>
+        <button type="button" onClick={() => demoAlert("staff")} className="rounded-lg border border-chili/50 px-3 py-2 text-chili">직원 호출 알림 시험</button>
+    </div>
+    <OrderDashboard orders={orders} preview settingsPanel={<SettingsPanel api={settingsApi} />} menuPanel={<><MenuLifecyclePanel api={menuApi} /><MenuManagementPanel api={menuApi} /></>}
         onReload={async () => replace(makePreviewOrders())}
         onLoadStats={loadPreviewStats}
+        onLoadReviews={loadPreviewReviews}
         onSearch={async number => current.current.filter(order => order.pickupNumber === number)}
         onAcknowledge={async id => replace(current.current.map(order => order.id === id ? {
             ...order, acknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
@@ -129,5 +189,6 @@ export function DashboardPreview() {
                 closedAt: result.restoreStock ? new Date().toISOString() : item.closedAt,
                 availableActions: availableActions({ status: result.to, paymentMethod: item.paymentMethod }),
             } : item));
-        }} />;
+        }} />
+    </>;
 }

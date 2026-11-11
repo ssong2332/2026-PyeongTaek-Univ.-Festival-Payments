@@ -1,15 +1,9 @@
-import type { OrderStatus } from "@/domain/order/status";
+"use client";
 
-// PRD F-10·F-14 상태 표기. 다국어 사전으로 옮기는 것은 T-04.
-const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: "결제대기",
-  paid: "결제확인",
-  cooking: "조리중",
-  completed: "완료",
-  cancelled: "취소",
-  refunded: "환불",
-  expired: "만료",
-};
+import type { OrderStatus } from "@/domain/order/status";
+import { useT } from "@/lib/i18n/locale";
+
+// PRD F-10·F-14 상태 표기 — 사전 status.{상태}.
 
 type Tone = "active" | "closed";
 
@@ -30,6 +24,7 @@ const TONE_CLASS: Record<Tone, { pill: string; dot: string }> = {
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+  const t = useT();
   const tone = TONES[status];
   return (
     <span
@@ -38,7 +33,7 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
       className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-bold ${TONE_CLASS[tone].pill}`}
     >
       <span aria-hidden="true" className={`size-2 rounded-full ${TONE_CLASS[tone].dot}`} />
-      {ORDER_STATUS_LABELS[status]}
+      {t(`status.${status}` as const)}
     </span>
   );
 }

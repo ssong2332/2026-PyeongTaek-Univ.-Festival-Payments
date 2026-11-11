@@ -7,6 +7,7 @@ import { kstDate } from "@/domain/time/kst";
 import { AppError } from "@/lib/api/errors";
 import { fetchJson } from "@/lib/api/client";
 import { ShiftInputSchema, ShiftSchema, ShiftsResponseSchema } from "@/lib/dto/shift";
+import { NowBoard, RosterImport, ShiftTimeline } from "./ShiftBoard";
 
 export interface ShiftApi {
   list(): Promise<Shift[]>;
@@ -92,6 +93,22 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
     } catch (failure) { reportFailure(failure, "스케줄 삭제에 실패했습니다."); }
     finally { setSaving(false); }
   }
+  // 붙여넣은 시간표를 한 건씩 차례로 등록한다(서버 API가 한 건씩 받는다). 중간에 실패하면 거기서 멈추고 몇 건 들어갔는지 알린다.
+  async function importRoster(inputs: ShiftInput[], onProgress: (done: number) => void) {
+    if (locked) return;
+    setSaving(true); setError(""); setNotice("");
+    let done = 0;
+    try {
+      for (const input of inputs) {
+        const shift = await api.create(input);
+        done += 1;
+        onProgress(done);
+        setShifts((items) => sorted([...items.filter((item) => item.id !== shift.id), shift]));
+      }
+      setNotice(`시간표 ${done}건을 한 번에 등록했습니다.`);
+    } catch (failure) { reportFailure(failure, `${done}건까지 등록하고 멈췄습니다.`); }
+    finally { setSaving(false); }
+  }
   function edit(shift: Shift) {
     setEditingId(shift.id);
     setForm({ personName: shift.personName, date: shift.date, startsAt: shift.startsAt, endsAt: shift.endsAt, role: shift.role });
@@ -119,17 +136,9 @@ export function ShiftManagement({ initialNow, api = shiftApi }: { initialNow: st
     </header>
     {error && <div role="alert" className="rounded-lg border border-chili/45 bg-chili/10 p-3 text-sm text-red-800">{error}</div>}
     {notice && <div role="status" className="rounded-lg bg-ok/10 p-3 text-sm text-ok">{notice}</div>}
-    <section aria-labelledby="shift-current" className="rounded-xl border border-iron-line bg-peach p-5">
-      <div className="flex flex-wrap justify-between gap-2"><h2 id="shift-current" className="font-semibold text-dough">현재 담당자</h2>
-        <time className="text-sm text-dough-dim" dateTime={now.toISOString()}>{now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}</time></div>
-      {loading ? <p role="status" className="mt-3 text-sm text-dough-dim">스케줄 불러오는 중…</p>
-        : !loaded ? <p className="mt-3 text-sm text-dough-dim">스케줄 조회가 필요합니다.</p>
-        : active.length ? <ul className="mt-3 flex flex-wrap gap-3">{active.map((shift) =>
-          <li key={shift.id} className="rounded-lg border border-iron-line bg-iron-2 px-4 py-3">
-            <span className="font-semibold">{shift.personName}</span><span className="ml-2 text-sm text-dough-dim">{shift.role}</span>
-            <p className="mt-1 text-xs text-dough-dim">{shift.startsAt}–{shift.endsAt}</p></li>)}</ul>
-        : <p className="mt-3 text-sm text-dough-dim">현재 담당자 없음</p>}
-    </section>
+    <NowBoard shifts={shifts} now={now} loading={loading} loaded={loaded} />
+    {loaded && shifts.length > 0 && <ShiftTimeline shifts={shifts} now={now} />}
+    <RosterImport shifts={shifts} now={now} disabled={locked} onImport={importRoster} />
     <section aria-labelledby="shift-form-heading" className="rounded-xl border border-iron-line bg-iron-2 p-5 ">
       <h2 id="shift-form-heading" className="mb-4 font-semibold">{editingId ? "스케줄 수정" : "스케줄 추가"}</h2>
       <form onSubmit={save}>

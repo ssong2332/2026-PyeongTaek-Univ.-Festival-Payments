@@ -6,6 +6,7 @@ import {
     AdminMenuSchema,
     AdminMenusResponseSchema,
     type AdminMenuDto,
+    type AdminMenuCreate,
     type AdminMenuPatch,
     type AdminOptionGroupPatch,
     type AdminOptionPatch,
@@ -24,6 +25,7 @@ export class MenuAdminRequestError extends Error {
 
 export interface MenuAdminApi {
     load: () => Promise<AdminMenuDto[]>;
+    createMenu: (input: AdminMenuCreate) => Promise<AdminMenuDto>;
     updateMenu: (id: string, patch: AdminMenuPatch) => Promise<AdminMenuDto>;
     updateOptionGroup: (id: string, patch: AdminOptionGroupPatch) => Promise<AdminMenuDto>;
     updateOption: (id: string, patch: AdminOptionPatch) => Promise<AdminMenuDto>;
@@ -42,6 +44,11 @@ function patchJson(url: string, body: unknown) {
 export const menuAdminApi: MenuAdminApi = {
     async load() {
         return AdminMenusResponseSchema.parse(await request("/api/admin/menus")).menus;
+    },
+    async createMenu(input) {
+        return AdminMenuSchema.parse(await request("/api/admin/menus", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+        }));
     },
     async updateMenu(id, patch) {
         return AdminMenuSchema.parse(await patchJson(`/api/admin/menus/${encodeURIComponent(id)}`, patch));
@@ -67,6 +74,12 @@ export function menuSaveErrorMessage(error: unknown): string {
 // 목록 API 자체가 없으면(404) 오류가 아니라 "아직 준비 중"
 function loadFailureStatus(error: unknown): "error" | "unavailable" {
     return error instanceof MenuAdminRequestError && error.status === 404 ? "unavailable" : "error";
+}
+
+// 서로 다른 메뉴 관리 패널(기존 편집 + T-37 추가/판매상태)이 저장 뒤 같은 목록을 다시 읽게 한다.
+export const MENU_ADMIN_CHANGED_EVENT = "ptu:menu-admin-changed";
+export function notifyMenuAdminChanged() {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(MENU_ADMIN_CHANGED_EVENT));
 }
 
 // 세션이 끝난 요청(401)이면 로그인 화면으로 보낸다(근무 관리 화면과 같은 방식).
@@ -117,10 +130,20 @@ export function useMenuAdmin(api: MenuAdminApi = menuAdminApi) {
         };
     }, [api, redirectIfExpired]);
 
+    useEffect(() => {
+        const handleChange = () => { void reload(); };
+        window.addEventListener(MENU_ADMIN_CHANGED_EVENT, handleChange);
+        return () => window.removeEventListener(MENU_ADMIN_CHANGED_EVENT, handleChange);
+    }, [reload]);
+
+    const addMenu = useCallback((created: AdminMenuDto) => {
+        setMenus((previous) => [...previous, created].toSorted((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id)));
+    }, []);
+
     // 저장 응답(고친 뒤의 메뉴 전체)으로 목록의 그 메뉴만 바꾼다.
     const replaceMenu = useCallback((updated: AdminMenuDto) => {
         setMenus((previous) => previous.map((menu) => (menu.id === updated.id ? updated : menu)));
     }, []);
 
-    return { status, menus, reload, replaceMenu, api };
+    return { status, menus, reload, addMenu, replaceMenu, api };
 }

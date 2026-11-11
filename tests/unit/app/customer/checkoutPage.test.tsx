@@ -40,7 +40,11 @@ function fillCart() {
 beforeEach(() => {
     fetchMock.mockReset();
     Object.values(router).forEach((fn) => fn.mockReset());
-    vi.stubGlobal("fetch", fetchMock);
+    // 결제 화면은 메뉴 이름을 화면 언어로 보이려고 GET /api/menu를 한 번 읽는다(T-04). 그 요청은 실패로 두고(담을 때 이름 그대로),
+    // fetchMock에는 주문 요청만 들어오게 한다.
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
+        String(url).startsWith("/api/menu") ? Promise.resolve(json(500, envelope("INTERNAL"))) : fetchMock(url, init),
+    );
     sessionStorage.clear();
     localStorage.clear();
     useCart.setState({ items: [] });

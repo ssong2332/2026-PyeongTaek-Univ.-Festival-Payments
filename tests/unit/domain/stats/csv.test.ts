@@ -84,4 +84,21 @@ describe("T-22 order CSV", () => {
     it("rejects inconsistent order totals instead of exporting a misleading sales figure", () => {
         expect(() => buildOrdersCsv([{ ...base, totalAmount: 6000 }])).toThrow("Order item total mismatch");
     });
+    it("T-28: 수기 주문은 픽업 번호 열에 M- 번호를 적고, 주문 시각(종이 시각)으로 날짜 범위를 가른다", () => {
+        const manual: CsvOrder = {
+            ...base, id: "manual-1", pickupNumber: 2_100_000_012, manualNumber: 12, status: "completed",
+            createdAt: "2026-10-07T03:00:00Z", totalAmount: 2000, completedAt: "2026-10-07T03:00:00Z",
+            items: [{ menuNameKo: "기본호떡", options: [], quantity: 1, lineTotal: 2000 }],
+        };
+        const customer: CsvOrder = { ...base, manualNumber: null };
+
+        const result = buildOrdersCsv([customer, manual], { from: "2026-10-07", to: "2026-10-07" });
+
+        expect(result.content).toContain("order-1,1,2026-10-07 00:00:00,기본호떡");
+        expect(result.content).toContain("manual-1,M-012,2026-10-07 12:00:00,기본호떡");
+        expect(result.content).not.toContain("2100000012");
+        expect(result.sales).toBe(7000);
+        // 다른 날짜 범위에는 들어가지 않는다.
+        expect(buildOrdersCsv([manual], { from: "2026-10-08", to: "2026-10-08" }).rowCount).toBe(0);
+    });
 });

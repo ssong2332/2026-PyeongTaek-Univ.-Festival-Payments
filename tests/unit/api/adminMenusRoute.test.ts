@@ -9,12 +9,12 @@ vi.mock("@/services/adminMenuService");
 
 import { NextRequest } from "next/server";
 import type { User } from "@supabase/supabase-js";
-import { GET } from "@/app/api/admin/menus/route";
+import { GET, POST } from "@/app/api/admin/menus/route";
 import { PATCH as patchMenu } from "@/app/api/admin/menus/[id]/route";
 import { PATCH as patchOptionGroup } from "@/app/api/admin/option-groups/[id]/route";
 import { PATCH as patchOption } from "@/app/api/admin/options/[id]/route";
 import { requireAdmin } from "@/infra/supabase/session";
-import { listAdminMenus, updateAdminMenu, updateAdminOption, updateAdminOptionGroup } from "@/services/adminMenuService";
+import { createAdminMenu, listAdminMenus, updateAdminMenu, updateAdminOption, updateAdminOptionGroup } from "@/services/adminMenuService";
 import { AppError } from "@/lib/api/errors";
 import type { AdminMenuDto } from "@/lib/dto/adminMenu";
 
@@ -28,6 +28,7 @@ const menu: AdminMenuDto = {
     translations: { ko: { name: "기본 호떡", description: null }, en: { name: "Original Hotteok", description: null } },
     basePrice: 2000,
     stock: 10,
+    isRecommended: false,
     isSoldOutManual: false,
     isActive: true,
     sortOrder: 0,
@@ -50,9 +51,50 @@ beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockResolvedValue({ id: "admin-1", email: "admin@test.com" } as unknown as User);
     vi.mocked(listAdminMenus).mockResolvedValue({ menus: [menu] });
+    vi.mocked(createAdminMenu).mockResolvedValue(menu);
     vi.mocked(updateAdminMenu).mockResolvedValue(menu);
     vi.mocked(updateAdminOptionGroup).mockResolvedValue(menu);
     vi.mocked(updateAdminOption).mockResolvedValue(menu);
+});
+
+
+describe("POST /api/admin/menus — T-37", () => {
+    const input = {
+        translations: {
+            ko: { name: "시나몬 호떡", description: "달콤" },
+            en: { name: "Cinnamon Hotteok", description: "Sweet" },
+        },
+        basePrice: 3000,
+        stock: 20,
+        optionGroups: [{
+            translations: { ko: { name: "토핑" }, en: { name: "Topping" } },
+            minSelect: 0,
+            maxSelect: 1,
+            options: [{
+                translations: { ko: { name: "치즈" }, en: { name: "Cheese" } },
+                extraPrice: 500,
+            }],
+        }],
+    };
+
+    it("인증된 관리자가 메뉴와 옵션 구조를 등록하면 201", async () => {
+        const request = new NextRequest("http://localhost:3000/api/admin/menus", {
+            method: "POST", body: JSON.stringify(input),
+        });
+        const response = await POST(request);
+        expect(response.status).toBe(201);
+        expect(await response.json()).toEqual(menu);
+        expect(createAdminMenu).toHaveBeenCalledWith(input, expect.anything());
+    });
+
+    it("영어 이름 누락이나 잘못된 선택 범위는 400", async () => {
+        const request = new NextRequest("http://localhost:3000/api/admin/menus", {
+            method: "POST",
+            body: JSON.stringify({ ...input, translations: { ko: { name: "새 메뉴" } } }),
+        });
+        expect((await POST(request)).status).toBe(400);
+        expect(createAdminMenu).not.toHaveBeenCalled();
+    });
 });
 
 describe("GET /api/admin/menus", () => {
@@ -75,6 +117,18 @@ describe("GET /api/admin/menus", () => {
 describe("PATCH /api/admin/menus/[id]", () => {
     const patch = (body: unknown, id = MENU_ID) => send(patchMenu, "/api/admin/menus", id, body);
 
+    it("판매 종료/재판매 값을 관리자 메뉴 서비스에 전달한다", async () => {
+        const result = await patch({ isActive: false });
+        expect(result.status).toBe(200);
+        expect(updateAdminMenu).toHaveBeenCalledWith(MENU_ID, { isActive: false }, expect.anything());
+    });
+
+    it("추천 ON/OFF 값을 관리자 메뉴 서비스에 전달한다", async () => {
+        const result = await patch({ isRecommended: true });
+        expect(result.status).toBe(200);
+        expect(updateAdminMenu).toHaveBeenCalledWith(MENU_ID, { isRecommended: true }, expect.anything());
+    });
+
     it("검사를 통과한 값(이름은 앞뒤 공백 제거)을 서비스에 넘기고 200 AdminMenuDto", async () => {
         const result = await patch({ basePrice: 2500, stock: 0, isSoldOutManual: true, translations: { ko: { name: "  꿀 호떡 " } } });
         expect(result).toEqual({ status: 200, json: menu, cache: "private, no-store" });
@@ -91,7 +145,6 @@ describe("PATCH /api/admin/menus/[id]", () => {
         ["음수 재고", { stock: -5 }],
         ["소수 재고", { stock: 1.5 }],
         ["문자 가격", { basePrice: "2000" }],
-        ["모르는 필드(isActive — 1차는 수정만)", { isActive: false }],
         ["모르는 언어", { translations: { ja: { name: "ホットク" } } }],
         ["빈 번역", { translations: {} }],
         ["빈 본문", {}],

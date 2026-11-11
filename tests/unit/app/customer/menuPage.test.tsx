@@ -15,6 +15,7 @@ const plain: MenuItemDto = {
     description: "기본호떡",
     price: 2000,
     stock: 5,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,
@@ -26,6 +27,7 @@ const cheese: MenuItemDto = {
     description: "녹진한 모짜렐라 치즈",
     price: 2500,
     stock: 3,
+    isRecommended: false,
     isAvailable: true,
     isSoldOut: false,
     imageUrl: null,
@@ -43,6 +45,7 @@ const seed: MenuItemDto = {
     description: "견과류가 들어간 호떡",
     price: 2000,
     stock: 0,
+    isRecommended: false,
     isAvailable: false,
     isSoldOut: true,
     imageUrl: null,
@@ -72,6 +75,26 @@ afterEach(() => {
 const menuButton = (name: string) => screen.getByRole("button", { name: new RegExp(name) }) as HTMLButtonElement;
 
 describe("메뉴판(/) — PRD 화면 표 111행", () => {
+    it("추천 플래그가 켜진 판매 가능 메뉴만 추천 영역에 보이고, 전체 메뉴 카드에도 표시한다", async () => {
+        serveMenu([{ ...plain, isRecommended: true }, cheese, { ...seed, isRecommended: true }]);
+        const { container } = render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+        const featured = container.querySelector(".feat-track");
+        expect(featured?.textContent).toContain("기본호떡");
+        expect(featured?.textContent).not.toContain("치즈 호떡");
+        expect(featured?.textContent).not.toContain("씨앗 호떡");
+        expect(menuButton("기본호떡").textContent).toContain("오늘의 추천");
+        expect(menuButton("치즈 호떡").textContent).not.toContain("오늘의 추천");
+    });
+
+    it("추천 메뉴가 0개면 추천 영역을 숨기고 전체 메뉴는 유지한다", async () => {
+        serveMenu([plain, cheese]);
+        const { container } = render(<MenuPage />);
+        await screen.findByRole("button", { name: /기본호떡/ });
+        expect(container.querySelector(".feat-track")).toBeNull();
+        expect(menuButton("기본호떡")).toBeTruthy();
+    });
+
     it("로딩: 스켈레톤 → 준비됨: 메뉴 목록·가격·대기 건수, 장바구니 비었으면 하단 바 비활성", async () => {
         serveMenu([plain, cheese, seed]);
         render(<MenuPage />);

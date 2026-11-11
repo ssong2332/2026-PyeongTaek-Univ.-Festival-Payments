@@ -6,12 +6,15 @@ import {
     Check,
     ChefHat,
     ChevronLeft,
+    ChevronRight,
     CircleCheck,
     Clock3,
     Copy,
+    ExternalLink,
     CreditCard,
     Flame,
     Heart,
+    Image as ImageGlyph,
     Info,
     Landmark,
     Minus,
@@ -21,9 +24,12 @@ import {
     RefreshCw,
     Search,
     Send,
+    ShieldCheck,
     ShoppingBag,
+    Smartphone,
     Sparkles,
     Star,
+    Trash2,
     TriangleAlert,
     Utensils,
     X,
@@ -69,3 +75,9 @@ export const SendIcon = wrap(Send);
 export const BellIcon = wrap(BellRing);
 export const ChefIcon = wrap(ChefHat);
 export const UtensilsIcon = wrap(Utensils);
+export const ChevronRightIcon = wrap(ChevronRight);
+export const ExternalLinkIcon = wrap(ExternalLink);
+export const ImageIcon = wrap(ImageGlyph);
+export const ShieldIcon = wrap(ShieldCheck);
+export const PhoneIcon = wrap(Smartphone);
+export const TrashIcon = wrap(Trash2);

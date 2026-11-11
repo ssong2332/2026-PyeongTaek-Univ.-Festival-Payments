@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "vitest";
+import { loadHourlyMenuSales } from "@/infra/repositories/hourlySalesRepository";
 
 const url = process.env.SUPABASE_URL!;
 const service = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -54,6 +55,10 @@ test("T-21 DB aggregate applies KST dates, refund rules, menu ratios, and RPC pe
             { menuItemId: menuB, nameKo: "꿀호떡", quantity: 3, ratio: 0.6 },
             { menuItemId: menuA, nameKo: "기본호떡", quantity: 2, ratio: 0.4 },
         ]);
+        expect(await loadHourlyMenuSales(service, "2099-02-01")).toEqual([
+            { hour: 0, menuItemId: menuA, nameKo: "기본호떡", quantity: 2 },
+            { hour: 19, menuItemId: menuB, nameKo: "꿀호떡", quantity: 3 },
+        ]);
 
         const cooking = await service.rpc("transition_order", {
             p_order_id: orderIds[0], p_from: "paid", p_to: "cooking", p_action: "start_cooking",
@@ -74,6 +79,9 @@ test("T-21 DB aggregate applies KST dates, refund rules, menu ratios, and RPC pe
         expect(afterRefund.data.byMenu).toEqual([
             { menuItemId: menuB, nameKo: "꿀호떡", quantity: 3, ratio: 1 },
         ]);
+        expect(await loadHourlyMenuSales(service, "2099-02-01")).toEqual([
+            { hour: 19, menuItemId: menuB, nameKo: "꿀호떡", quantity: 3 },
+        ]);
 
         const all = await service.rpc("get_stats", { p_date: "all" });
         expect(all.error).toBeNull();
@@ -86,6 +94,7 @@ test("T-21 DB aggregate applies KST dates, refund rules, menu ratios, and RPC pe
         const empty = await service.rpc("get_stats", { p_date: "2099-02-02" });
         expect(empty.error).toBeNull();
         expect(empty.data).toMatchObject({ sales: 0, orderCount: 0, byMenu: [] });
+        expect(await loadHourlyMenuSales(service, "2099-02-02")).toEqual([]);
         expect((await service.rpc("get_stats", { p_date: "2099-02-30" })).error).not.toBeNull();
         expect((await anon.rpc("get_stats", { p_date: "2099-02-01" })).error).not.toBeNull();
     } finally {

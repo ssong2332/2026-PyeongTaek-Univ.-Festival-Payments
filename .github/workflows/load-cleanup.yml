@@ -1,0 +1,38 @@
+name: T-29 isolated cleanup SQL
+on:
+  push:
+  pull_request:
+    branches: [dev, main]
+permissions:
+  contents: read
+jobs:
+  load-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: festival_load_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: festival_load_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disposable PostgreSQL cleanup contract
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;'
+          for migration in 0001_schema.sql 0007_t03_schema_hardening.sql 0008_t53_remove_easy_pay.sql 0009_transition_order.sql 0018_rate_limit.sql; do
+            psql -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f tests/load/local-only.sql
+          psql -v ON_ERROR_STOP=1 -f tests/load/cleanup.test.sql
+          node tests/load/cleanup-race.mjs

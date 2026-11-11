@@ -87,6 +87,7 @@ function toMenuItemDto(item: MenuItemRecord, locale: MenuLocale): MenuItemDto | 
         description: localizedDescription(item.translations, locale),
         price: item.basePrice,
         stock: item.stock,
+        isRecommended: item.isRecommended,
         isAvailable: !isSoldOut,
         isSoldOut,
         imageUrl: item.imageUrl,

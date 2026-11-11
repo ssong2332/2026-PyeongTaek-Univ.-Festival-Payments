@@ -15,6 +15,12 @@ export const StatsDtoSchema = z.object({
         quantity: count,
         ratio: z.number().min(0).max(1),
     })),
+    hourlyByMenu: z.array(z.object({
+        hour: z.number().int().min(0).max(23),
+        menuItemId: z.guid(),
+        nameKo: z.string(),
+        quantity: count,
+    })),
     totals: z.record(z.enum(ORDER_STATUSES), count),
 });
 

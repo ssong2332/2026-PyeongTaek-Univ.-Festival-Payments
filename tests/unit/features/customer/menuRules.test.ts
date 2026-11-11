@@ -60,6 +60,7 @@ function menu(overrides: Partial<MenuItemDto> = {}): MenuItemDto {
         description: null,
         price: 3000,
         stock: 10,
+        isRecommended: false,
         isAvailable: true,
         isSoldOut: false,
         imageUrl: null,

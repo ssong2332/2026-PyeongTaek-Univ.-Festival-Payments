@@ -41,6 +41,9 @@ interface DbOrderRow {
     completed_at: string | null;
     closed_at: string | null;
     refund_channel: RefundChannel | null;
+    source?: "customer" | "manual";
+    manual_number?: number | null;
+    manual_ordered_at?: string | null;
     order_items?: DbOrderItem[];
     order_status_history?: DbStatusHistory[];
 }
@@ -84,6 +87,9 @@ export function toAdminOrderDto(row: DbOrderRow): AdminOrderDto {
             status: row.status,
             paymentMethod: row.payment_method,
         }),
+        source: row.source ?? "customer",
+        manualNumber: row.manual_number ?? null,
+        manualOrderedAt: row.manual_ordered_at ?? null,
     };
 }
 
@@ -91,7 +97,7 @@ const ORDER_QUERY_SELECT = `
     id, pickup_number, status, payment_method, total_amount,
     created_at, updated_at, acknowledged_at, transfer_reported_at,
     cancel_requested_at, cancel_rejected_at, paid_at, cooking_started_at,
-    completed_at, closed_at, refund_channel,
+    completed_at, closed_at, refund_channel, source, manual_number, manual_ordered_at,
     order_items (
         menu_name_ko, quantity, line_total,
         order_item_options ( option_name_ko, extra_price )

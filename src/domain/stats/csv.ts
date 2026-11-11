@@ -1,3 +1,4 @@
+import { formatManualNumber } from "@/domain/order/manualNumber";
 import type { OrderStatus, PaymentMethod } from "@/domain/order/status";
 import { kstDayUtcRange } from "./aggregate";
 
@@ -18,6 +19,9 @@ export interface CsvOrderItem {
 export interface CsvOrder {
     id: string;
     pickupNumber: number;
+    // 수기 주문(T-28)이면 종이에 적힌 M 번호. "픽업 번호" 열에 M-001로 적는다.
+    manualNumber?: number | null;
+    // 주문 시각. 수기 주문은 종이에 적힌 시각(manual_ordered_at) — 날짜 범위와 "주문 시각" 열의 기준(DECISIONS #62).
     createdAt: string;
     paymentMethod: PaymentMethod;
     status: OrderStatus;
@@ -104,7 +108,8 @@ export function buildOrdersCsv(
 
         for (const item of order.items) {
             rows.push([
-                order.id, order.pickupNumber, kstTimestamp(order.createdAt), item.menuNameKo,
+                order.id, order.manualNumber ? formatManualNumber(order.manualNumber) : order.pickupNumber,
+                kstTimestamp(order.createdAt), item.menuNameKo,
                 item.options.join(";"), item.quantity, item.lineTotal,
                 paymentLabels[order.paymentMethod], statusLabels[order.status],
                 order.status === "cancelled" || order.status === "refunded" ? order.reason ?? "" : "",
