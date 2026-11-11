@@ -1,7 +1,7 @@
--- festival_purge_test 전용 fixture 및 파기 결과 검증.
+-- CI에서 리셋한 로컬 Supabase 전용 fixture 및 파기 결과 검증.
 DO $$ BEGIN
-    IF current_database() <> 'festival_purge_test' THEN
-        RAISE EXCEPTION 'purge test requires festival_purge_test database';
+    IF current_database() <> 'postgres' OR current_setting('application_name') <> 'festival_purge_test' THEN
+        RAISE EXCEPTION 'purge test requires the reset local Supabase database';
     END IF;
 END $$;
 
