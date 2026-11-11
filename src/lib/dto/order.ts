@@ -62,7 +62,7 @@ export const OrderStatusDtoSchema = z.object({
   transferReportedAt: z.iso.datetime().nullable(),
   cancelRequestedAt: z.iso.datetime().nullable(),
   cancelRejectedAt: z.iso.datetime().nullable(),
-  // T-55 되돌리기 (F-33/Architecture): 되돌린 시각 기준 만료 재계산 및 입금 대기 시작 시각 (하위 호환성 유지)
+  // T-55 되돌리기 (F-49/Architecture): 되돌린 시각 기준 만료 재계산 및 입금 대기 시작 시각 (하위 호환성 유지)
   pendingSince: z.iso.datetime().nullable().optional(),
   aheadCount: z.number().int().nonnegative(),
   canTransferReport: z.boolean(),
