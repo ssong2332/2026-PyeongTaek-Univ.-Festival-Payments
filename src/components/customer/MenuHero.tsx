@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion, useMotionValueEvent, useScroll, useSpring, useTransform } from "motion/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useCartBump } from "@/components/motion/cartBump";
 import { SPRING } from "@/components/motion/presets";
 import { CartIcon, FlameIcon } from "@/components/ui/icons";
@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n/locale";
 import { LanguageToggle } from "./LanguageToggle";
 
 // 제목 위 연기 덩어리: 시작 위치·크기·흐르는 방향을 고정값으로 흩어 둔다(다시 그려도 같다).
-const SMOKE_PUFFS = Array.from({ length: 9 }, (_, index) => ({
+const SMOKE_PUFFS = Array.from({ length: 5 }, (_, index) => ({
     left: `${8 + ((index * 23) % 78)}%`,
     top: `${30 + ((index * 17) % 40)}%`,
     size: 34 + ((index * 11) % 30),
@@ -24,7 +24,7 @@ const SMOKE_PUFFS = Array.from({ length: 9 }, (_, index) => ({
 
 // 메뉴판 머리 — "호떡" 글자가 반죽처럼 떨어져 눌리고(drop), "부스" 딱지가 척 붙고(stick), 제목 위로 열기가 일렁이며 연기가 오른다.
 // 스크롤하면 제목이 천천히 밀려나며 흐려지고, 머리를 지나면 위에 작은 바가 내려온다. 위쪽 진행 막대가 스크롤만큼 찬다.
-export function MenuHero({ cartCount }: { cartCount: number }) {
+export const MenuHero = memo(function MenuHero({ cartCount }: { cartCount: number }) {
     const { scrollY, scrollYProgress } = useScroll();
     const progress = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
     const titleY = useTransform(scrollY, [0, 260], [0, 60]);
@@ -60,15 +60,6 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                 </div>
 
                 <motion.div style={{ y: titleY, opacity: titleOpacity }} className="relative mt-6">
-                    {/* 열기 아지랑이 필터(장식) — 난류 노이즈가 천천히 바뀌며 제목을 일렁이게 한다 */}
-                    <svg aria-hidden="true" className="absolute size-0">
-                        <filter id="heat-haze" x="-10%" y="-20%" width="120%" height="140%">
-                            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.06" numOctaves="2" seed="3" result="noise">
-                                <animate attributeName="baseFrequency" dur="6s" values="0.012 0.06;0.016 0.09;0.012 0.06" repeatCount="indefinite" />
-                            </feTurbulence>
-                            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
-                        </filter>
-                    </svg>
                     {/* 제목 위로 피어오르는 열기(장식) */}
                     <span aria-hidden="true" className="pointer-events-none absolute -top-10 left-0 flex gap-5">
                         {[0, 1, 2, 3, 4].map((index) => (
@@ -112,7 +103,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
                                     // 진동이 없어도 화면 연출은 그대로다.
                                 }
                             }}
-                            className="heat-haze font-display relative cursor-pointer text-[96px] leading-[0.9] drop-shadow-[0_10px_30px_rgba(240,138,44,0.35)] select-none"
+                            className="font-display relative cursor-pointer text-[96px] leading-[0.9] drop-shadow-[0_10px_30px_rgba(240,138,44,0.35)] select-none"
                         >
                             <span className="jelly syrup-text -mt-[0.18em] inline-block origin-bottom pt-[0.18em]" style={{ animationDelay: "0.05s, 2.2s" }}>
                                 호
@@ -186,7 +177,7 @@ export function MenuHero({ cartCount }: { cartCount: number }) {
             </AnimatePresence>
         </>
     );
-}
+});
 
 function CartButton({ count, compact = false }: { count: number; compact?: boolean }) {
     const bump = useCartBump();

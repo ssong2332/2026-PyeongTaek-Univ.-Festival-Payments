@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useLayoutEffect, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useState } from "react";
 import { CategoryChips } from "@/components/customer/CategoryChips";
 import { FeaturedCarousel } from "@/components/customer/FeaturedCarousel";
 import { MenuCard } from "@/components/customer/MenuCard";
@@ -75,6 +75,9 @@ export default function MenuPage() {
 
     const cartCount = hydrated ? count : 0;
     const openMenu = menu.items.find((item) => item.id === openMenuId) ?? null;
+    // 대기 수가 바뀌어 이 화면이 다시 그려져도 메뉴 목록·추천·맛 칩은 다시 그리지 않게 값을 고정한다.
+    const featured = useMemo(() => featuredItems(menu.items), [menu.items]);
+    const categories = useMemo(() => availableCategories(menu.items), [menu.items]);
 
     return (
         <>
@@ -97,7 +100,7 @@ export default function MenuPage() {
                 <SearchBox value={query} onChange={setQuery} />
                 {menu.status === "ready" && !query && (
                     <div className="mt-3">
-                        <FeaturedCarousel items={featuredItems(menu.items)} onSelect={setOpenMenuId} />
+                        <FeaturedCarousel items={featured} onSelect={setOpenMenuId} />
                     </div>
                 )}
                 <section
@@ -120,7 +123,7 @@ export default function MenuPage() {
                     </div>
                     {menu.status === "ready" && (
                         <CategoryChips
-                            categories={availableCategories(menu.items)}
+                            categories={categories}
                             value={category}
                             onChange={setCategory}
                         />
@@ -239,7 +242,7 @@ export default function MenuPage() {
 }
 
 // 판정: 로딩 → 스켈레톤 / 실패 → 다시 시도 / 판매 가능 0개 → 안내(+ 품절 메뉴는 목록에 둠) / 검색 0건 → "검색 결과가 없습니다".
-function MenuList(props: {
+const MenuList = memo(function MenuList(props: {
     status: "loading" | "ready" | "error";
     items: MenuItemDto[];
     category: MenuCategoryId;
@@ -307,7 +310,7 @@ function MenuList(props: {
             )}
         </>
     );
-}
+});
 
 function MenuDetail({
     menu,
