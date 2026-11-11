@@ -181,7 +181,7 @@ POST /api/orders (Route Handler)
 200 AdminOrderDto (갱신본)  +  Realtime UPDATE가 모든 대시보드에 전파  +  고객 상태 페이지는 다음 폴링(≤5초)에 반영
 ```
 
-**적용 예정(T-54, DECISIONS #71)**: 위 흐름의 `repo.findById`는 상태·결제수단과 함께 취소 요청 시각·거절 시각(`cancel_requested_at`·`cancel_rejected_at`)도 읽는다. 고객 취소 요청이 대기 중이면 `confirm_payment`·`confirm_cash`·`start_cooking`은 상태 머신 단계에서 409 `INVALID_TRANSITION`이 된다.
+**적용 예정(T-54, DECISIONS #71)**: 위 흐름의 `repo.findById`는 상태·결제수단과 함께 취소 요청 시각·거절 시각(`cancel_requested_at`·`cancel_rejected_at`)도 읽는다. 고객 취소 요청이 대기 중이면 `confirm_payment`·`confirm_cash`·`start_cooking`은 상태 머신 단계에서 409 `INVALID_TRANSITION`이 된다. 이 세 동작은 `transition_order` 대신 `0106`의 새 DB 함수를 호출해, 조회 뒤 고객 취소 요청이 저장됐으면 409 `STATE_CHANGED`로 거부된다(취소 요청이 없어 기대값이 `null`이어도 항상 비교).
 
 ### 실시간 피드·연결 감시: ADR-0003. 시간 기반 스윕: ADR-0006.
 
@@ -217,7 +217,7 @@ POST /api/orders (Route Handler)
 **적용 예정(T-54·T-55)** — 코드 병합 때 위 표에 반영하고 이 블록의 해당 줄을 지운다 (DECISIONS #64·#65·#71):
 
 - (T-54) `confirm_payment`: pending → **cooking**, 타임스탬프 `paid_at`·`cooking_started_at` 동시 기록(`confirm_cash`와 같음). `start_cooking`(paid → cooking)은 기존 결제확인 주문용으로 남긴다.
-- (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 화면 버튼 비활성·안내 문구는 별도 UI 작업, 동시 요청까지 완전히 막는 처리는 T-55 DB 설계와 함께 확인.
+- (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 조회 뒤 고객 요청이 끼어드는 동시 요청은 T-54의 `0106` DB 함수가 막는다(행 잠금 뒤 조회 시점 취소 요청 값과 비교, 다르면 409 `STATE_CHANGED`). 운영 DB에 `0106` 적용 후 앱 배포. 화면 버튼 비활성·안내 문구는 별도 UI 작업.
 - (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). DB 함수·컬럼·마이그레이션 번호는 T-55 DB 설계 후 확정.
 
 상태를 바꾸지 않는 이벤트(이력 행은 `from = to`로 기록):
@@ -276,6 +276,7 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 |---|---|---|
 | `create_order` | `(p_idempotency_key uuid, p_payment_method payment_method, p_locale text, p_items jsonb) RETURNS jsonb` — ADR-0002 | `OUT_OF_STOCK` (detail: menu_item_id, available) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `EMPTY_ITEMS` |
 | `transition_order` | `(p_order_id uuid, p_from order_status, p_to order_status, p_action text, p_actor_type actor_type, p_actor_id uuid, p_reason text, p_refund_channel refund_channel) RETURNS orders` | `STATE_CHANGED` (CAS 실패) · `TERMINAL_STATE` · `ORDER_NOT_FOUND` |
+| 이름 확정 예정 (`0106`, T-54) **적용 예정(T-54)** | `transition_order` 입력 + 조회 시점의 `cancel_requested_at`·`cancel_rejected_at` 기대값. `SELECT ... FOR UPDATE` 뒤 NULL 포함 비교(`IS NOT DISTINCT FROM`) → 같으면 같은 트랜잭션에서 `transition_order` 호출. `confirm_payment`·`confirm_cash`·`start_cooking`에만 사용. `SECURITY INVOKER`·제한된 `search_path`·`service_role`만 EXECUTE | `STATE_CHANGED` (취소 요청 값 불일치) + `transition_order`의 예외 |
 | `create_manual_order` (`0104_manual_orders.sql`) | `(p_idempotency_key uuid, p_payment_method payment_method, p_manual_ordered_at timestamptz, p_manual_number integer, p_actor_id uuid, p_items jsonb) RETURNS jsonb` — T-28 수기 주문 사후 입력(F-34, DECISIONS #62). 완료 상태 주문(`source='manual'`·`manual_ordered_at`·`manual_number`) + 상태 이력(`manual_create`, admin) + 재고 차감을 한 트랜잭션으로. 재고는 `greatest(stock - 수량, 0)`(모자라도 저장), 가격은 DB 값, 비활성 메뉴·옵션 허용. 같은 멱등키 재요청은 기존 주문 반환(`created=false`). `pickup_number`는 고객 번호와 겹치지 않게 `2100000000 + manual_number` | `MANUAL_NUMBER_TAKEN` (detail: manualNumber) · `MENU_UNAVAILABLE` · `INVALID_OPTION` · `INVALID_MANUAL_ORDERED_AT`(미래) · `INVALID_MANUAL_NUMBER` · `EMPTY_ITEMS` · `INVALID_ITEMS` · `IDEMPOTENCY_KEY_CONFLICT`(고객 주문의 키) |
 | `sweep_order_timeouts` | `(p_now timestamptz DEFAULT now()) RETURNS jsonb {expired, completed}` — ADR-0006 | 없음(건별 CAS 실패는 건너뜀) |
 | `count_waiting_before` | `(p_created_at timestamptz DEFAULT NULL) RETURNS int` — NULL이면 전체 미완료 수 | 없음 |
@@ -315,6 +316,9 @@ Postgres 함수(작업별 파일 — 번호는 2-1절 표, 전부 `SECURITY INVO
 | 0102 | `0102_reviews.sql` | 후기 테이블·제약·RLS·완료 주문 검사 | T-41 · DB1 | 0101(운영 적용 순서) | 신규 배정. 저장 API는 아래 고객 API 규격, 고객 폼 연결은 후속 |
 | 0104 | `0104_manual_orders.sql` | 수기 주문 사후 입력: `orders.source`·`manual_ordered_at`·`manual_number`, `create_manual_order`, `get_stats` 날짜 기준 변경 | T-28 · BE1 | 0103(운영 적용 순서) | 신규 배정(DECISIONS #62). 운영 DB는 0103까지 적용(2026-10-06 팀장 확인) — 병합 후 DB1 적용 |
 | 0105 | `0105_create_admin_menu.sql` | 관리자 메뉴 신규 등록 RPC `create_admin_menu`: 메뉴·번역·옵션 그룹·옵션을 한 트랜잭션으로 생성 | T-37 · FE2 | 0104(운영 적용 순서) | #139로 dev 병합. 운영에서 신규 메뉴 등록 전 DB1이 운영 DB에 적용·검증 |
+| 0106 | 이름 확정 예정 | T-54 취소 요청·조리중 전환 원자성 방어: 조회 시점 취소 요청 값 비교 후 `transition_order` 호출하는 새 함수(`0009` 수정 없음) | T-54 · DB1(SQL·권한) / BE1(서비스 연결·경합 테스트) | 0105(운영 적용 순서) | 신규 배정(#155, 2026-11-11). DB1이 앱 배포 전에 운영 DB에 적용·권한 확인 |
+| 0107 | 이름 확정 예정 | T-55 되돌리기 함수·입금 대기 시작 시각·자동 만료 기준 | T-55 · DB1 | 0106(운영 적용 순서) | 신규 배정(#155, 2026-11-11) |
+| 0108 | `0108_inventory_photos.sql` | 교대 재고 사진 | 재고 사진 기록 · 김혁(#158) | 0107(운영 적용 순서) | 신규 배정(#155, 2026-11-11). #158의 `0106_inventory_photos.sql`을 병합 전 0108로 재번호화 |
 
 > **운영 DB 적용 현황(마지막 확인 2026-10-01)**: `0001`·`0003`·`0007`~`0013`·`0016`·`0017` 적용(`0016`은 DB1 서동혁이 `supabase db push`, `0017`은 팀장이 SQL Editor로 — 이력 표에는 다음 `db push` 때 기록). `seed.sql` 운영 적용 완료(10-01 — 메뉴 4·초기 재고 100×4·번역 8·설정 6, DECISIONS #50, T-36). `0018`은 dev에 병합됐으나 운영 적용 여부는 재확인이 필요하다. `0019` 적용 전 운영 마이그레이션 이력에서 `0018` 적용을 확인한다. 기존 `0014`·`0015`는 규칙 4에 따라 `0018`·`0019`로 이름을 바꿨다(DECISIONS #45). 위 표의 현황 열은 2026-09-25 기준이다.
 
