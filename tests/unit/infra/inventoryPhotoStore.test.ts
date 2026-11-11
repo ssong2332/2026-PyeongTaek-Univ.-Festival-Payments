@@ -62,22 +62,25 @@ describe("재고 사진 저장소", () => {
     expect(createSignedUrl).toHaveBeenCalledWith(row.storage_path, 3600);
   });
 
-  it("서명 실패 행만 건너뛰고 DB 행 기준으로 다음 페이지를 읽는다", async () => {
+  it("누락 파일과 일부 서명 오류를 건너뛰고 DB 행 기준으로 다음 페이지를 읽는다", async () => {
     const rows = Array.from({ length: 31 }, (_, index) => ({
       ...row, id: `photo-${index}`, storage_path: index === 0 ? "missing.jpg" : `photo-${index}.jpg`,
     }));
     const range = vi.fn().mockImplementation(async (start: number, end: number) => ({ data: rows.slice(start, end + 1), error: null }));
     const createSignedUrl = vi.fn().mockImplementation(async (path: string) =>
-      path === "missing.jpg" ? { data: null, error: { status: 404, message: "Object not found" } }
-        : { data: { signedUrl: `https://example.com/${path}` }, error: null });
+      path === "missing.jpg" ? { data: null, error: { status: 400, statusCode: "404", message: "Object not found" } }
+        : path === "photo-1.jpg" ? { data: null, error: { status: 503, message: "service unavailable" } }
+          : { data: { signedUrl: `https://example.com/${path}` }, error: null });
+    const info = vi.fn().mockResolvedValue({ data: null, error: { status: 503, message: "service unavailable" } });
     const client = {
       from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ order: vi.fn().mockReturnThis(), range }) }),
-      storage: { from: vi.fn().mockReturnValue({ createSignedUrl }) },
+      storage: { from: vi.fn().mockReturnValue({ createSignedUrl, info }) },
     } as unknown as SupabaseClient;
     const first = await listInventoryPhotos(client, 0);
-    expect(first).toMatchObject({ hasMore: true, nextOffset: 30, unavailableCount: 1 });
-    expect(first.photos).toHaveLength(29);
-    expect(first.photos[0].id).toBe("photo-1");
+    expect(first).toMatchObject({ hasMore: true, nextOffset: 30, unavailableCount: 2 });
+    expect(first.photos).toHaveLength(28);
+    expect(first.photos[0].id).toBe("photo-2");
+    expect(info).toHaveBeenCalledWith("photo-1.jpg");
     const second = await listInventoryPhotos(client, first.nextOffset);
     expect(second).toMatchObject({ hasMore: false, nextOffset: 31, unavailableCount: 0 });
     expect(second.photos.map((photo) => photo.id)).toEqual(["photo-30"]);
