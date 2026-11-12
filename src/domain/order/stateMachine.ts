@@ -39,6 +39,11 @@ const TRANSITIONS: Record<TransitionAction, TransitionRule> = {
 // DECISIONS #71: 고객 취소 요청이 대기 중이면 조리중으로 들어가는 동작을 막는다(먼저 승인/거절).
 const BLOCKED_WHILE_CANCEL_PENDING: readonly TransitionAction[] = ["confirm_payment", "confirm_cash", "start_cooking"];
 
+// 이 동작들은 DB가 조회 시점의 취소 요청 값과 다시 비교한 뒤 전환한다(0106, #155) — 조회 뒤 끼어든 요청을 놓치지 않게.
+export function guardsCancelRequest(action: TransitionAction): boolean {
+  return BLOCKED_WHILE_CANCEL_PENDING.includes(action);
+}
+
 export function hasPendingCancelRequest(order: CancelRequestState): boolean {
   return Boolean(order.cancelRequestedAt) && !order.cancelRejectedAt;
 }
@@ -47,7 +52,7 @@ function isAllowed(order: TransitionOrder, action: TransitionAction): boolean {
   const rule = TRANSITIONS[action];
   return rule.from.includes(order.status)
     && (!rule.paymentMethod || rule.paymentMethod === order.paymentMethod)
-    && !(BLOCKED_WHILE_CANCEL_PENDING.includes(action) && hasPendingCancelRequest(order));
+    && !(guardsCancelRequest(action) && hasPendingCancelRequest(order));
 }
 
 // 호출자 인증과 자동 전환의 시간·설정·송금 신고 조건은 호출하는 쪽에서 검증한다.

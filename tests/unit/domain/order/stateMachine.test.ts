@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableActions, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
+import { availableActions, guardsCancelRequest, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
 import { ADMIN_TRANSITION_ACTIONS, type OrderStatus, type RefundChannel, type TransitionAction } from "@/domain/order/status";
 
 const statuses: OrderStatus[] = ["pending", "paid", "cooking", "completed", "cancelled", "refunded", "expired"];
@@ -146,5 +146,15 @@ describe("취소 요청 대기 중 조리중 진입 차단", () => {
     expect(hasPendingCancelRequest(REJECTED_REQUEST)).toBe(false);
     expect(hasPendingCancelRequest({ cancelRequestedAt: null, cancelRejectedAt: null })).toBe(false);
     expect(hasPendingCancelRequest({})).toBe(false);
+  });
+});
+
+// #155·#161 리뷰(T-54): 이 동작들은 DB가 조회 시점의 취소 요청 값과 비교한 뒤 전환한다(0106).
+describe("guardsCancelRequest", () => {
+  it.each(["confirm_payment", "confirm_cash", "start_cooking"] as const)("%s는 보호 대상", (action) => {
+    expect(guardsCancelRequest(action)).toBe(true);
+  });
+  it.each(["complete", "auto_complete", "cancel", "refund", "expire"] as const)("%s는 보호 대상 아님", (action) => {
+    expect(guardsCancelRequest(action)).toBe(false);
   });
 });

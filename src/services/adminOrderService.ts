@@ -1,4 +1,4 @@
-import { availableActions, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
+import { availableActions, guardsCancelRequest, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
 import type { RefundChannel, TransitionAction } from "@/domain/order/status";
 import { kstDate } from "@/domain/time/kst";
 import type { AdminOrderRepository, Clock, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
@@ -98,6 +98,10 @@ export async function transition(
         actorId: input.adminId,
         reason: result.needsReason ? input.reason!.trim() : null,
         refundChannel: result.needsRefundChannel ? input.refundChannel! : null,
+        // 조회 뒤 고객 취소 요청이 끼어들면 DB가 막는다(409 STATE_CHANGED). 값이 null이어도 그대로 넘긴다.
+        ...(guardsCancelRequest(input.action) && {
+            expectedCancel: { requestedAt: order.cancelRequestedAt ?? null, rejectedAt: order.cancelRejectedAt ?? null },
+        }),
     });
 }
 

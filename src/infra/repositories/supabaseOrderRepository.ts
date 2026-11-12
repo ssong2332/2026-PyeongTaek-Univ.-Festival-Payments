@@ -53,6 +53,13 @@ const ORDER_BY_TOKEN_SELECT = `
   )
 `;
 
+// T-54 0106 보호 함수(#155 3절). 이름·인자는 DB1의 0106에 맞춘다 — 다르면 여기만 고친다.
+export const GUARDED_TRANSITION = {
+  fn: "transition_order_guarded",
+  expectedRequestedAt: "p_expected_cancel_requested_at",
+  expectedRejectedAt: "p_expected_cancel_rejected_at",
+} as const;
+
 // 고객이 취소를 요청할 수 있고 관리자가 그 요청을 거절할 수 있는 상태(Architecture 상태 머신 표 — cancel_request·cancel_request_reject).
 const CANCEL_REQUEST_STATUSES = ["pending", "paid"];
 
@@ -92,7 +99,7 @@ export function createSupabaseOrderRepository(
     },
 
     async transition(command) {
-      const { data, error } = await client.rpc("transition_order", {
+      const args = {
         p_order_id: command.orderId,
         p_from: command.from,
         p_to: command.to,
@@ -101,8 +108,16 @@ export function createSupabaseOrderRepository(
         p_actor_id: command.actorId,
         p_reason: command.reason,
         p_refund_channel: command.refundChannel,
-      });
-      if (error) throw toError("transition_order", error);
+      };
+      // 값의 유무가 아니라 항목이 있는지로 고른다 — 기대값 null도 비교해야 한다(#155).
+      const guarded = command.expectedCancel !== undefined;
+      const fn = guarded ? GUARDED_TRANSITION.fn : "transition_order";
+      const { data, error } = await client.rpc(fn, guarded ? {
+        ...args,
+        [GUARDED_TRANSITION.expectedRequestedAt]: command.expectedCancel!.requestedAt,
+        [GUARDED_TRANSITION.expectedRejectedAt]: command.expectedCancel!.rejectedAt,
+      } : args);
+      if (error) throw toError(fn, error);
       return toOrderForTransition(data);
     },
 
