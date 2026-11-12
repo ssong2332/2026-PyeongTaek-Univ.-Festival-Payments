@@ -88,6 +88,7 @@ interface DbOrderByTokenRow {
   transfer_reported_at: string | null;
   cancel_requested_at: string | null;
   cancel_rejected_at: string | null;
+  pending_since?: string | null;
   order_items?: DbOrderItemSnapshot[];
 }
 
@@ -121,6 +122,7 @@ export function toOrderByTokenResult(data: unknown): OrderByTokenResult {
     transferReportedAt: row.transfer_reported_at,
     cancelRequestedAt: row.cancel_requested_at,
     cancelRejectedAt: row.cancel_rejected_at,
+    pendingSince: row.pending_since ?? null,
   };
 }
 
