@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
 import {
-  deleteExpiredInventoryPhotos, INVENTORY_PHOTO_BUCKET, listInventoryPhotos, saveInventoryPhoto,
+  deleteExpiredInventoryPhotos, INVENTORY_PHOTO_BUCKET, listInventoryPhotos, reconcileInventoryPhotoUploads, saveInventoryPhoto,
 } from "@/infra/supabase/inventoryPhotoStore";
 
 const db = createServiceClient();
@@ -82,4 +82,35 @@ test("실제 Storage에서 저장·비공개 조회·30일 만료 삭제", async
   const recovered = await db.from("inventory_photos").select("id").eq("id", stale.id);
   expect(recovered.error).toBeNull();
   expect(recovered.data).toEqual([]);
+}, 30_000);
+
+test("실제 Storage의 미참조 파일을 재정리해도 정상 사진은 보존한다", async () => {
+  const normal = await record(`보존-${randomUUID()}`);
+  const id = randomUUID();
+  const path = `${new Date().toISOString().slice(0, 10)}/${id}.png`;
+  const bucket = db.storage.from(INVENTORY_PHOTO_BUCKET);
+  const oldTime = new Date(Date.now() - 25 * 60 * 60_000).toISOString();
+  try {
+    const intent = await db.from("inventory_photo_uploads").insert({
+      id, storage_path: path, uploaded_by: randomUUID(),
+      created_at: oldTime,
+    });
+    expect(intent.error).toBeNull();
+    const staleNormalIntent = await db.from("inventory_photo_uploads").insert({
+      id: normal.id, storage_path: normal.path, uploaded_by: randomUUID(), created_at: oldTime,
+    });
+    expect(staleNormalIntent.error).toBeNull();
+    expect((await bucket.upload(path, png, { contentType: "image/png" })).error).toBeNull();
+    expect(await reconcileInventoryPhotoUploads(db)).toEqual({ orphanRemoved: 1, orphanFailed: 0 });
+    expect((await bucket.info(path)).error).not.toBeNull();
+    expect((await bucket.info(normal.path)).error).toBeNull();
+    const remaining = await db.from("inventory_photo_uploads").select("id").eq("id", id);
+    expect(remaining.error).toBeNull();
+    expect(remaining.data).toEqual([]);
+    const anonIntent = await anon.from("inventory_photo_uploads").select("id").eq("id", normal.id);
+    expect(anonIntent.error?.code).toBe("42501");
+  } finally {
+    await db.from("inventory_photo_uploads").delete().in("id", [id, normal.id]);
+    await bucket.remove([path]);
+  }
 }, 30_000);

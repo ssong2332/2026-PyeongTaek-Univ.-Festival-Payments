@@ -3,8 +3,9 @@ import { requireAdmin } from "@/infra/supabase/session";
 import { createServiceClient } from "@/infra/supabase/server";
 import { AppError } from "@/lib/api/errors";
 import { withHandler } from "@/lib/api/handler";
+import { logger } from "@/lib/logger";
 import {
-    deleteExpiredInventoryPhotos, listInventoryPhotos, saveInventoryPhoto,
+    deleteExpiredInventoryPhotos, listInventoryPhotos, reconcileInventoryPhotoUploads, saveInventoryPhoto,
 } from "@/infra/supabase/inventoryPhotoStore";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,13 @@ export const POST = withHandler(async (request: Request) => {
 }, route);
 
 export const DELETE = withHandler(async () => {
-    await requireAdmin();
-    const result = await deleteExpiredInventoryPhotos(createServiceClient());
-    return NextResponse.json(result, { headers: noStore });
+    const admin = await requireAdmin();
+    const client = createServiceClient();
+    const expired = await deleteExpiredInventoryPhotos(client);
+    const orphans = await reconcileInventoryPhotoUploads(client);
+    logger.info("inventory.photos.manual_cleanup", {
+        actorId: admin.id, count: expired.deleted, failed: expired.failed + orphans.orphanFailed,
+        orphanRemoved: orphans.orphanRemoved,
+    });
+    return NextResponse.json({ ...expired, ...orphans }, { headers: noStore });
 }, route);

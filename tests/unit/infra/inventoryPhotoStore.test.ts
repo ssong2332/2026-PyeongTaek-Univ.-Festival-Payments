@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  deleteExpiredInventoryPhotos, listInventoryPhotos, saveInventoryPhoto,
+  deleteExpiredInventoryPhotos, listInventoryPhotos, reconcileInventoryPhotoUploads, saveInventoryPhoto,
 } from "@/infra/supabase/inventoryPhotoStore";
+import { logger } from "@/lib/logger";
 
 const row = {
   id: "11111111-1111-4111-8111-111111111111", storage_path: "2026-11-10/photo.jpg",
@@ -23,17 +24,83 @@ describe("재고 사진 저장소", () => {
     expect(client.storage.getBucket).not.toHaveBeenCalled();
   });
 
-  it("DB 저장 실패 시 업로드한 파일을 제거한다", async () => {
+  it("DB 저장 실패 시 업로드한 파일을 제거하고 의도 기록을 비운다", async () => {
     const upload = vi.fn().mockResolvedValue({ error: null });
     const remove = vi.fn().mockResolvedValue({ error: null });
     const single = vi.fn().mockResolvedValue({ data: null, error: { message: "db failed" } });
+    const intentInsert = vi.fn().mockResolvedValue({ error: null });
+    const intentDelete = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
     const client = {
       storage: { getBucket: vi.fn().mockResolvedValue({ data: privateBucket }), from: vi.fn().mockReturnValue({ upload, remove }) },
-      from: vi.fn().mockReturnValue({ insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single }) }) }),
+      from: vi.fn().mockImplementation((table: string) => table === "inventory_photo_uploads"
+        ? { insert: intentInsert, delete: intentDelete }
+        : { insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single }) }),
+          select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }),
     } as unknown as SupabaseClient;
     await expect(saveInventoryPhoto(client, jpeg(), " 김혁 ", "admin-id")).rejects.toMatchObject({ status: 500 });
     expect(upload).toHaveBeenCalledOnce();
     expect(remove).toHaveBeenCalledWith([expect.stringMatching(/^\d{4}-\d{2}-\d{2}\/.+\.jpg$/)]);
+    expect(intentInsert).toHaveBeenCalledOnce();
+    expect(intentDelete).toHaveBeenCalledOnce();
+  });
+
+  it("보상 삭제 실패를 기록하고 다음 관리자 정리에서 고아 파일만 제거한다", async () => {
+    const intents = new Map<string, { id: string; storage_path: string; created_at: string }>();
+    const files = new Set<string>();
+    const normalPath = "2026-01-01/22222222-2222-4222-8222-222222222222.jpg";
+    const normalId = "22222222-2222-4222-8222-222222222222";
+    intents.set(normalId, { id: normalId, storage_path: normalPath, created_at: new Date().toISOString() });
+    files.add(normalPath);
+    let removeFails = true;
+    const upload = vi.fn().mockImplementation(async (path: string) => { files.add(path); return { error: null }; });
+    const remove = vi.fn().mockImplementation(async (paths: string[]) => {
+      if (removeFails) return { error: { message: "Storage unavailable" } };
+      files.delete(paths[0]);
+      return { error: null };
+    });
+    const info = vi.fn().mockImplementation(async (path: string) => files.has(path)
+      ? { data: { name: path }, error: null }
+      : { data: null, error: { status: 400, statusCode: "404", message: "Object not found" } });
+    const client = {
+      storage: { getBucket: vi.fn().mockResolvedValue({ data: privateBucket }), from: vi.fn().mockReturnValue({ upload, remove, info }) },
+      from: vi.fn().mockImplementation((table: string) => table === "inventory_photo_uploads" ? {
+        insert: vi.fn().mockImplementation(async (value: { id: string; storage_path: string }) => {
+          intents.set(value.id, { ...value, created_at: new Date().toISOString() }); return { error: null };
+        }),
+        select: vi.fn().mockReturnValue({ lt: vi.fn().mockImplementation((_column: string, cutoff: string) => ({
+          order: vi.fn().mockReturnValue({ limit: vi.fn().mockImplementation(async () => ({
+            data: [...intents.values()].filter((item) => item.created_at < cutoff), error: null,
+          })) }),
+        })) }),
+        delete: vi.fn().mockReturnValue({ eq: vi.fn().mockImplementation(async (_: string, id: string) => {
+          intents.delete(id); return { error: null };
+        }) }),
+      } : {
+        insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: null, error: { message: "DB unavailable" } }) }) }),
+        select: vi.fn().mockReturnValue({ eq: vi.fn().mockImplementation((_column: string, path: string) => ({
+          limit: vi.fn().mockResolvedValue({ data: path === normalPath ? [{ id: normalId }] : [], error: null }),
+        })) }),
+      }),
+    } as unknown as SupabaseClient;
+    const log = vi.spyOn(logger, "error").mockImplementation(() => {});
+    try {
+      await expect(saveInventoryPhoto(client, jpeg(), "김혁", "admin-id")).rejects.toMatchObject({ status: 500 });
+      const orphanPath = [...files].find((path) => path !== normalPath)!;
+      expect(orphanPath).toBeTruthy();
+      expect([...intents.values()].some((item) => item.storage_path === orphanPath)).toBe(true);
+      expect(log).toHaveBeenCalledWith("inventory.photos.compensation_failed", expect.anything(), expect.anything());
+      removeFails = false;
+      expect(await reconcileInventoryPhotoUploads(client)).toEqual({ orphanRemoved: 0, orphanFailed: 0 });
+      expect(files.has(orphanPath)).toBe(true);
+      expect(await reconcileInventoryPhotoUploads(client, new Date(Date.now() + 25 * 60 * 60_000)))
+        .toEqual({ orphanRemoved: 1, orphanFailed: 0 });
+      expect(files.has(orphanPath)).toBe(false);
+      expect(files.has(normalPath)).toBe(true);
+      expect(intents.size).toBe(0);
+      expect(remove).not.toHaveBeenCalledWith([normalPath]);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it.each([
