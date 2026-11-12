@@ -201,4 +201,3 @@ describe("T-54 atomic cancellation snapshot guard", () => {
     expect(await snapshot(order)).toEqual(before);
   });
 });
-
