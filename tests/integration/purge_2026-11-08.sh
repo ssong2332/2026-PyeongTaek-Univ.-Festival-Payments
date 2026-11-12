@@ -70,6 +70,45 @@ SQL
 # Re-running on empty order tables must be safe.
 psql -d postgres -v ON_ERROR_STOP=1 -f supabase/scripts/purge_2026-11-08.sql >/dev/null
 
+# Exercise the exact operational SQL with a TRUNCATE trigger that changes a
+# preserved value. Its pre-COMMIT check must reject and roll back every change.
+psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+INSERT INTO public.orders (id, pickup_number, payment_method, total_amount, idempotency_key, status_token)
+VALUES ('99999999-9999-9999-9999-999999999999', 44, 'cash', 0,
+        'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'purge-preservation-probe');
+UPDATE public.counters SET value = 44 WHERE key = 'pickup_number';
+CREATE FUNCTION public.purge_preservation_probe() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE public.menu_items SET stock = stock + 1
+     WHERE id = '11111111-1111-1111-1111-111111111111';
+    RETURN NULL;
+END $$;
+CREATE TRIGGER purge_preservation_probe AFTER TRUNCATE ON public.orders
+FOR EACH STATEMENT EXECUTE FUNCTION public.purge_preservation_probe();
+SQL
+probe_log=$(mktemp)
+trap 'rm -f "$probe_log"' EXIT
+if psql -d postgres -v ON_ERROR_STOP=1 -f supabase/scripts/purge_2026-11-08.sql > /dev/null 2>"$probe_log"; then
+  echo 'Unexpected purge success after a preserved menu value changed' >&2
+  exit 1
+fi
+if ! grep -q 'T-30 preserved relation menu_items changed before commit' "$probe_log"; then
+  echo 'Purge failed for a reason other than the pre-commit preservation check' >&2
+  exit 1
+fi
+psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+DO $$ BEGIN
+    IF (SELECT count(*) FROM public.orders) <> 1
+       OR (SELECT stock FROM public.menu_items WHERE id = '11111111-1111-1111-1111-111111111111') IS DISTINCT FROM 38
+       OR (SELECT value FROM public.counters WHERE key = 'pickup_number') IS DISTINCT FROM 44::bigint THEN
+        RAISE EXCEPTION 'preservation check did not roll back the purge';
+    END IF;
+END $$;
+DROP TRIGGER purge_preservation_probe ON public.orders;
+DROP FUNCTION public.purge_preservation_probe();
+DELETE FROM public.orders WHERE id = '99999999-9999-9999-9999-999999999999';
+SQL
+
 # A new, unlisted child table must stop the purge and roll the whole transaction back.
 psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 INSERT INTO public.orders (id, pickup_number, payment_method, total_amount, idempotency_key, status_token)
