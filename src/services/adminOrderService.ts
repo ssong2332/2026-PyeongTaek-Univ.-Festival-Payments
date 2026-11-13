@@ -1,7 +1,8 @@
 import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
 import type { RefundChannel, TransitionAction } from "@/domain/order/status";
 import { kstDate } from "@/domain/time/kst";
-import type { AdminOrderRepository, Clock, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
+import type { AdminOrderRepository, Clock, KitchenOrderRepository, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
+import { KITCHEN_PAGE_SIZE } from "@/domain/order/kitchenQueue";
 import type { AdminOrderDto, AdminOrdersResponse } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
 
@@ -31,15 +32,18 @@ export async function listAdminOrders(
     };
 }
 
-// 조리 화면(/admin/kitchen)은 날짜와 상관없이 지금 조리중인 주문을 모두 본다.
+// 조리 화면(/admin/kitchen)은 날짜와 상관없이 지금 조리중인 주문을 본다.
 // 자정 전에 들어와 자정 뒤에도 조리중인 주문이 오늘 범위에서 빠지지 않게 날짜를 채우지 않는다.
-export const KITCHEN_ORDER_LIMIT = 200;
-
-export async function listKitchenOrders(repository: AdminOrderRepository): Promise<AdminOrdersResponse> {
-    const orders = await repository.list({ status: ["cooking"], oldestFirst: true, limit: KITCHEN_ORDER_LIMIT });
+// 상한(limit)을 넘는 주문은 total로 알려 화면이 "더 불러오기"를 보이게 한다.
+export async function listKitchenOrders(
+    repository: KitchenOrderRepository,
+    limit: number = KITCHEN_PAGE_SIZE,
+): Promise<AdminOrdersResponse> {
+    const { orders, total } = await repository.listKitchen(limit);
     return {
         orders,
         unacknowledgedCount: orders.filter((o) => o.acknowledgedAt === null).length,
+        total,
     };
 }
 

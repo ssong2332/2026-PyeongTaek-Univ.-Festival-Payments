@@ -15,21 +15,21 @@ const cooking: AdminOrderDto = {
 };
 const reload = vi.hoisted(() => vi.fn(async () => {}));
 const refresh = vi.hoisted(() => vi.fn(async () => {}));
-const feedOrders = vi.hoisted(() => ({ current: [] as unknown[], options: null as unknown }));
+const feedOrders = vi.hoisted(() => ({ current: [] as unknown[], options: null as unknown, total: null as number | null }));
 
 vi.mock("@/features/admin/useOrdersFeed", async (importOriginal) => ({
     // 최신 판정(pickNewerOrder)은 실제 구현을 쓰고, 피드만 바꿔 끼운다.
     ...(await importOriginal<typeof import("@/features/admin/useOrdersFeed")>()),
     useOrdersFeed: (options: unknown) => {
         feedOrders.options = options;
-        return { orders: feedOrders.current, isLoading: false, error: null, channelStatus: "SUBSCRIBED", reload, refresh };
+        return { orders: feedOrders.current, total: feedOrders.total, isLoading: false, error: null, channelStatus: "SUBSCRIBED", reload, refresh };
     },
 }));
 vi.mock("@/features/admin/useConnectionMonitor", () => ({
     useConnectionMonitor: () => ({ isDisconnected: false, isChecking: false, checkNow: vi.fn(async () => true) }),
 }));
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); feedOrders.total = null; });
 
 it("posts the complete action and removes the order as soon as the server confirms", async () => {
     feedOrders.current = [cooking];
@@ -68,7 +68,29 @@ function completedResponse(updatedAt: string) {
 it("asks the feed for every cooking order regardless of date", () => {
     feedOrders.current = [];
     render(<LiveKitchenBoard initialNow={NOW} />);
-    expect(feedOrders.options).toEqual({ scope: "kitchen" });
+    expect(feedOrders.options).toEqual({ scope: "kitchen", limit: 200 });
+});
+
+it("says how many cooking orders are not loaded yet and loads 200 more on request, up to 1000", () => {
+    feedOrders.current = [cooking];
+    feedOrders.total = 1201;
+    render(<LiveKitchenBoard initialNow={NOW} />);
+    expect(screen.getByRole("status").textContent).toContain("1001건은 아직 안 보여요");
+
+    for (const limit of [400, 600, 800, 1000]) {
+        fireEvent.click(screen.getByRole("button", { name: "더 불러오기" }));
+        expect(feedOrders.options).toEqual({ scope: "kitchen", limit });
+    }
+    expect(screen.getByRole("status").textContent).toContain("201건은 아직 안 보여요");
+    expect(screen.getByRole("status").textContent).toContain("앞 주문을 완료하면 이어서 보여요");
+    expect(screen.queryByRole("button", { name: "더 불러오기" })).toBeNull();
+});
+
+it("shows no load-more notice when everything is loaded", () => {
+    feedOrders.current = [cooking];
+    feedOrders.total = 1;
+    render(<LiveKitchenBoard initialNow={NOW} />);
+    expect(screen.queryByRole("status")).toBeNull();
 });
 
 it("compares timestamps as instants: a newer server response wins even when its text sorts lower", async () => {

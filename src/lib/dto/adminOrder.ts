@@ -56,6 +56,8 @@ export type AdminOrderDto = z.infer<typeof AdminOrderDtoSchema>;
 export const AdminOrdersResponseSchema = z.object({
     orders: z.array(AdminOrderDtoSchema),
     unacknowledgedCount: z.number().int().nonnegative(),
+    // 조리 화면(scope=kitchen)에서만: 조리중 주문 전체 건수. orders.length보다 크면 상한에 걸려 덜 불러온 것이다.
+    total: z.number().int().nonnegative().optional(),
 });
 export type AdminOrdersResponse = z.infer<typeof AdminOrdersResponseSchema>;
 

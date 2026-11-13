@@ -15,9 +15,12 @@ export interface OrderListFilter {
     date?: string;
     status?: OrderStatus[];
     pickupNumber?: number;
-    // 조리 화면용: 오래된 주문부터, 최대 limit건.
-    oldestFirst?: boolean;
-    limit?: number;
+}
+
+// 조리 화면(GET /api/admin/orders?scope=kitchen): 날짜와 상관없이 조리중 주문을
+// 조리 시작 시각 오래된 순(없으면 맨 앞) → 생성 시각 → id 순으로 limit건, 그리고 조리중 전체 건수.
+export interface KitchenOrderRepository {
+    listKitchen(limit: number): Promise<{ orders: AdminOrderDto[]; total: number }>;
 }
 
 export interface AdminOrderRepository {

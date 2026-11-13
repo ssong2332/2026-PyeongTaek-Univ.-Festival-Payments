@@ -181,9 +181,17 @@ describe("useOrdersFeed — 응답 순서가 뒤바뀌어도 최신 상태 유�
 });
 
 describe("useOrdersFeed — 조리 화면 범위", () => {
-    it("scope=kitchen이면 날짜 대신 조리 화면 범위로 목록을 부른다", async () => {
-        renderHook(() => useOrdersFeed({ scope: "kitchen", initialDate: "2026-10-07" }));
-        expect(requests.map((request) => request.url)).toEqual(["/api/admin/orders?scope=kitchen"]);
-        await requests[0].respond({ orders: [] });
+    it("scope=kitchen이면 날짜 대신 조리 화면 범위로 목록을 부르고, 전체 건수를 알려 준다", async () => {
+        const { result } = renderHook(() => useOrdersFeed({ scope: "kitchen", limit: 200, initialDate: "2026-10-07" }));
+        expect(requests.map((request) => request.url)).toEqual(["/api/admin/orders?scope=kitchen&limit=200"]);
+        await requests[0].respond({ orders: [], total: 201 });
+        expect(result.current.total).toBe(201);
+    });
+
+    it("limit이 바뀌면 그 건수로 다시 부른다", async () => {
+        const { rerender } = renderHook(({ limit }) => useOrdersFeed({ scope: "kitchen", limit }), { initialProps: { limit: 200 } });
+        await requests[0].respond({ orders: [], total: 201 });
+        rerender({ limit: 400 });
+        expect(requests.map((request) => request.url)).toContain("/api/admin/orders?scope=kitchen&limit=400");
     });
 });

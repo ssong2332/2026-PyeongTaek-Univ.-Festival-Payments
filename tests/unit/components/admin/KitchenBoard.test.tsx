@@ -27,21 +27,32 @@ function renderBoard(orders: AdminOrderDto[], onComplete = vi.fn(async () => {})
 
 afterEach(cleanup);
 
-it("keeps only cooking orders, oldest first, with pickup number as the tie-break", () => {
+it("keeps only cooking orders in the server's order: cooking start, then created time, then id", () => {
     const sorted = selectCookingOrders([
         order(3, { cookingStartedAt: "2026-10-07T05:20:00.000Z" }),
         order(1, { status: "paid" }),
-        order(5, { cookingStartedAt: "2026-10-07T05:10:00.000Z" }),
-        order(2, { cookingStartedAt: "2026-10-07T05:10:00.000Z" }),
+        order(5, { cookingStartedAt: "2026-10-07T05:10:00.000Z", createdAt: "2026-10-07T05:00:00.000Z" }),
+        order(2, { cookingStartedAt: "2026-10-07T05:10:00.000Z", createdAt: "2026-10-07T05:01:00.000Z" }),
+        order(6, { cookingStartedAt: "2026-10-07T05:10:00.000Z", createdAt: "2026-10-07T05:01:00.000Z" }),
         order(4, { status: "completed" }),
     ]);
-    expect(sorted.map((item) => item.pickupNumber)).toEqual([2, 5, 3]);
+    expect(sorted.map((item) => item.pickupNumber)).toEqual([5, 2, 6, 3]);
 });
 
-it("falls back to paid time when an order has no cooking start time", () => {
+it("orders by cooking start even when it disagrees with creation order, and parses time zones", () => {
     const sorted = selectCookingOrders([
-        order(1, { cookingStartedAt: "2026-10-07T05:20:00.000Z" }),
-        order(2, { cookingStartedAt: null, paidAt: "2026-10-07T05:00:00.000Z" }),
+        // 먼저 주문했지만 나중에 조리를 시작한 주문
+        order(1, { createdAt: "2026-10-07T04:00:00.000Z", cookingStartedAt: "2026-10-07T05:20:00.000Z" }),
+        // 늦게 주문했지만 먼저 조리를 시작한 주문(14:10+09:00 = 05:10Z)
+        order(2, { createdAt: "2026-10-07T04:30:00.000Z", cookingStartedAt: "2026-10-07T14:10:00+09:00" }),
+    ]);
+    expect(sorted.map((item) => item.pickupNumber)).toEqual([2, 1]);
+});
+
+it("puts orders without a cooking start time first, like the server (nulls first)", () => {
+    const sorted = selectCookingOrders([
+        order(1, { cookingStartedAt: "2026-10-07T05:00:00.000Z" }),
+        order(2, { cookingStartedAt: null, paidAt: "2026-10-07T05:10:00.000Z" }),
     ]);
     expect(sorted.map((item) => item.pickupNumber)).toEqual([2, 1]);
 });

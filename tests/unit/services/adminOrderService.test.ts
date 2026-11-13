@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import {
     listAdminOrders,
     listKitchenOrders,
-    KITCHEN_ORDER_LIMIT,
     getAdminOrderById,
     acknowledgeAdminOrder,
     transition,
@@ -238,10 +237,16 @@ describe("adminOrderService.transition", () => {
 });
 
 describe("listKitchenOrders (조리 화면: 날짜 무관 조리중 주문)", () => {
-    it("날짜를 채우지 않고 조리중만, 오래된 순으로 한도까지 조회한다", async () => {
-        const list = vi.fn().mockResolvedValue([]);
-        const repo: AdminOrderRepository = { list, findById: vi.fn(), acknowledge: vi.fn() };
-        await listKitchenOrders(repo);
-        expect(list).toHaveBeenCalledWith({ status: ["cooking"], oldestFirst: true, limit: KITCHEN_ORDER_LIMIT });
+    it("기본 200건을 요청하고, 전체 건수(total)를 함께 돌려준다", async () => {
+        const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 201 });
+        const result = await listKitchenOrders({ listKitchen });
+        expect(listKitchen).toHaveBeenCalledWith(200);
+        expect(result).toEqual({ orders: [], unacknowledgedCount: 0, total: 201 });
+    });
+
+    it("더 불러오기 요청이면 그만큼 요청한다", async () => {
+        const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 0 });
+        await listKitchenOrders({ listKitchen }, 400);
+        expect(listKitchen).toHaveBeenCalledWith(400);
     });
 });

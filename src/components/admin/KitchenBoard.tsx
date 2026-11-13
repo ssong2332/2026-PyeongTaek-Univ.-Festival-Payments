@@ -14,6 +14,10 @@ export interface KitchenBoardProps {
     initialNow: string;
     onReload: () => Promise<void>;
     onComplete: (id: string) => Promise<void>;
+    // 조회 상한 때문에 아직 불러오지 못한 조리중 주문 수(가장 최근에 조리를 시작한 주문들).
+    hiddenCount?: number;
+    // 더 불러올 수 있으면 주어지는 함수. 없으면 최대치까지 불러온 상태다.
+    onLoadMore?: () => void;
 }
 
 function orderNumber(order: AdminOrderDto): string {
@@ -29,7 +33,7 @@ function elapsedLabel(order: AdminOrderDto, now: number): string {
 
 // 요리사용 화면: 조리중 주문을 오래된 순으로 보여 주고, 다 만든 주문을 완료로 넘긴다.
 // 손이 바쁜 자리라 번호·메뉴·수량을 크게 두고, 누를 것은 완료 버튼 하나만 둔다.
-export function KitchenBoard({ orders, isLoading, error, initialNow, onReload, onComplete }: KitchenBoardProps) {
+export function KitchenBoard({ orders, isLoading, error, initialNow, onReload, onComplete, hiddenCount = 0, onLoadMore }: KitchenBoardProps) {
     const [now, setNow] = useState(() => new Date(initialNow).getTime());
     const [pendingIds, setPendingIds] = useState<ReadonlySet<string>>(new Set());
     const [failure, setFailure] = useState("");
@@ -64,9 +68,23 @@ export function KitchenBoard({ orders, isLoading, error, initialNow, onReload, o
             <header className="flex items-baseline justify-between gap-3">
                 <h1 className="text-xl font-bold text-dough">조리 화면</h1>
                 <p className="text-sm font-semibold text-dough-dim">
-                    조리중 <span className="font-num text-lg text-syrup">{queue.length}</span>건 · 오래된 순
+                    조리중 <span className="font-num text-lg text-syrup">{queue.length + hiddenCount}</span>건 · 오래된 순
                 </p>
             </header>
+
+            {hiddenCount > 0 && (
+                <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-syrup/50 bg-syrup/10 px-4 py-3 text-sm font-semibold text-syrup">
+                    <span>
+                        최근에 조리를 시작한 {hiddenCount}건은 아직 안 보여요.
+                        {onLoadMore ? "" : " 앞 주문을 완료하면 이어서 보여요."}
+                    </span>
+                    {onLoadMore && (
+                        <button type="button" onClick={onLoadMore} className="shrink-0 rounded-lg bg-syrup px-3 py-1.5 text-molasses">
+                            더 불러오기
+                        </button>
+                    )}
+                </div>
+            )}
 
             {failure && (
                 <p role="alert" className="rounded-xl border border-chili/50 bg-chili/12 px-4 py-3 text-sm font-semibold text-chili">

@@ -6,13 +6,17 @@ import { KitchenBoard } from "@/components/admin/KitchenBoard";
 import { parseTransitionErrorCode, TransitionRequestError } from "@/features/admin/transitionError";
 import { useConnectionMonitor } from "@/features/admin/useConnectionMonitor";
 import { pickNewerOrder, useOrdersFeed } from "@/features/admin/useOrdersFeed";
+import { KITCHEN_MAX_LIMIT, KITCHEN_PAGE_SIZE } from "@/domain/order/kitchenQueue";
 import { AdminOrderDtoSchema, type AdminOrderDto } from "@/lib/dto/adminOrder";
 
 const REFRESH_INTERVAL_MS = 15_000;
 
 // 조리 화면 데이터 연결. 주문 관리와 같은 상태 변경 API를 쓰되, 주문 목록은 날짜와 상관없는 조리중 주문(scope=kitchen)을 받는다.
 export function LiveKitchenBoard({ initialNow }: { initialNow: string }) {
-    const feed = useOrdersFeed({ scope: "kitchen" });
+    // 조리중 주문이 상한을 넘으면 "더 불러오기"로 200건씩 늘린다(최대 1000건).
+    const [limit, setLimit] = useState(KITCHEN_PAGE_SIZE);
+    const feed = useOrdersFeed({ scope: "kitchen", limit });
+    const hiddenCount = feed.total === null ? 0 : Math.max(0, feed.total - limit);
     const { refresh, reload } = feed;
     const monitor = useConnectionMonitor({
         channelStatus: feed.channelStatus,
@@ -68,7 +72,9 @@ export function LiveKitchenBoard({ initialNow }: { initialNow: string }) {
     return (
         <>
             <ConnectionBanner disconnected={monitor.isDisconnected} retrying={monitor.isChecking} onRetry={async () => { await monitor.checkNow(); }} />
-            <KitchenBoard orders={orders} isLoading={feed.isLoading} error={feed.error} initialNow={initialNow} onReload={reload} onComplete={completeOrder} />
+            <KitchenBoard orders={orders} isLoading={feed.isLoading} error={feed.error} initialNow={initialNow} onReload={reload} onComplete={completeOrder}
+                hiddenCount={hiddenCount}
+                onLoadMore={limit < KITCHEN_MAX_LIMIT ? () => setLimit((current) => Math.min(current + KITCHEN_PAGE_SIZE, KITCHEN_MAX_LIMIT)) : undefined} />
         </>
     );
 }
