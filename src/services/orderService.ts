@@ -100,6 +100,7 @@ export async function getOrderByToken(
     transferReportedAt: toUtcIsoString(order.transferReportedAt),
     cancelRequestedAt: toUtcIsoString(order.cancelRequestedAt),
     cancelRejectedAt: toUtcIsoString(order.cancelRejectedAt),
+    pendingSince: toUtcIsoString(order.pendingSince),
     aheadCount,
     canTransferReport,
     canCancelRequest,
