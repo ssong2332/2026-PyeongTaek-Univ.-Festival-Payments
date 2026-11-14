@@ -74,6 +74,47 @@ describe("Admin Orders Route Handlers", () => {
             }
         });
 
+        it("scope=kitchen이면 날짜와 다른 조건 없이 조리중 주문을 200건까지, 전체 건수와 함께 돌려준다", async () => {
+            const list = vi.fn();
+            const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 201 });
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list, listKitchen } as unknown as SupabaseAdminOrderRepository;
+            });
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=kitchen&date=2026-10-01&status=pending"));
+            expect(res.status).toBe(200);
+            expect(listKitchen).toHaveBeenCalledWith(200);
+            expect(list).not.toHaveBeenCalled();
+            expect(await res.json()).toEqual({ orders: [], unacknowledgedCount: 0, total: 201 });
+        });
+
+        it("scope=kitchen의 limit은 1~1000 정수만 받는다", async () => {
+            const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 0 });
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { listKitchen } as unknown as SupabaseAdminOrderRepository;
+            });
+            const status = async (limit: string) =>
+                (await getOrders(new NextRequest(`http://localhost:3000/api/admin/orders?scope=kitchen&limit=${limit}`))).status;
+            expect(await status("400")).toBe(200);
+            expect(listKitchen).toHaveBeenCalledWith(400);
+            for (const bad of ["0", "1001", "1.5", "-1", "abc", ""]) expect(await status(bad)).toBe(400);
+        });
+
+        it("모르는 scope는 400", async () => {
+            const list = vi.fn().mockResolvedValue([]);
+            vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {
+                return { list } as unknown as SupabaseAdminOrderRepository;
+            });
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=all"));
+            expect(res.status).toBe(400);
+            expect(list).not.toHaveBeenCalled();
+        });
+
+        it("scope=kitchen도 관리자 인증이 먼저다", async () => {
+            vi.mocked(requireAdmin).mockRejectedValue(new AppError("UNAUTHORIZED", 401));
+            const res = await getOrders(new NextRequest("http://localhost:3000/api/admin/orders?scope=kitchen"));
+            expect(res.status).toBe(401);
+        });
+
         it("픽업 번호 검색에서는 명시된 날짜도 무시한다", async () => {
             const list = vi.fn().mockResolvedValue([]);
             vi.mocked(SupabaseAdminOrderRepository).mockImplementation(function () {

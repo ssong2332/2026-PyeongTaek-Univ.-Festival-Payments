@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     listAdminOrders,
+    listKitchenOrders,
     getAdminOrderById,
     acknowledgeAdminOrder,
     transition,
@@ -232,5 +233,20 @@ describe("adminOrderService.transition", () => {
             },
         };
         await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: racingRepo }), "STATE_CHANGED", 409);
+    });
+});
+
+describe("listKitchenOrders (조리 화면: 날짜 무관 조리중 주문)", () => {
+    it("기본 200건을 요청하고, 전체 건수(total)를 함께 돌려준다", async () => {
+        const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 201 });
+        const result = await listKitchenOrders({ listKitchen });
+        expect(listKitchen).toHaveBeenCalledWith(200);
+        expect(result).toEqual({ orders: [], unacknowledgedCount: 0, total: 201 });
+    });
+
+    it("더 불러오기 요청이면 그만큼 요청한다", async () => {
+        const listKitchen = vi.fn().mockResolvedValue({ orders: [], total: 0 });
+        await listKitchenOrders({ listKitchen }, 400);
+        expect(listKitchen).toHaveBeenCalledWith(400);
     });
 });
