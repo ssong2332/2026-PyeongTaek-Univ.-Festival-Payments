@@ -14,8 +14,9 @@ supabase db reset --local --no-seed
 mapfile -t migrations < <(find supabase/migrations -maxdepth 1 -type f \
   -name '[0-9][0-9][0-9][0-9]_*.sql' | LC_ALL=C sort)
 if [[ ${#migrations[@]} -eq 0 || ! -f supabase/migrations/0104_manual_orders.sql ||
-      ! -f supabase/migrations/0105_create_admin_menu.sql ]]; then
-  echo 'Expected the complete dev migration set through 0105' >&2
+      ! -f supabase/migrations/0105_create_admin_menu.sql ||
+      ! -f supabase/migrations/0106_atomic_transition.sql ]]; then
+  echo 'Expected the complete dev migration set through 0106' >&2
   exit 1
 fi
 for migration in "${migrations[@]}"; do
