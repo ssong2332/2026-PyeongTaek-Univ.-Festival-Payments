@@ -42,6 +42,8 @@ export const AdminOrderDtoSchema = z.object({
     cookingStartedAt: z.string().nullable(),
     completedAt: z.string().nullable(),
     closedAt: z.string().nullable(),
+    // T-55 되돌리기 (F-49/Architecture): 되돌린 시각 기준 입금 대기 시작 시각 (하위 호환성 유지)
+    pendingSince: z.string().nullable().optional(),
     refundChannel: z.enum(REFUND_CHANNELS).nullable(),
     lastReason: z.string().nullable(),
     availableActions: z.array(z.enum(TRANSITION_ACTIONS)),

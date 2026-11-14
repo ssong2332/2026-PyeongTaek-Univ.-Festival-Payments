@@ -143,11 +143,11 @@ describe("OrderStatusDtoSchema", () => {
   it("시각은 ISO UTC(…Z), 아직 없는 시각은 null이면 통과한다", () => {
     expect(OrderStatusDtoSchema.safeParse(status).success).toBe(true);
     expect(OrderStatusDtoSchema.safeParse({
-      ...status, transferReportedAt: later, cancelRequestedAt: later, cancelRejectedAt: later,
+      ...status, transferReportedAt: later, cancelRequestedAt: later, cancelRejectedAt: later, pendingSince: later,
     }).success).toBe(true);
   });
 
-  it.each(["createdAt", "transferReportedAt", "cancelRequestedAt", "cancelRejectedAt"])(
+  it.each(["createdAt", "transferReportedAt", "cancelRequestedAt", "cancelRejectedAt", "pendingSince"])(
     "%s가 DB 원문 표기(µs, +00:00)면 거부한다 — 응답 시각은 POST /api/orders처럼 …Z",
     (field) => {
       expect(OrderStatusDtoSchema.safeParse({ ...status, [field]: "2026-10-07T01:02:03.123456+00:00" }).success)
