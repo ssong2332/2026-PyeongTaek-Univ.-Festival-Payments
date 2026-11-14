@@ -3,6 +3,8 @@ import type { OrderStatus, PaymentMethod, RefundChannel, TransitionAction } from
 export type TransitionOrder = {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
+  cancelRequestedAt?: string | null;
+  cancelRejectedAt?: string | null;
 };
 
 export type TransitionResult =
@@ -30,9 +32,21 @@ const TRANSITIONS: Record<TransitionAction, TransitionRule> = {
   expire: { from: ["pending"], to: "expired", actor: "system", restoreStock: true, needsReason: false, needsRefundChannel: false },
 };
 
-function isAllowed(order: TransitionOrder, rule: TransitionRule): boolean {
-  return rule.from.includes(order.status)
-    && (!rule.paymentMethod || rule.paymentMethod === order.paymentMethod);
+function hasPendingCancelRequest(order: TransitionOrder): boolean {
+  return Boolean(order.cancelRequestedAt && !order.cancelRejectedAt);
+}
+
+function isAllowed(order: TransitionOrder, rule: TransitionRule, action?: TransitionAction): boolean {
+  if (!rule.from.includes(order.status)) return false;
+  if (rule.paymentMethod && rule.paymentMethod !== order.paymentMethod) return false;
+  // DECISIONS #71: 취소 요청 대기 중인 주문은 조리중으로 들어가는 동작(confirm_payment, confirm_cash, start_cooking) 거부
+  if (
+    hasPendingCancelRequest(order) &&
+    (action === "confirm_payment" || action === "confirm_cash" || action === "start_cooking")
+  ) {
+    return false;
+  }
+  return true;
 }
 
 // 호출자 인증과 자동 전환의 시간·설정·송금 신고 조건은 호출하는 쪽에서 검증한다.
@@ -42,7 +56,7 @@ export function resolveTransition(
   input: { reason?: string; refundChannel?: RefundChannel },
 ): TransitionResult {
   const rule = TRANSITIONS[action];
-  if (!rule || !isAllowed(order, rule)) return { ok: false, code: "INVALID_TRANSITION" };
+  if (!rule || !isAllowed(order, rule, action)) return { ok: false, code: "INVALID_TRANSITION" };
   if (rule.needsReason && !input.reason?.trim()) return { ok: false, code: "REASON_REQUIRED" };
   if (rule.needsRefundChannel) {
     if (!input.refundChannel) return { ok: false, code: "REFUND_CHANNEL_REQUIRED" };
@@ -58,6 +72,6 @@ export function resolveTransition(
 export function availableActions(order: TransitionOrder): TransitionAction[] {
   return (Object.keys(TRANSITIONS) as TransitionAction[]).filter((action) => {
     const rule = TRANSITIONS[action];
-    return rule.actor === "admin" && isAllowed(order, rule);
+    return rule.actor === "admin" && isAllowed(order, rule, action);
   });
 }

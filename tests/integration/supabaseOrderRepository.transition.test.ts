@@ -44,7 +44,13 @@ afterEach(async () => {
 describe("supabaseOrderRepository — 상태 전환", () => {
   test("findById는 상태·결제수단을 돌려준다", async () => {
     const orderId = await createOrder("paid");
-    expect(await repo.findById(orderId)).toEqual({ id: orderId, status: "paid", paymentMethod: "cash" });
+    expect(await repo.findById(orderId)).toEqual({
+      id: orderId,
+      status: "paid",
+      paymentMethod: "cash",
+      cancelRequestedAt: null,
+      cancelRejectedAt: null,
+    });
   });
 
   test("findById는 없는 주문이면 null", async () => {
