@@ -227,7 +227,7 @@
     "privacy.collected.title": "Personal data we collect",
     "privacy.collected.value": "None",
     "privacy.collected.body": "This service doesn't collect personal data when you order, so no separate consent is needed.",
-    "privacy.device": "Links to your recent orders and their pickup numbers are kept on this device for 24 hours. They are not sent to the server.",
+    "privacy.device": "Recent order links, pickup numbers, and review submission markers are saved on this device. Records older than 24 hours are removed when you revisit the relevant screen, and these device records are not separately sent to the server.",
     "privacy.disposal.title": "Order data deletion",
     "privacy.disposal.body": "Order data will be deleted on 2026-11-08, one month after the festival ends (2026-10-08).",
     "hero.festivalYear": "2026",

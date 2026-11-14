@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n/locale";
 import type { MessageKey } from "@/lib/i18n/translate";
 
 // PRD F-12 1차·N-15 개인정보 고지. 전화번호 수집(2차 F-39) 착수 시 수집 항목·이용 목적을 이 고지에 더한다. 문구는 사전 privacy.*.
-// #89·DECISIONS #54: "기기 보관" 카드는 메뉴판 "내 주문 현황 보기"용(features/customer/myOrders.ts). 보관 기간을 바꾸면 이 문구도 바꾼다.
+// #89·DECISIONS #54: "기기 보관" 카드는 주문 링크(myOrders.ts)와 후기 제출 표시(useReview.ts)를 설명한다.
 const FACTS: readonly { id: string; Icon: typeof ShieldIcon; title: MessageKey; value: MessageKey; body: MessageKey }[] = [
   { id: "collected", Icon: ShieldIcon, title: "privacy.collected.title", value: "privacy.collected.value", body: "privacy.collected.body" },
   { id: "device", Icon: PhoneIcon, title: "privacy.device.title", value: "privacy.device.value", body: "privacy.device" },
