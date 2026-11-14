@@ -4,7 +4,7 @@ import { SupabaseAdminOrderRepository } from "@/infra/repositories/adminOrderRep
 import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrderRepository";
 import { createServiceClient } from "@/infra/supabase/server";
 import { AppError } from "@/lib/api/errors";
-import { resolveCancelRequest } from "@/services/adminOrderService";
+import { resolveCancelRequest, transition } from "@/services/adminOrderService";
 import { requestCancel } from "@/services/orderService";
 
 // T-35 고객 취소 요청(F-45)과 관리자 승인·거절(F-18)을 서비스 → 실제 저장소 → 실제 DB로 확인한다.
@@ -21,7 +21,7 @@ const createdMenus: string[] = [];
 const EARLIER = "2026-10-07T03:00:00.000Z";
 const QUANTITY = 2;
 
-type Marks = { requestedAt?: string | null; rejectedAt?: string | null };
+type Marks = { requestedAt?: string | null; rejectedAt?: string | null; paymentMethod?: "cash" | "transfer" };
 
 // 메뉴 1개(재고 10)와 수량 2인 주문 1건을 만든다. 재고는 주문 시 이미 차감된 상태(8)로 둔다.
 async function createOrder(status: string, marks: Marks = {}) {
@@ -34,7 +34,7 @@ async function createOrder(status: string, marks: Marks = {}) {
   const order = await db.from("orders").insert({
     pickup_number: randomInt(100_000, 2_000_000_000),
     status,
-    payment_method: "transfer",
+    payment_method: marks.paymentMethod ?? "transfer",
     total_amount: 3000 * QUANTITY,
     idempotency_key: randomUUID(),
     status_token: token,
@@ -258,5 +258,40 @@ describe("T-35 승인·거절 거부", () => {
     const order = await createOrder("paid");
     expect(await orderRepository.rejectCancelRequest(order.id, adminId, "사유")).toBe(false);
     expect(await history(order.id)).toEqual([]);
+  });
+});
+
+// T-54(DECISIONS #64·#71): 취소 요청이 대기 중이면 조리중으로 들어가는 동작 3개를 서버가 막고, 먼저 승인/거절하게 한다.
+describe("T-54 × T-35 취소 요청 대기 중 조리중 진입 차단", () => {
+  const blocked = [
+    { action: "confirm_payment", status: "pending", paymentMethod: "transfer" },
+    { action: "confirm_cash", status: "pending", paymentMethod: "cash" },
+    { action: "start_cooking", status: "paid", paymentMethod: "transfer" },
+  ] as const;
+
+  test.each(blocked)("대기 중이면 $action → 409 INVALID_TRANSITION, 상태·재고·이력·요청 시각 불변", async ({ action, status, paymentMethod }) => {
+    const order = await createOrder(status, { requestedAt: EARLIER, paymentMethod });
+
+    expect(await rejection(transition({ orderId: order.id, action, adminId }, { orderRepository })))
+      .toEqual({ code: "INVALID_TRANSITION", status: 409 });
+    expect(await stored(order.id)).toEqual({ status, requestedAt: EARLIER, rejectedAt: null, closedAt: null });
+    expect(await stock(order.menuId)).toBe(10 - QUANTITY);
+    expect(await history(order.id)).toEqual([]);
+  });
+
+  test.each(blocked)("거절 뒤에는 $action 으로 조리중이 된다", async ({ action, status, paymentMethod }) => {
+    const order = await createOrder(status, { requestedAt: EARLIER, paymentMethod });
+    await resolve(order.id, "reject", "조리 진행");
+
+    const result = await transition({ orderId: order.id, action, adminId }, { orderRepository });
+    expect(result.status).toBe("cooking");
+    expect((await history(order.id)).map((row) => row.action)).toEqual(["cancel_request_reject", action]);
+  });
+
+  test("대기 중이어도 승인(취소)은 그대로 된다 — 재고 복구", async () => {
+    const order = await createOrder("pending", { requestedAt: EARLIER });
+    await resolve(order.id, "approve", "고객 요청");
+    expect((await stored(order.id)).status).toBe("cancelled");
+    expect(await stock(order.menuId)).toBe(10);
   });
 });

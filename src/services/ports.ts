@@ -59,6 +59,9 @@ export type OrderForTransition = {
     id: string;
     status: OrderStatus;
     paymentMethod: PaymentMethod;
+    // DECISIONS #71: 취소 요청 대기 중이면 조리중 진입을 막기 위해 함께 읽는다.
+    cancelRequestedAt?: string | null;
+    cancelRejectedAt?: string | null;
 };
 
 // DB 함수 transition_order 인자와 1:1 (Architecture "DB 함수" 표).

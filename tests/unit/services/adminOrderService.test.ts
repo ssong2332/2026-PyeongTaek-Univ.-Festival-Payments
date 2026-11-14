@@ -152,9 +152,10 @@ describe("adminOrderService.transition", () => {
         const { repo, calls } = setup();
         const result = await transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo });
 
-        expect(result).toEqual({ id: ORDER_ID, status: "paid", paymentMethod: "transfer" });
+        // DECISIONS #64: 입금 확인은 바로 조리중
+        expect(result).toEqual({ id: ORDER_ID, status: "cooking", paymentMethod: "transfer" });
         expect(calls).toEqual([{
-            orderId: ORDER_ID, from: "pending", to: "paid", action: "confirm_payment",
+            orderId: ORDER_ID, from: "pending", to: "cooking", action: "confirm_payment",
             actorType: "admin", actorId: ADMIN_ID, reason: null, refundChannel: null,
         }]);
     });
@@ -174,6 +175,13 @@ describe("adminOrderService.transition", () => {
     it("상태 머신이 불허하면 409 INVALID_TRANSITION (완료 → 취소)", async () => {
         const { repo, calls } = setup({ status: "completed" });
         await expectAppError(transition({ orderId: ORDER_ID, action: "cancel", adminId: ADMIN_ID, reason: "고객 요청" }, { orderRepository: repo }), "INVALID_TRANSITION", 409);
+        expect(calls).toHaveLength(0);
+    });
+
+    // DECISIONS #71(T-54)
+    it("고객 취소 요청이 대기 중이면 입금 확인은 409 INVALID_TRANSITION, repo.transition 미호출", async () => {
+        const { repo, calls } = setup({ cancelRequestedAt: "2026-11-10T09:00:00.000Z", cancelRejectedAt: null });
+        await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo }), "INVALID_TRANSITION", 409);
         expect(calls).toHaveLength(0);
     });
 

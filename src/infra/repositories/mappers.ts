@@ -10,11 +10,23 @@ import type {
   OrderItemDetail,
 } from "@/services/ports";
 
-type OrderRow = { id: string; status: OrderStatus; payment_method: PaymentMethod };
+type OrderRow = {
+  id: string;
+  status: OrderStatus;
+  payment_method: PaymentMethod;
+  cancel_requested_at?: string | null;
+  cancel_rejected_at?: string | null;
+};
 
 // DB 행 → 서비스 타입. 스프레드 금지, 필드 명시 나열(Architecture "DTO ↔ 도메인 변환 위치").
 export function toOrderForTransition(row: OrderRow): OrderForTransition {
-  return { id: row.id, status: row.status, paymentMethod: row.payment_method };
+  return {
+    id: row.id,
+    status: row.status,
+    paymentMethod: row.payment_method,
+    cancelRequestedAt: row.cancel_requested_at ?? null,
+    cancelRejectedAt: row.cancel_rejected_at ?? null,
+  };
 }
 
 // DB 시각(+09:00 등) → UTC ISO 문자열. 해석할 수 없으면 원래 값을 두어 스키마 검사에서 걸리게 한다.

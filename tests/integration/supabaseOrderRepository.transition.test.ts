@@ -42,9 +42,9 @@ afterEach(async () => {
 });
 
 describe("supabaseOrderRepository — 상태 전환", () => {
-  test("findById는 상태·결제수단을 돌려준다", async () => {
+  test("findById는 상태·결제수단·취소 요청 시각을 돌려준다", async () => {
     const orderId = await createOrder("paid");
-    expect(await repo.findById(orderId)).toEqual({ id: orderId, status: "paid", paymentMethod: "cash" });
+    expect(await repo.findById(orderId)).toEqual({ id: orderId, status: "paid", paymentMethod: "cash", cancelRequestedAt: null, cancelRejectedAt: null });
   });
 
   test("findById는 없는 주문이면 null", async () => {
@@ -58,7 +58,7 @@ describe("supabaseOrderRepository — 상태 전환", () => {
       from: "paid", to: "cancelled", action: "cancel", actorId, reason: "고객 요청",
     }));
 
-    expect(result).toEqual({ id: orderId, status: "cancelled", paymentMethod: "cash" });
+    expect(result).toEqual({ id: orderId, status: "cancelled", paymentMethod: "cash", cancelRequestedAt: null, cancelRejectedAt: null });
     const { data } = await db.from("order_status_history").select("action, actor_id, reason").eq("order_id", orderId);
     expect(data).toEqual([{ action: "cancel", actor_id: actorId, reason: "고객 요청" }]);
   });
