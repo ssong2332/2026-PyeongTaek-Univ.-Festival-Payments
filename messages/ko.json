@@ -227,7 +227,7 @@
     "privacy.collected.title": "수집하는 개인정보",
     "privacy.collected.value": "없음",
     "privacy.collected.body": "이 서비스는 주문할 때 개인정보를 수집하지 않습니다. 별도의 동의 절차도 없습니다.",
-    "privacy.device": "이 기기에 최근 주문의 현황 링크와 픽업 번호를 24시간 보관합니다. 서버로 보내지 않습니다.",
+    "privacy.device": "최근 주문의 현황 링크·픽업 번호와 후기 제출 표시를 이 기기에 저장합니다. 24시간이 지난 기록은 관련 화면을 다시 열 때 삭제하며, 기기 저장 기록을 별도로 서버에 보내지 않습니다.",
     "privacy.disposal.title": "주문 데이터 파기",
     "privacy.disposal.body": "주문 데이터는 축제 종료(2026-10-08) 후 한 달이 되는 2026-11-08에 파기합니다.",
     "hero.festivalYear": "2026",
