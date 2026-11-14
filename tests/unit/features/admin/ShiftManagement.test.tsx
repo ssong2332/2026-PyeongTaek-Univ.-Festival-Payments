@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within, waitFor } from "@testi
 import { afterEach, describe, expect, it, vi } from "vitest";
 const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
+vi.mock("@/features/admin/InventoryPhotoPanel", () => ({ InventoryPhotoPanel: () => null }));
 import { ShiftManagement, type ShiftApi } from "@/features/admin/ShiftManagement";
 import { AppError } from "@/lib/api/errors";
 import type { Shift } from "@/domain/shift/schedule";

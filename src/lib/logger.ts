@@ -11,6 +11,9 @@ export interface LogContext {
     message?: string;
     keyPrefix?: string;
     count?: number;
+    failed?: number;
+    orphanRemoved?: number;
+    actorId?: string;
     expired?: number;
     completed?: number;
     [key: string]: unknown;
@@ -35,6 +38,9 @@ const ALLOWED_FIELDS = new Set([
     "message",
     "keyPrefix",
     "count",
+    "failed",
+    "orphanRemoved",
+    "actorId",
     "expired",
     "completed",
     "time",
