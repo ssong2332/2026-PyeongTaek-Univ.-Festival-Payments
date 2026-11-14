@@ -35,7 +35,7 @@
 | 27 | 2026-09-22 | 타임스탬프는 DB `timestamptz`(UTC), 표시는 KST(`Asia/Seoul`) — `src/lib/format.ts` 한 곳 | 통계 "오늘"·CSV 시각의 일관성 | — |
 | 28 | 2026-09-22 | 패키지 매니저 npm, Node 20 LTS(2026-10-01 #51로 Node 22 개정), Next.js 최신 안정(App Router), Tailwind CSS, zod, zustand, recharts(F-30), Vitest, Playwright, Supabase CLI. 정확한 버전은 T-01에서 `create-next-app` 기본값으로 고정하고 lock 파일 커밋 | 최소 의존성 — 6명이 같은 lock으로 작업 | — |
 | 29 | 2026-09-22 | 로깅은 `src/lib/logger.ts`(JSON 1줄, stdout, 필드 화이트리스트 + `phone*` 리댁션). 에러 추적 서비스 없음 | MVP·비용 0, N-17 로그 평문 0건 | — |
-| 30 | 2026-09-22 | 데이터 파기(N-15)는 `supabase/scripts/purge_2026-11-08.sql`(orders 계열 TRUNCATE CASCADE + counters 리셋 + 검증 SELECT)을 관리자가 Supabase SQL Editor에서 수동 실행. 절차는 T-30 | 1회성 작업에 스케줄 잡은 과함, 검증 쿼리가 산출물 | — |
+| 30 | 2026-09-22 | 데이터 파기(N-15)는 `supabase/scripts/purge_2026-11-08.sql`(명시한 주문 계열 테이블만 `TRUNCATE ... RESTRICT` + `pickup_number` 리셋 + 검증 SELECT)을 관리자가 Supabase SQL Editor에서 수동 실행. 새 참조 테이블이 있으면 중단하며 `CASCADE`로 우회하지 않는다. 절차는 T-30. 운영 실행은 별도 팀장 승인 후 결정(2026-11-11 검토 반영) | 1회성 작업에 스케줄 잡은 과함. 파기 범위가 자동 확대되지 않게 하고 검증 쿼리를 산출물로 남김 | — |
 | 31 | 2026-09-22 | 대시보드 미확인(F-21) = `acknowledged_at IS NULL AND status ∈ {pending, paid, cooking}`. `POST /api/admin/orders/{id}/acknowledge`로 해제 | 활성 주문만 강조, 만료·취소는 자동 소거 | — |
 | 32 | 2026-09-22 | 대기 수(F-11): 상태 페이지 = `count(status ∈ {pending,paid,cooking} AND created_at < 내 created_at)`, 메뉴판 = `count(status ∈ {pending,paid,cooking})` | PRD F-11 정의 그대로 | — |
 | 33 | 2026-09-22 | 2차 기능(F-32~F-41, F-46)의 스키마 변경은 1차 마이그레이션에 넣지 않고 Architecture.md "2차 예정 스키마" 표에 예약만 한다 | 1차 DB를 최소로, 세부 미정(#25~#33) 확정 전 구조 고정 금지 | — |
