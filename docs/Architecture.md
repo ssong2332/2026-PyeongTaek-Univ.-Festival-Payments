@@ -218,7 +218,7 @@ POST /api/orders (Route Handler)
 
 - (T-54) `confirm_payment`: pending → **cooking**, 타임스탬프 `paid_at`·`cooking_started_at` 동시 기록(`confirm_cash`와 같음). `start_cooking`(paid → cooking)은 기존 결제확인 주문용으로 남긴다.
 - (T-54) 고객 취소 요청이 대기 중인 주문(`cancel_requested_at IS NOT NULL AND cancel_rejected_at IS NULL`)은 `confirm_payment`·`confirm_cash`·`start_cooking`이 불가 → 409 `INVALID_TRANSITION`. 관리자는 먼저 취소 요청을 승인/거절한다. 조회 뒤 고객 요청이 끼어드는 동시 요청은 T-54의 `0106` DB 함수가 막는다(행 잠금 뒤 조회 시점 취소 요청 값과 비교, 다르면 409 `STATE_CHANGED`). 운영 DB에 `0106` 적용 후 앱 배포. 화면 버튼 비활성·안내 문구는 별도 UI 작업.
-- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). 마이그레이션 번호는 `0107`(#155, 2026-11-11), DB 함수·컬럼은 T-55 DB 설계 후 확정.
+- (T-55) 되돌리기(action 이름은 T-55에서 확정): cooking → pending, 주체 admin, `payment_method = 'transfer'`만, 사유 필수, 재고 복구 아니오, 상태 이력 기록, 새 입금 대기 시작 시각 = 되돌린 시각, 결제·조리 시작 시각은 새 흐름에 맞게 정리. `expire`의 경과 기준은 새 입금 대기 시작 시각이 되고, 이전 입금 대기 주기의 송금 신고는 새 주기의 만료를 막지 않는다(신고 기록은 보존). 되돌리기 성공 시 현재 취소 요청·거절 시각은 초기화하고 과거 거절 상태 이력은 보존해 새 주기의 취소 재요청을 허용한다(#155). 마이그레이션 번호는 `0107`(#155, 2026-11-11), DB 함수·컬럼은 T-55 DB 설계 후 확정.
 
 상태를 바꾸지 않는 이벤트(이력 행은 `from = to`로 기록):
 
