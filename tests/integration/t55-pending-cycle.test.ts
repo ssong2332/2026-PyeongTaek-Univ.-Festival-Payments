@@ -153,6 +153,10 @@ describe("T-55 new pending cycle DB contract", () => {
   test("legacy NULL uses created_at; reverted pending uses pending_since for expiration", async () => {
     const legacy = await fixture({ status: "pending", ageMinutes: expireMinutes + 1 });
     expect((await snapshot(legacy.id, legacy.menuId)).order.pending_since).toBeNull();
+    const legacyReported = await fixture({
+      status: "pending", ageMinutes: expireMinutes + 1,
+      reportedAt: age(expireMinutes + 20),
+    });
     const reverted = await fixture({ ageMinutes: expireMinutes + 30, reportedAt: age(expireMinutes + 20) });
     expect((await db.rpc(rpc, args(reverted.id))).error).toBeNull();
     const start = Date.parse((await snapshot(reverted.id, reverted.menuId)).order.pending_since);
@@ -163,6 +167,7 @@ describe("T-55 new pending cycle DB contract", () => {
     expect(before.error).toBeNull();
     expect(before.data).toMatchObject({ expired: 1 });
     expect((await snapshot(legacy.id, legacy.menuId)).order.status).toBe("expired");
+    expect((await snapshot(legacyReported.id, legacyReported.menuId)).order.status).toBe("pending");
     expect((await snapshot(reverted.id, reverted.menuId)).order.status).toBe("pending");
 
     const after = await db.rpc("sweep_order_timeouts", {

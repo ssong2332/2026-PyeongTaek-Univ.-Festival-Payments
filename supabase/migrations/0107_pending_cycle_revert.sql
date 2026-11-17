@@ -122,7 +122,7 @@ BEGIN
         SELECT id FROM public.orders
         WHERE status = 'pending'
           AND (transfer_reported_at IS NULL
-               OR transfer_reported_at < COALESCE(pending_since, created_at))
+               OR (pending_since IS NOT NULL AND transfer_reported_at < pending_since))
           AND COALESCE(pending_since, created_at) <= p_now - make_interval(mins => v_minutes)
         ORDER BY COALESCE(pending_since, created_at), id
         FOR UPDATE SKIP LOCKED
