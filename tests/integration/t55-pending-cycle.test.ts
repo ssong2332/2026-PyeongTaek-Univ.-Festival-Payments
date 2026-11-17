@@ -163,7 +163,8 @@ describe("T-55 new pending cycle DB contract", () => {
     const start = Date.parse((await snapshot(reverted.id, reverted.menuId)).order.pending_since);
 
     const before = await db.rpc("sweep_order_timeouts", {
-      p_now: new Date(start + (expireMinutes * 60_000) - 1).toISOString(),
+      // PostgreSQL clock_timestamp keeps microseconds; JS Date.parse truncates them.
+      p_now: new Date(start + (expireMinutes * 60_000) - 1_000).toISOString(),
     });
     expect(before.error).toBeNull();
     expect(before.data).toMatchObject({ expired: 1 });
@@ -172,7 +173,7 @@ describe("T-55 new pending cycle DB contract", () => {
     expect((await snapshot(reverted.id, reverted.menuId)).order.status).toBe("pending");
 
     const after = await db.rpc("sweep_order_timeouts", {
-      p_now: new Date(start + expireMinutes * 60_000).toISOString(),
+      p_now: new Date(start + expireMinutes * 60_000 + 1_000).toISOString(),
     });
     expect(after.error).toBeNull();
     expect(after.data).toMatchObject({ expired: 1 });
