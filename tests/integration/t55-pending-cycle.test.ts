@@ -74,8 +74,9 @@ async function snapshot(id: string, menuId: string) {
 }
 
 beforeAll(async () => {
-  const setting = await must(db.from("app_settings").select("value").eq("key", "payment.expire_minutes").single());
-  expireMinutes = Number(setting.value);
+  const setting = await db.from("app_settings").select("value").eq("key", "payment.expire_minutes").maybeSingle();
+  if (setting.error) throw setting.error;
+  if (setting.data) expireMinutes = Number(setting.data.value);
   const email = `t55-${randomUUID()}@example.test`;
   const password = randomUUID();
   const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
