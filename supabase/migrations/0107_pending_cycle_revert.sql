@@ -121,8 +121,10 @@ BEGIN
     FOR v_order_id IN
         SELECT id FROM public.orders
         WHERE status = 'pending'
-          AND (transfer_reported_at IS NULL
-               OR (pending_since IS NOT NULL AND transfer_reported_at < pending_since))
+          -- Revert clears the previous cycle's current report under the same row lock.
+          -- Any non-NULL current report was written in this cycle, even if the app clock
+          -- is behind the DB clock that assigned pending_since.
+          AND transfer_reported_at IS NULL
           AND COALESCE(pending_since, created_at) <= p_now - make_interval(mins => v_minutes)
         ORDER BY COALESCE(pending_since, created_at), id
         FOR UPDATE SKIP LOCKED

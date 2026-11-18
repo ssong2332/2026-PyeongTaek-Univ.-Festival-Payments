@@ -14,7 +14,7 @@
 
 RPC는 주문 행을 잠근 뒤 **계좌이체 `cooking`**만 허용한다. 사유는 공백 제거 후 1~200자이며 관리자 ID는 필수다. 한 트랜잭션에서 `status='pending'`, `pending_since=되돌린 시각`, `cancel_requested_at=NULL`, `cancel_rejected_at=NULL`, 결제·조리 시작 시각 NULL, 현 주기 신고 표시 NULL, 상태 이력 1행을 기록한다. 재고는 건드리지 않는다. 이전 `cancel_request_reject` 이력은 삭제하지 않으며, 고객은 새 주기에서 취소를 다시 요청할 수 있다.
 
-`sweep_order_timeouts`는 기존 T-19 자동 완료·설정 검증·행 잠금·오류 처리를 유지한다. 결제대기 만료에만 `COALESCE(pending_since, created_at)`을 적용한다. 새 주기의 송금 신고가 없으면 만료되고, 신고가 있으면 제외된다. 레거시 NULL 주문은 기존 `created_at` 기준·송금 신고 제외 규칙을 유지한다.
+`sweep_order_timeouts`는 기존 T-19 자동 완료·설정 검증·행 잠금·오류 처리를 유지한다. 결제대기 만료에만 `COALESCE(pending_since, created_at)`을 적용한다. 되돌리기가 이전 신고 표시를 원자적으로 비우므로, 이후 현재 신고 시각이 비NULL이면 앱 서버와 DB의 시계 차이에 관계없이 새 주기 신고로 보고 만료에서 제외한다. 레거시 NULL 주문은 기존 `created_at` 기준·송금 신고 제외 규칙을 유지한다.
 
 ## 검증 및 인계
 

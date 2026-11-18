@@ -202,6 +202,24 @@ describe("T-55 new pending cycle DB contract", () => {
     expect(Date.parse(after.order.transfer_reported_at)).toBe(Date.parse(reportedAgain!));
   });
 
+  test("a new-cycle report still blocks expiration when the app clock is behind the DB clock", async () => {
+    const order = await fixture({ reportedAt: age(40) });
+    expect((await db.rpc(rpc, args(order.id))).error).toBeNull();
+    const start = Date.parse((await snapshot(order.id, order.menuId)).order.pending_since);
+    const appClockBehind = new Date(start - 60_000).toISOString();
+    await must(db.from("orders").update({ transfer_reported_at: appClockBehind }).eq("id", order.id).select("id").single());
+
+    const sweep = await db.rpc("sweep_order_timeouts", {
+      p_now: new Date(start + (expireMinutes + 1) * 60_000).toISOString(),
+    });
+    expect(sweep.error).toBeNull();
+    expect(sweep.data).toMatchObject({ expired: 0 });
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.order.status).toBe("pending");
+    expect(after.order.transfer_reported_at).not.toBeNull();
+    expect(after.menu.stock).toBe(8);
+  });
+
   test("two concurrent admins can revert only once", async () => {
     const order = await fixture();
     const results = await Promise.all([db.rpc(rpc, args(order.id)), db.rpc(rpc, args(order.id))]);
