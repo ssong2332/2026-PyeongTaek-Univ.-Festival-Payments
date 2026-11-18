@@ -27,7 +27,8 @@ async function createOrder(status: string) {
 function command(orderId: string, overrides: Partial<TransitionCommand> = {}): TransitionCommand {
   return {
     orderId, from: "pending", to: "cooking", action: "confirm_cash",
-    actorType: "admin", actorId: randomUUID(), reason: null, refundChannel: null, ...overrides,
+    actorType: "admin", actorId: randomUUID(), reason: null, refundChannel: null,
+    expectedCancelRequestedAt: null, expectedCancelRejectedAt: null, ...overrides,
   };
 }
 

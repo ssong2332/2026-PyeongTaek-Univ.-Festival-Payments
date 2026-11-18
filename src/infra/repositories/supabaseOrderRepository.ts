@@ -92,7 +92,14 @@ export function createSupabaseOrderRepository(
     },
 
     async transition(command) {
-      const { data, error } = await client.rpc("transition_order", {
+      const guardCancellation = command.action === "confirm_payment"
+        || command.action === "confirm_cash"
+        || command.action === "start_cooking";
+      if (guardCancellation && (command.expectedCancelRequestedAt === undefined || command.expectedCancelRejectedAt === undefined)) {
+        throw new Error("cancel snapshot is required for cooking transition");
+      }
+      const operation = guardCancellation ? "transition_order_if_cancel_unchanged" : "transition_order";
+      const { data, error } = await client.rpc(operation, {
         p_order_id: command.orderId,
         p_from: command.from,
         p_to: command.to,
@@ -101,8 +108,12 @@ export function createSupabaseOrderRepository(
         p_actor_id: command.actorId,
         p_reason: command.reason,
         p_refund_channel: command.refundChannel,
+        ...(guardCancellation ? {
+          p_expected_cancel_requested_at: command.expectedCancelRequestedAt,
+          p_expected_cancel_rejected_at: command.expectedCancelRejectedAt,
+        } : {}),
       });
-      if (error) throw toError("transition_order", error);
+      if (error) throw toError(operation, error);
       return toOrderForTransition(data);
     },
 

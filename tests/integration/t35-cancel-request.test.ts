@@ -6,6 +6,7 @@ import { createServiceClient } from "@/infra/supabase/server";
 import { AppError } from "@/lib/api/errors";
 import { resolveCancelRequest, transition } from "@/services/adminOrderService";
 import { requestCancel } from "@/services/orderService";
+import type { OrderRepository } from "@/services/ports";
 
 // T-35 고객 취소 요청(F-45)과 관리자 승인·거절(F-18)을 서비스 → 실제 저장소 → 실제 DB로 확인한다.
 // 통합 테스트에는 동작을 바꾸는 mock을 쓰지 않는다(DECISIONS #46) — 관리자 인증·요청 검사 같은 Route Handler 경계는
@@ -286,6 +287,33 @@ describe("T-54 × T-35 취소 요청 대기 중 조리중 진입 차단", () => 
     const result = await transition({ orderId: order.id, action, adminId }, { orderRepository });
     expect(result.status).toBe("cooking");
     expect((await history(order.id)).map((row) => row.action)).toEqual(["cancel_request_reject", action]);
+  });
+
+  test.each(blocked)("조회 후 고객 요청이 저장되면 $action 은 409 STATE_CHANGED, 주문·재고·이력 불변", async ({ action, status, paymentMethod }) => {
+    const order = await createOrder(status, { paymentMethod });
+    const racingRepository: Pick<OrderRepository, "findById" | "transition"> = {
+      findById: orderRepository.findById,
+      async transition(command) {
+        expect(await orderRepository.setCancelRequested(order.id)).not.toBeNull();
+        return orderRepository.transition(command);
+      },
+    };
+
+    expect(await rejection(transition({ orderId: order.id, action, adminId }, { orderRepository: racingRepository })))
+      .toEqual({ code: "STATE_CHANGED", status: 409 });
+    expect(await stored(order.id)).toMatchObject({ status, rejectedAt: null, closedAt: null });
+    expect((await stored(order.id)).requestedAt).not.toBeNull();
+    expect(await stock(order.menuId)).toBe(10 - QUANTITY);
+    expect(await history(order.id)).toEqual([]);
+  });
+
+  test.each(blocked)("관리자 $action 완료 후 고객 취소 요청은 기록되지 않는다", async ({ action, status, paymentMethod }) => {
+    const order = await createOrder(status, { paymentMethod });
+    expect((await transition({ orderId: order.id, action, adminId }, { orderRepository })).status).toBe("cooking");
+    expect(await orderRepository.setCancelRequested(order.id)).toBeNull();
+    expect(await stored(order.id)).toMatchObject({ status: "cooking", requestedAt: null });
+    expect(await stock(order.menuId)).toBe(10 - QUANTITY);
+    expect((await history(order.id)).map((row) => row.action)).toEqual([action]);
   });
 
   test("대기 중이어도 승인(취소)은 그대로 된다 — 재고 복구", async () => {

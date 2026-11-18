@@ -98,6 +98,12 @@ export async function transition(
         actorId: input.adminId,
         reason: result.needsReason ? input.reason!.trim() : null,
         refundChannel: result.needsRefundChannel ? input.refundChannel! : null,
+        ...(input.action === "confirm_payment" || input.action === "confirm_cash" || input.action === "start_cooking"
+            ? {
+                expectedCancelRequestedAt: order.cancelRequestedAt ?? null,
+                expectedCancelRejectedAt: order.cancelRejectedAt ?? null,
+            }
+            : {}),
     });
 }
 

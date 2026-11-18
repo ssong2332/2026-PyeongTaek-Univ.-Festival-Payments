@@ -74,6 +74,9 @@ export type TransitionCommand = {
     actorId: string | null;
     reason: string | null;
     refundChannel: RefundChannel | null;
+    // T-54: 조리중 진입 3개 동작에서는 조회 당시의 두 시각을 NULL까지 명시해 DB에서 비교한다.
+    expectedCancelRequestedAt?: string | null;
+    expectedCancelRejectedAt?: string | null;
 };
 
 export interface OrderItemDetail {

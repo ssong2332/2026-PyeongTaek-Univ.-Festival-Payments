@@ -157,13 +157,36 @@ describe("adminOrderService.transition", () => {
         expect(calls).toEqual([{
             orderId: ORDER_ID, from: "pending", to: "cooking", action: "confirm_payment",
             actorType: "admin", actorId: ADMIN_ID, reason: null, refundChannel: null,
+            expectedCancelRequestedAt: null, expectedCancelRejectedAt: null,
         }]);
     });
 
     it("현금 주문은 confirm_cash 1회로 조리중이 된다", async () => {
-        const { repo } = setup({ paymentMethod: "cash" });
+        const { repo, calls } = setup({ paymentMethod: "cash" });
         const result = await transition({ orderId: ORDER_ID, action: "confirm_cash", adminId: ADMIN_ID }, { orderRepository: repo });
         expect(result.status).toBe("cooking");
+        expect(calls[0]).toMatchObject({ expectedCancelRequestedAt: null, expectedCancelRejectedAt: null });
+    });
+
+    it("거절된 취소 요청의 두 시각을 포맷 변환 없이 전달한다", async () => {
+        const requestedAt = "2026-11-12T10:00:00.123+09:00";
+        const rejectedAt = "2026-11-12T10:01:00.456+09:00";
+        const { repo, calls } = setup({ cancelRequestedAt: requestedAt, cancelRejectedAt: rejectedAt });
+        await transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo });
+        expect(calls[0]).toMatchObject({ expectedCancelRequestedAt: requestedAt, expectedCancelRejectedAt: rejectedAt });
+    });
+
+    it("조회 뒤 고객 취소 요청이 끼어들면 조리중 진입을 409로 막는다", async () => {
+        const { repo, store } = setup();
+        const racingRepo: Pick<OrderRepository, "findById" | "transition"> = {
+            findById: repo.findById,
+            async transition(command) {
+                store.get(ORDER_ID)!.cancelRequestedAt = "2026-11-12T01:00:00.000Z";
+                return repo.transition(command);
+            },
+        };
+        await expectAppError(transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: racingRepo }), "STATE_CHANGED", 409);
+        expect(store.get(ORDER_ID)).toMatchObject({ status: "pending", cancelRequestedAt: "2026-11-12T01:00:00.000Z" });
     });
 
     it("주문이 없으면 404 NOT_FOUND, repo.transition은 호출하지 않는다", async () => {
@@ -219,6 +242,7 @@ describe("adminOrderService.transition", () => {
             { orderRepository: repo },
         );
         expect(calls[0]).toMatchObject({ reason: null, refundChannel: null });
+        expect(calls[0]).toMatchObject({ expectedCancelRequestedAt: null, expectedCancelRejectedAt: null });
     });
 
     it("취소는 사유를 저장하지만 환불 채널은 저장하지 않는다", async () => {
@@ -228,6 +252,7 @@ describe("adminOrderService.transition", () => {
             { orderRepository: repo },
         );
         expect(calls[0]).toMatchObject({ to: "cancelled", reason: "고객 요청", refundChannel: null });
+        expect(calls[0].expectedCancelRequestedAt).toBeUndefined();
     });
 
     it("읽은 뒤 다른 관리자가 먼저 바꾸면 repo의 409 STATE_CHANGED를 그대로 전달한다", async () => {
