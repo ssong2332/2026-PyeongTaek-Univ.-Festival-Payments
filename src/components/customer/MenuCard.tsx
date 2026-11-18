@@ -21,8 +21,8 @@ export interface MenuCardProps {
 }
 
 // 가로형 철판 카드. 누르면 카드 전체가 살짝 눌리고 호떡 사진이 누르개에 눌린 듯 납작해졌다가 탄성 있게 돌아온다.
-// 사진 둘레에는 점선 불빛 고리가 천천히 돌고 김이 오르며, 화면에 처음 들어올 때 카드 위로 윤기가 한 번 쓱 지나간다.
-// 이름·설명에서 맛(꿀·치즈·시즈닝·매콤)을 읽어 작은 그림 배지로 보이고, 담기 버튼은 둘레가 숨 쉬듯 퍼진다.
+// 사진 둘레에 점선 고리를 두고, 화면에 처음 들어올 때 카드 위로 윤기가 한 번 쓱 지나간다.
+// 이름·설명에서 맛(꿀·치즈·시즈닝·매콤)을 읽어 작은 그림 배지로 보인다. 목록에 여러 장이라 계속 도는 움직임은 넣지 않는다.
 export function MenuCard({ name, description, price, imageUrl, soldOut, recommended = false, onSelect, layoutId }: MenuCardProps) {
     const locale = useLocale();
     const t = useT();
@@ -60,15 +60,10 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, recommen
             )}
 
             <span className="relative flex size-[104px] items-center justify-center">
-                {/* 사진 둘레 점선 불빛 고리 + 오르는 김(장식) */}
+                {/* 사진 둘레 점선 고리(장식) — 카드가 여러 장이라 돌리거나 흐림을 넣지 않는다 */}
                 {!soldOut && (
                     <>
-                        <span aria-hidden="true" className="absolute inset-0 rounded-full border-2 border-dashed border-syrup/40 motion-safe:animate-[spin_16s_linear_infinite]" />
-                        <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 gap-3">
-                            {[0, 1].map((index) => (
-                                <span key={index} className="h-7 w-2 rounded-full bg-white/30 blur-[5px] motion-safe:animate-steam" style={{ animationDelay: `${index * -1.3}s` }} />
-                            ))}
-                        </span>
+                        <span aria-hidden="true" className="absolute inset-0 rounded-full border-2 border-dashed border-syrup/40" />
                     </>
                 )}
                 <motion.span
@@ -109,10 +104,9 @@ export function MenuCard({ name, description, price, imageUrl, soldOut, recommen
                     <span className={`font-num text-lg ${soldOut ? "text-dough-dim" : "text-syrup drop-shadow-[0_0_10px_rgba(255,181,71,0.35)]"}`}>{formatWon(price, locale)}</span>
                     {!soldOut && (
                         <span aria-hidden="true" className="relative flex size-10 items-center justify-center">
-                            <span className="absolute inset-0 rounded-full border-2 border-syrup/60 motion-safe:animate-ping-soft" />
                             <motion.span
                                 variants={{ hover: { rotate: 90, scale: 1.08 }, pressed: { rotate: 180, scale: 0.8 } }}
-                                className="syrup-btn relative flex size-10 items-center justify-center rounded-full"
+                                className="relative flex size-10 items-center justify-center rounded-full bg-syrup text-molasses shadow-[0_6px_16px_rgba(255,181,71,0.35)]"
                             >
                                 <PlusIcon className="size-5" strokeWidth={2.75} />
                             </motion.span>

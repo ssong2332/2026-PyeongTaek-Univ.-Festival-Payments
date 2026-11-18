@@ -4,6 +4,7 @@ import { MotionGlobalConfig } from "motion/react";
 import { useEffect, useRef } from "react";
 import { CROWD_SPRITES, FIREWORK_MONO, FIREWORK_SPRITES, SPARKLE_MONO, SPARKLE_SPRITES, WALKER_SPRITES } from "./festivalArt";
 import { applyFestival, FESTIVAL_STOPS, type FestivalState } from "./festivalTheme";
+import { isLiteDevice } from "@/lib/deviceTier";
 
 // 축제 무대(장식 캔버스) — 고객 화면 콘텐츠 "뒤"에서만 그린다(z-0, 콘텐츠는 z-10). 화면 읽기 프로그램에는 숨긴다.
 // 휴대폰 시각에 따라 강도가 바뀐다(festivalTheme): 14:30 불꽃놀이 등장 → 17:00 최고조 → 밤에는 가끔.
@@ -35,6 +36,7 @@ type Person = { sprite: number; x: number; front: boolean; h: number; phase: num
 const FIREWORK_COLORS = ["#ffd27a", "#ffb547", "#ff8a4c", "#ff6a55", "#fff3c9", "#ffc0d9", "#9fe3ff"];
 const MAX_PEOPLE = 44;
 const CLOCK_MS = 30_000;
+const LITE_FRAME_MS = 33;
 
 function makeCrowd(): Person[] {
     // 위치·키·걸음은 매번 조금씩 다르게(랜덤). 앞쪽 사람부터 보이도록 섞어 두고, 군중 값만큼 앞에서부터 그린다.
@@ -130,11 +132,14 @@ export function FestivalStage() {
         if (!context) return;
         const ctx = context;
         const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+        const lite = isLiteDevice();
+        let lastDrawn = 0;
 
         let width = 0;
         let height = 0;
         const resize = () => {
-            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            // 전체 화면 캔버스라 해상도가 곧 부담이다. 장식이므로 1.5배면 충분하고, 보급형 폰은 1배로 그린다.
+            const dpr = Math.min(lite ? 1 : 1.5, window.devicePixelRatio || 1);
             width = window.innerWidth;
             height = window.innerHeight;
             canvas.width = Math.round(width * dpr);
@@ -322,6 +327,12 @@ export function FestivalStage() {
 
         const render = (now: number) => {
             const s = state.current;
+            // 보급형 폰은 초당 30장만 그린다.
+            if (lite && !reduced && now - lastDrawn < LITE_FRAME_MS) {
+                if (running) frame = requestAnimationFrame(render);
+                return;
+            }
+            lastDrawn = now;
             // 60fps 기준 배수. 화면 복귀 직후 rAF 시각이 last보다 이를 수 있어 0 아래로는 내리지 않는다.
             const dt = Math.max(0, Math.min(3, (now - last) / 16.67));
             last = Math.max(last, now);
@@ -332,7 +343,7 @@ export function FestivalStage() {
             const night = !s.daylight;
 
             // 1) 가장자리 숯불 glow — 축제가 무르익을수록 진하고 은은하게 숨쉰다
-            if (s.fx > 0.02) {
+            if (s.fx > 0.02 && !lite) {
                 const pulse = 0.75 + Math.sin(t * 1.3) * 0.25;
                 for (const [gx, gy] of [[0, height], [width, height], [width * 0.5, -40]] as const) {
                     const radius = Math.max(width, height) * 0.55;

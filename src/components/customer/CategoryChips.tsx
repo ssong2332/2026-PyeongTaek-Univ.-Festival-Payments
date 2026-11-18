@@ -1,12 +1,13 @@
 "use client";
 
 import { motion } from "motion/react";
+import { memo } from "react";
 import type { MENU_CATEGORIES, MenuCategoryId } from "@/features/customer/menuCategories";
 import { ArtIcon } from "@/components/ui/ArtIcon";
 import { useT } from "@/lib/i18n/locale";
 
 // 맛 탭. 고른 탭 아래로 시럽색 막대가 미끄러져 옮겨 간다(layoutId) — 탭 사이 관계가 눈으로 이어진다.
-export function CategoryChips({
+export const CategoryChips = memo(function CategoryChips({
     categories,
     value,
     onChange,
@@ -19,7 +20,7 @@ export function CategoryChips({
     if (categories.length <= 1) return null;
     return (
         // 스크롤해도 맛 칩이 작은 머리 바로 아래에 붙어 있다(유리 띠). 위쪽 여백은 작은 머리(약 56px) 높이.
-        <div role="group" aria-label={t("category.groupLabel")} className="no-scrollbar sticky top-[56px] z-20 -mx-4 flex gap-1 overflow-x-auto border-b border-iron-line bg-iron/80 px-4 pt-2 backdrop-blur-xl">
+        <div role="group" aria-label={t("category.groupLabel")} className="no-scrollbar sticky top-[56px] z-20 -mx-4 flex gap-1 overflow-x-auto border-b border-iron-line bg-iron/95 px-4 pt-2">
             {categories.map((category) => {
                 const active = category.id === value;
                 return (
@@ -56,4 +57,4 @@ export function CategoryChips({
             })}
         </div>
     );
-}
+});

@@ -13,7 +13,7 @@
 .shell { word-break: keep-all; overflow-wrap: anywhere; }
 .shell button { cursor: pointer; font: inherit; color: inherit; }
 .shell button:disabled { cursor: not-allowed; opacity: .55; }
-.shell button:focus-visible, .shell input:focus-visible, .shell textarea:focus-visible, .shell select:focus-visible { outline: 2px solid var(--syrup); outline-offset: 3px; }
+.shell button:focus-visible, .shell a:focus-visible, .shell input:focus-visible, .shell textarea:focus-visible, .shell select:focus-visible { outline: 2px solid var(--syrup); outline-offset: 3px; }
 .shell h1, .shell h2, .shell p { margin: 0; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
@@ -40,6 +40,9 @@
 /* ── 본문 ── */
 .content { padding: 22px 24px 48px; }
 .heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.headingActions { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.manualOrderLink { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid var(--syrup); border-radius: 14px; background: rgba(255, 181, 71, .12); color: var(--syrup); font-size: 14px; font-weight: 800; white-space: nowrap; text-decoration: none; }
+.manualOrderLink:hover { background: var(--syrup); color: var(--molasses); }
 .eyebrow { font-family: var(--font-mono); font-size: 12px; color: var(--syrup); letter-spacing: .08em; }
 .heading h1 { margin-top: 4px !important; font-family: var(--font-display); font-weight: 400; font-size: 32px; letter-spacing: -.01em; }
 .search { display: flex; align-items: center; gap: 8px; min-width: min(360px, 100%); padding: 0 6px 0 14px; height: 46px; border: 1px solid var(--line); border-radius: 14px; background: var(--iron2); color: var(--dim); transition: border-color .25s, box-shadow .25s; }

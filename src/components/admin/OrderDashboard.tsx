@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { LayoutGroup, motion } from "motion/react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowRight, BarChart3, Bell, CheckCircle, ClipboardList, Clock, Flame, LayoutDashboard, Search, Settings2, UtensilsCrossed, XCircle } from "lucide-react";
@@ -208,13 +209,16 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                         <p className={styles.eyebrow}>{pageTitle}</p>
                         <h1>{page === "dashboard" ? "호떡 운영 대시보드" : "현장 주문판"}</h1>
                     </div>
-                    <form className={styles.search} onSubmit={search}>
-                        <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
-                        <Search size={16} aria-hidden="true" />
-                        <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
-                        <button type="submit" aria-label="검색"><ArrowRight size={16} /></button>
-                        {searchNumber !== null && <button type="button" onClick={clearSearch} className={styles.reset}>초기화</button>}
-                    </form>
+                    <div className={styles.headingActions}>
+                        {!preview && <Link href="/admin/manual-orders" className={styles.manualOrderLink}>수기 주문 입력 <ArrowRight size={16} aria-hidden="true" /></Link>}
+                        <form className={styles.search} onSubmit={search}>
+                            <label className={styles.srOnly} htmlFor="pickup-search">픽업 번호</label>
+                            <Search size={16} aria-hidden="true" />
+                            <input id="pickup-search" value={query} onChange={e => setQuery(e.target.value)} inputMode="numeric" placeholder="픽업 번호 검색" />
+                            <button type="submit" aria-label="검색"><ArrowRight size={16} /></button>
+                            {searchNumber !== null && <button type="button" onClick={clearSearch} className={styles.reset}>초기화</button>}
+                        </form>
+                    </div>
                 </div>
                 <p role="status" className={styles.notice}>{notice || `미확인 주문 ${unacknowledged}건`}</p>
                 {(error || actionError) && <div role="alert" className={styles.error}>{actionError || "주문을 불러오지 못했습니다. 새로고침해 주세요."}</div>}

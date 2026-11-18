@@ -116,6 +116,8 @@ describe("/admin 대시보드 페이지", () => {
 
         expect(await screen.findByRole("navigation", { name: "관리자 메뉴" })).toBeTruthy();
         expect(screen.getByRole("link", { name: "교대 스케줄" }).getAttribute("href")).toBe("/admin/shifts");
+        expect(screen.getByRole("link", { name: "수기 주문" }).getAttribute("href")).toBe("/admin/manual-orders");
+        expect(screen.getByRole("link", { name: "수기 주문 입력" }).getAttribute("href")).toBe("/admin/manual-orders");
         const [logout] = logoutButtons();
         expect(logoutButtons()).toHaveLength(1);
         for (let node: HTMLElement | null = logout; node; node = node.parentElement) {
