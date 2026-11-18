@@ -46,6 +46,20 @@ SQL
 export PGAPPNAME=festival_purge_test
 psql -d postgres -v ON_ERROR_STOP=1 -f tests/integration/purge_2026-11-08.sql >/dev/null
 
+# Exercise the operator's read-only preflight against populated fixture data.
+preflight_output=$(mktemp)
+trap 'rm -f "$preflight_output"' EXIT
+psql -d postgres -v ON_ERROR_STOP=1 -f supabase/scripts/t30_readonly_preflight.sql >"$preflight_output"
+if ! grep -Eq '(^|[[:space:]])orders[[:space:]]+\|[[:space:]]+9([[:space:]]|$)' "$preflight_output" ||
+   ! grep -Eq '(^|[[:space:]])rate_limits[[:space:]]+\|[[:space:]]+1([[:space:]]|$)' "$preflight_output" ||
+   ! grep -q 'order_date_kst' "$preflight_output" ||
+   [[ "$(psql -d postgres -Atq -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM public.orders')" != "9" ]] ||
+   [[ "$(psql -d postgres -Atq -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM public.rate_limits')" != "1" ]] ||
+   [[ "$(psql -d postgres -Atq -v ON_ERROR_STOP=1 -c 'SELECT count(*) FROM public.shifts')" != "1" ]]; then
+  echo 'T-30 read-only preflight output or preservation mismatch' >&2
+  exit 1
+fi
+
 # The date gate has passed; exercise the exact checked-in SQL without replacing it.
 psql -d postgres -v ON_ERROR_STOP=1 -f supabase/scripts/purge_2026-11-08.sql >/dev/null
 psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
