@@ -111,6 +111,15 @@ DB1과 독립 검수자는 [읽기 전용 사전 점검 SQL](../supabase/scripts
 별도 운영 기록에 남긴다. 이 파일은 읽기 전용 트랜잭션에서 조회하고 `ROLLBACK`으로
 끝난다. 주문·속도 제한 키, 근무자 이름, Storage 경로 같은 원문은 출력하지 않는다.
 출력된 날짜별 주문 건수는 다른 행사 데이터 혼재 여부를 판단할 단서일 뿐이다.
+점검 결과 `storage_buckets_exists`와 `storage_objects_exists`가 모두 참이면
+같은 읽기 전용 접속에서 아래 두 조회로 최신 건수를 따로 확인한다. 어느 하나라도
+거짓이면 Storage 대시보드와 설치 상태를 DB1이 별도 확인한다. 파일 경로는 기록하지 않는다.
+
+```sql
+SELECT count(*) AS storage_bucket_count FROM storage.buckets;
+SELECT count(*) AS storage_object_count FROM storage.objects;
+```
+
 프로젝트 ref·브랜치, 11-08 실행 이력과 잔여 데이터 경위, 주문 소유권,
 개인 CSV·외부 백업·로그 보관 위치와 정책은 이 SQL로 확인할 수 없으므로
 담당자가 별도 근거를 대조해야 한다. 조회 결과가 이전 187건과 달라도 새 수치를

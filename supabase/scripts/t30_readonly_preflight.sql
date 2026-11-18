@@ -50,9 +50,11 @@ SELECT count(*) AS shifts_with_name, min(date) AS earliest_shift_date,
 FROM public.shifts
 WHERE btrim(person_name) <> '';
 
-SELECT count(*) AS storage_bucket_count FROM storage.buckets;
-SELECT count(*) AS storage_object_count FROM storage.objects;
-SELECT to_regclass('public.inventory_photos') IS NOT NULL AS inventory_photos_exists,
+-- storage 스키마가 없는 격리 DB에서도 실행 가능하게 존재 여부만 확인한다.
+-- 두 테이블이 있으면 운영 문서의 별도 SELECT로 실제 건수를 확인한다.
+SELECT to_regclass('storage.buckets') IS NOT NULL AS storage_buckets_exists,
+       to_regclass('storage.objects') IS NOT NULL AS storage_objects_exists,
+       to_regclass('public.inventory_photos') IS NOT NULL AS inventory_photos_exists,
        to_regclass('public.inventory_photo_uploads') IS NOT NULL AS inventory_photo_uploads_exists;
 
 -- 대상 밖 새 FK나 DELETE/TRUNCATE 트리거가 보이면 파기 SQL 범위를 재검토한다.
