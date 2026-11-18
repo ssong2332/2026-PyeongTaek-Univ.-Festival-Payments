@@ -1,4 +1,6 @@
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
+import { execFileSync, spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
@@ -16,6 +18,75 @@ const anon = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_K
 const authenticated = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, clientOptions);
 let userId: string | undefined;
 let expireMinutes = 10;
+
+function psqlArgs(): string[] {
+  const config = readFileSync("supabase/config.toml", "utf8");
+  const projectId = /^project_id\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m.exec(config)?.[1];
+  if (!projectId) throw new Error("Disposable Supabase project_id is missing");
+  return ["exec", "-i", `supabase_db_${projectId}`, "psql", "-X", "-q", "-t", "-A",
+    "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"];
+}
+
+// A separate DB session holds the row lock while the API request starts.
+// The marker is emitted after the first statement has acquired that lock.
+async function withHeldRow<T>(beforeMarker: string, afterPause: string, duringPause: () => PromiseLike<T>): Promise<T> {
+  const child = spawn("docker", psqlArgs(), { stdio: ["pipe", "pipe", "pipe"] });
+  let errors = "";
+  let marked = false;
+  let signalReady!: () => void;
+  let signalFailure!: (error: Error) => void;
+  const ready = new Promise<void>((resolve, reject) => { signalReady = resolve; signalFailure = reject; });
+  const done = new Promise<{ code: number | null }>((resolve) => {
+    child.on("close", (code) => {
+      if (!marked) signalFailure(new Error(`Held DB session exited before lock marker: ${errors}`));
+      resolve({ code });
+    });
+    child.on("error", (error) => signalFailure(error));
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    errors += chunk.toString();
+    if (!marked && errors.includes("T55_ROW_LOCKED")) { marked = true; signalReady(); }
+  });
+  child.stdin.end([
+    "BEGIN;", "SET LOCAL ROLE service_role;", beforeMarker,
+    "DO $$ BEGIN RAISE NOTICE 'T55_ROW_LOCKED'; END $$;", "SELECT pg_sleep(1);", afterPause, "COMMIT;",
+  ].join("\n"));
+  await ready;
+  let result: T;
+  try { result = await duringPause(); }
+  finally {
+    const finished = await done;
+    if (finished.code !== 0) throw new Error(`Held DB session failed: ${errors}`);
+  }
+  return result;
+}
+
+function lockOrder(id: string) {
+  return `SELECT id FROM public.orders WHERE id = '${id}' FOR UPDATE;`;
+}
+
+function runPsql(sql: string) {
+  return execFileSync("docker", psqlArgs(), {
+    input: sql, encoding: "utf8", timeout: 30_000, stdio: ["pipe", "pipe", "pipe"],
+  });
+}
+
+async function withAutoCompleteEnabled<T>(run: () => Promise<T>): Promise<T> {
+  const previous = await db.from("app_settings").select("value")
+    .eq("key", "auto_complete.enabled").maybeSingle();
+  if (previous.error) throw previous.error;
+  await must(db.from("app_settings").upsert({ key: "auto_complete.enabled", value: "true" }).select("key").single());
+  try { return await run(); }
+  finally {
+    if (previous.data) {
+      await must(db.from("app_settings").update({ value: previous.data.value })
+        .eq("key", "auto_complete.enabled").select("key").single());
+    } else {
+      const { error } = await db.from("app_settings").delete().eq("key", "auto_complete.enabled");
+      if (error) throw error;
+    }
+  }
+}
 
 async function must<T>(request: PromiseLike<{ data: T; error: unknown }>): Promise<NonNullable<T>> {
   const { data, error } = await request;
@@ -229,6 +300,153 @@ describe("T-55 new pending cycle DB contract", () => {
     expect(after.history).toHaveLength(1);
     expect(after.menu.stock).toBe(8);
   });
+
+  test("multiple reverts append each report timestamp and keep only the current cycle open", async () => {
+    const firstReport = age(40);
+    const order = await fixture({ reportedAt: firstReport });
+    expect((await db.rpc(rpc, args(order.id))).error).toBeNull();
+    const firstPendingSince = Date.parse((await snapshot(order.id, order.menuId)).order.pending_since);
+    const secondReport = await repo.setTransferReported(order.id);
+    expect(secondReport).not.toBeNull();
+    const backToCooking = await db.rpc("transition_order", {
+      p_order_id: order.id, p_from: "pending", p_to: "cooking",
+      p_action: "start_cooking", p_actor_type: "admin", p_actor_id: actorId,
+      p_reason: null, p_refund_channel: null,
+    });
+    expect(backToCooking.error).toBeNull();
+    expect((await db.rpc(rpc, args(order.id))).error).toBeNull();
+
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.order.status).toBe("pending");
+    expect(after.order.transfer_reported_at).toBeNull();
+    expect(after.order.transfer_reported_history.map(Date.parse))
+      .toEqual([Date.parse(firstReport), Date.parse(secondReport!)]);
+    expect(Date.parse(after.order.pending_since)).toBeGreaterThanOrEqual(firstPendingSince);
+    expect(after.history.map((entry: { action: string }) => entry.action))
+      .toEqual(["revert_to_pending", "start_cooking", "revert_to_pending"]);
+    expect(after.menu.stock).toBe(8);
+  });
+
+  test.each(["x", "x".repeat(200)])("reason boundary %s is accepted", async (reason) => {
+    const order = await fixture();
+    const { error } = await db.rpc(rpc, args(order.id, { p_reason: reason }));
+    expect(error).toBeNull();
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.history[0].reason).toBe(reason);
+  });
+
+  test("null actor ID is rejected without changes", async () => {
+    const order = await fixture();
+    const before = await snapshot(order.id, order.menuId);
+    const { error } = await db.rpc(rpc, args(order.id, { p_actor_id: null }));
+    expect(error?.message).toBe("VALIDATION_ERROR");
+    expect(await snapshot(order.id, order.menuId)).toEqual(before);
+  });
+
+  test("history INSERT failure rolls back status, cycle, cancellation marks and archived report", async () => {
+    const order = await fixture({ reportedAt: age(40), cancelledAt: age(38), rejectedAt: age(37) });
+    const before = await snapshot(order.id, order.menuId);
+    runPsql(`
+      CREATE FUNCTION public.t55_revert_history_failure() RETURNS trigger
+      LANGUAGE plpgsql AS $$ BEGIN
+        IF NEW.order_id = '${order.id}' THEN
+          RAISE EXCEPTION 'T55_HISTORY_INSERT_FAILED';
+        END IF;
+        RETURN NEW;
+      END $$;
+      CREATE TRIGGER t55_revert_history_failure BEFORE INSERT ON public.order_status_history
+      FOR EACH ROW EXECUTE FUNCTION public.t55_revert_history_failure();
+    `);
+    try {
+      const { error } = await db.rpc(rpc, args(order.id));
+      expect(error?.message).toBe("T55_HISTORY_INSERT_FAILED");
+      expect(await snapshot(order.id, order.menuId)).toEqual(before);
+    } finally {
+      runPsql(`
+        DROP TRIGGER IF EXISTS t55_revert_history_failure ON public.order_status_history;
+        DROP FUNCTION IF EXISTS public.t55_revert_history_failure();
+      `);
+    }
+  });
+
+  test("revert holding the row makes T-19 skip it; the next cycle remains pending", async () => {
+    await withAutoCompleteEnabled(async () => {
+      const oldReport = age(40);
+      const order = await fixture({ reportedAt: oldReport });
+      const sweep = await withHeldRow(
+        `DO $$ BEGIN PERFORM public.revert_transfer_order_to_pending('${order.id}', '${actorId}', 'race'); END $$;`,
+        "",
+        () => db.rpc("sweep_order_timeouts", { p_now: new Date().toISOString() }),
+      );
+      expect(sweep.error).toBeNull();
+      expect(sweep.data).toMatchObject({ completed: 0, expired: 0 });
+      const after = await snapshot(order.id, order.menuId);
+      expect(after.order.status).toBe("pending");
+      expect(after.order.transfer_reported_at).toBeNull();
+      expect(after.order.transfer_reported_history.map(Date.parse)).toEqual([Date.parse(oldReport)]);
+      expect(after.history.map((entry: { action: string }) => entry.action)).toEqual(["revert_to_pending"]);
+      expect(after.menu.stock).toBe(8);
+    });
+  }, 20_000);
+
+  test("T-19 holding the row completes first; revert then rejects the terminal state", async () => {
+    await withAutoCompleteEnabled(async () => {
+      const oldReport = age(40);
+      const order = await fixture({ reportedAt: oldReport });
+      const revert = await withHeldRow(lockOrder(order.id),
+        "SELECT public.sweep_order_timeouts(now());",
+        () => db.rpc(rpc, args(order.id)));
+      expect(revert.error?.message).toBe("INVALID_TRANSITION");
+      const after = await snapshot(order.id, order.menuId);
+      expect(after.order.status).toBe("completed");
+      expect(after.order.pending_since).toBeNull();
+      expect(Date.parse(after.order.transfer_reported_at)).toBe(Date.parse(oldReport));
+      expect(after.order.transfer_reported_history).toEqual([]);
+      expect(after.history.map((entry: { action: string }) => entry.action)).toEqual(["auto_complete"]);
+      expect(after.menu.stock).toBe(8);
+    });
+  }, 20_000);
+
+  test("new-cycle report holding the row makes T-18 skip expiration", async () => {
+    const oldReport = age(40);
+    const order = await fixture({ reportedAt: oldReport });
+    expect((await db.rpc(rpc, args(order.id))).error).toBeNull();
+    const start = Date.parse((await snapshot(order.id, order.menuId)).order.pending_since);
+    const sweep = await withHeldRow(
+      `UPDATE public.orders SET transfer_reported_at = clock_timestamp()
+       WHERE id = '${order.id}' AND status = 'pending' AND payment_method = 'transfer'
+         AND transfer_reported_at IS NULL;`,
+      "",
+      () => db.rpc("sweep_order_timeouts", {
+        p_now: new Date(start + (expireMinutes + 1) * 60_000).toISOString(),
+      }),
+    );
+    expect(sweep.error).toBeNull();
+    expect(sweep.data).toMatchObject({ expired: 0 });
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.order.status).toBe("pending");
+    expect(after.order.transfer_reported_at).not.toBeNull();
+    expect(after.order.transfer_reported_history.map(Date.parse)).toEqual([Date.parse(oldReport)]);
+    expect(after.history.map((entry: { action: string }) => entry.action)).toEqual(["revert_to_pending"]);
+    expect(after.menu.stock).toBe(8);
+  }, 20_000);
+
+  test("T-18 holding the row expires first; new-cycle report cannot mark it afterward", async () => {
+    const oldReport = age(40);
+    const order = await fixture({ reportedAt: oldReport });
+    expect((await db.rpc(rpc, args(order.id))).error).toBeNull();
+    const start = Date.parse((await snapshot(order.id, order.menuId)).order.pending_since);
+    const reported = await withHeldRow(lockOrder(order.id),
+      `SELECT public.sweep_order_timeouts('${new Date(start + (expireMinutes + 1) * 60_000).toISOString()}');`,
+      () => repo.setTransferReported(order.id));
+    expect(reported).toBeNull();
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.order.status).toBe("expired");
+    expect(after.order.transfer_reported_at).toBeNull();
+    expect(after.order.transfer_reported_history.map(Date.parse)).toEqual([Date.parse(oldReport)]);
+    expect(after.history.map((entry: { action: string }) => entry.action)).toEqual(["revert_to_pending", "expire"]);
+    expect(after.menu.stock).toBe(10);
+  }, 20_000);
 
   test("missing order is rejected", async () => {
     const { error } = await db.rpc(rpc, args(randomUUID()));
