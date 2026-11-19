@@ -96,6 +96,33 @@ function statusOf(orders: AdminOrderDto[]) {
 }
 
 describe("useOrdersFeed — 응답 순서가 뒤바뀌어도 최신 상태 유지", () => {
+    it("최초 목록·Realtime 취소 요청/거절·새로고침에서 조리 진입 액션을 일치시킨다", async () => {
+        const { result } = renderHook(() => useOrdersFeed());
+        const requested = {
+            ...order(A, "pending", T1), paymentMethod: "transfer" as const,
+            cancelRequestedAt: T1, availableActions: ["cancel" as const],
+        };
+        await pendingTo("/api/admin/orders")[0].respond({ orders: [requested] });
+        expect(result.current.orders[0].availableActions).toEqual(["cancel"]);
+
+        emit("UPDATE", { id: A, cancel_rejected_at: T2, updated_at: T2 });
+        expect(result.current.orders[0].availableActions).toEqual(["confirm_payment", "cancel"]);
+
+        emit("UPDATE", { id: A, cancel_requested_at: "2026-10-07T03:03:00.000Z",
+            cancel_rejected_at: null, updated_at: "2026-10-07T03:03:00.000Z" });
+        expect(result.current.orders[0].availableActions).toEqual(["cancel"]);
+
+        let refreshing!: Promise<void>;
+        act(() => { refreshing = result.current.refresh(); });
+        await pendingTo("/api/admin/orders")[1].respond({ orders: [{
+            ...requested, updatedAt: "2026-10-07T03:04:00.000Z",
+            cancelRequestedAt: T1, cancelRejectedAt: T2,
+            availableActions: ["confirm_payment", "cancel"],
+        }] });
+        await act(async () => { await refreshing; });
+        expect(result.current.orders[0].availableActions).toEqual(["confirm_payment", "cancel"]);
+    });
+
     it("상세 조회 응답이 역순으로 와도(최신 cooking 뒤에 오래된 pending) cooking을 유지한다", async () => {
         const { result } = renderHook(() => useOrdersFeed());
         await pendingTo("/api/admin/orders")[0].respond({ orders: [] });
