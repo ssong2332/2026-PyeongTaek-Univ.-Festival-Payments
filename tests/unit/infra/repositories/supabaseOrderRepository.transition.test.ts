@@ -40,13 +40,17 @@ describe("supabaseOrderRepository — 보호 함수 선택", () => {
         return { client, calls };
     }
 
-    it("기대값이 둘 다 null이어도 보호 함수를 부르고 null을 그대로 넘긴다", async () => {
+    it.each([
+        { action: "confirm_payment", from: "pending" },
+        { action: "confirm_cash", from: "pending" },
+        { action: "start_cooking", from: "paid" },
+    ] as const)("$action: 기대값이 둘 다 null이어도 보호 함수를 부르고 null을 그대로 넘긴다", async ({ action, from }) => {
         const { client, calls } = recording();
-        await createSupabaseOrderRepository(client).transition({ ...base, expectedCancel: { requestedAt: null, rejectedAt: null } });
+        await createSupabaseOrderRepository(client).transition({ ...base, action, from, expectedCancel: { requestedAt: null, rejectedAt: null } });
         expect(calls).toHaveLength(1);
         expect(calls[0].fn).toBe(GUARDED_TRANSITION.fn);
         expect(calls[0].args).toMatchObject({
-            p_order_id: base.orderId, p_from: "pending", p_to: "cooking", p_action: "confirm_payment",
+            p_order_id: base.orderId, p_from: from, p_to: "cooking", p_action: action,
             [GUARDED_TRANSITION.expectedRequestedAt]: null, [GUARDED_TRANSITION.expectedRejectedAt]: null,
         });
         expect(Object.keys(calls[0].args)).toContain(GUARDED_TRANSITION.expectedRequestedAt);
@@ -70,6 +74,14 @@ describe("supabaseOrderRepository — 보호 함수 선택", () => {
         expect(Object.keys(calls[0].args).sort()).toEqual([
             "p_action", "p_actor_id", "p_actor_type", "p_from", "p_order_id", "p_reason", "p_refund_channel", "p_to",
         ]);
+    });
+
+    it("취소(고객 요청 승인 포함)는 기존 transition_order를 쓰고 기대값 인자를 보내지 않는다", async () => {
+        const { client, calls } = recording();
+        await createSupabaseOrderRepository(client).transition({ ...base, action: "cancel", to: "cancelled", reason: "고객 요청" });
+        expect(calls[0].fn).toBe("transition_order");
+        expect(calls[0].args).not.toHaveProperty(GUARDED_TRANSITION.expectedRequestedAt);
+        expect(calls[0].args).not.toHaveProperty(GUARDED_TRANSITION.expectedRejectedAt);
     });
 });
 
