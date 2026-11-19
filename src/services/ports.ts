@@ -65,6 +65,7 @@ export type OrderForTransition = {
 };
 
 // DB 함수 transition_order 인자와 1:1 (Architecture "DB 함수" 표).
+// expectedCancel이 있으면 0106 보호 함수가 이 값을 현재 값과 비교한다. 둘 다 null이어도 비교 대상이다(#155).
 export type TransitionCommand = {
     orderId: string;
     from: OrderStatus;
@@ -74,9 +75,7 @@ export type TransitionCommand = {
     actorId: string | null;
     reason: string | null;
     refundChannel: RefundChannel | null;
-    // T-54: 조리중 진입 3개 동작에서는 조회 당시의 두 시각을 NULL까지 명시해 DB에서 비교한다.
-    expectedCancelRequestedAt?: string | null;
-    expectedCancelRejectedAt?: string | null;
+    expectedCancel?: { requestedAt: string | null; rejectedAt: string | null };
 };
 
 export interface OrderItemDetail {

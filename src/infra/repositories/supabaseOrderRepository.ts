@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { guardsCancelRequest } from "@/domain/order/stateMachine";
 import { AppError, type ErrorCode } from "@/lib/api/errors";
 import { logger } from "@/lib/logger";
 import type { OrderRepository } from "@/services/ports";
@@ -53,6 +54,13 @@ const ORDER_BY_TOKEN_SELECT = `
   )
 `;
 
+// T-54 0106 보호 함수(#164 `0106_atomic_transition.sql`, 계약 docs/T-54-atomic-transition-db.md). 이름·인자가 바뀌면 여기만 고친다.
+export const GUARDED_TRANSITION = {
+  fn: "transition_order_if_cancel_unchanged",
+  expectedRequestedAt: "p_expected_cancel_requested_at",
+  expectedRejectedAt: "p_expected_cancel_rejected_at",
+} as const;
+
 // 고객이 취소를 요청할 수 있고 관리자가 그 요청을 거절할 수 있는 상태(Architecture 상태 머신 표 — cancel_request·cancel_request_reject).
 const CANCEL_REQUEST_STATUSES = ["pending", "paid"];
 
@@ -92,14 +100,7 @@ export function createSupabaseOrderRepository(
     },
 
     async transition(command) {
-      const guardCancellation = command.action === "confirm_payment"
-        || command.action === "confirm_cash"
-        || command.action === "start_cooking";
-      if (guardCancellation && (command.expectedCancelRequestedAt === undefined || command.expectedCancelRejectedAt === undefined)) {
-        throw new Error("cancel snapshot is required for cooking transition");
-      }
-      const operation = guardCancellation ? "transition_order_if_cancel_unchanged" : "transition_order";
-      const { data, error } = await client.rpc(operation, {
+      const args = {
         p_order_id: command.orderId,
         p_from: command.from,
         p_to: command.to,
@@ -108,12 +109,20 @@ export function createSupabaseOrderRepository(
         p_actor_id: command.actorId,
         p_reason: command.reason,
         p_refund_channel: command.refundChannel,
-        ...(guardCancellation ? {
-          p_expected_cancel_requested_at: command.expectedCancelRequestedAt,
-          p_expected_cancel_rejected_at: command.expectedCancelRejectedAt,
-        } : {}),
-      });
-      if (error) throw toError(operation, error);
+      };
+      // 값의 유무가 아니라 항목이 있는지로 고른다 — 기대값 null도 비교해야 한다(#155).
+      const guarded = command.expectedCancel !== undefined;
+      // 보호 대상 동작인데 항목이 빠졌으면 기존 함수로 조용히 가지 않고 멈춘다(#167 아이디어, 호출부 실수 방지 — 500).
+      if (!guarded && guardsCancelRequest(command.action)) {
+        throw new Error(`transition ${command.action} requires expectedCancel (T-54)`);
+      }
+      const fn = guarded ? GUARDED_TRANSITION.fn : "transition_order";
+      const { data, error } = await client.rpc(fn, guarded ? {
+        ...args,
+        [GUARDED_TRANSITION.expectedRequestedAt]: command.expectedCancel!.requestedAt,
+        [GUARDED_TRANSITION.expectedRejectedAt]: command.expectedCancel!.rejectedAt,
+      } : args);
+      if (error) throw toError(fn, error);
       return toOrderForTransition(data);
     },
 
