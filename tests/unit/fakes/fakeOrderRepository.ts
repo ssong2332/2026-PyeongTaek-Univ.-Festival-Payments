@@ -16,6 +16,11 @@ export function createFakeOrderRepository(orders: OrderForTransition[] = []) {
       const order = store.get(command.orderId);
       if (!order) throw new AppError("NOT_FOUND", 404);
       if (order.status !== command.from) throw new AppError("STATE_CHANGED", 409);
+      if (
+        (command.action === "confirm_payment" || command.action === "confirm_cash" || command.action === "start_cooking")
+        && (command.expectedCancelRequestedAt !== (order.cancelRequestedAt ?? null)
+          || command.expectedCancelRejectedAt !== (order.cancelRejectedAt ?? null))
+      ) throw new AppError("STATE_CHANGED", 409);
       order.status = command.to;
       return { ...order };
     },

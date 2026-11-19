@@ -1,4 +1,4 @@
-import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
+import { availableActions, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
 import type { RefundChannel, TransitionAction } from "@/domain/order/status";
 import { kstDate } from "@/domain/time/kst";
 import type { AdminOrderRepository, Clock, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
@@ -98,6 +98,12 @@ export async function transition(
         actorId: input.adminId,
         reason: result.needsReason ? input.reason!.trim() : null,
         refundChannel: result.needsRefundChannel ? input.refundChannel! : null,
+        ...(input.action === "confirm_payment" || input.action === "confirm_cash" || input.action === "start_cooking"
+            ? {
+                expectedCancelRequestedAt: order.cancelRequestedAt ?? null,
+                expectedCancelRejectedAt: order.cancelRejectedAt ?? null,
+            }
+            : {}),
     });
 }
 
@@ -121,9 +127,7 @@ export async function resolveCancelRequest(
 
     // 요청이 없거나, 이미 거절됐거나, 조리가 시작된 주문은 승인·거절 대상이 아니다.
     const resolvable =
-        (order.status === "pending" || order.status === "paid") &&
-        order.cancelRequestedAt !== null &&
-        order.cancelRejectedAt === null;
+        (order.status === "pending" || order.status === "paid") && hasPendingCancelRequest(order);
     if (!resolvable) throw new AppError("INVALID_TRANSITION", 409);
 
     const reason = input.reason.trim();
