@@ -434,7 +434,7 @@ describe("T-28 매출·통계·CSV 날짜는 종이 주문 시각 기준(DECISIO
         await orderRepository.transition({
             orderId: customer.orderId, from: "pending", to: "cooking", action: "confirm_cash",
             actorType: "admin", actorId: adminId, reason: null, refundChannel: null,
-            expectedCancelRequestedAt: null, expectedCancelRejectedAt: null,
+            expectedCancel: { requestedAt: null, rejectedAt: null },
         });
 
         const after = await stats(kstToday());
