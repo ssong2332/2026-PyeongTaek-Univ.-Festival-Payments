@@ -53,9 +53,9 @@ const ORDER_BY_TOKEN_SELECT = `
   )
 `;
 
-// T-54 0106 보호 함수(#155 3절). 이름·인자는 DB1의 0106에 맞춘다 — 다르면 여기만 고친다.
+// T-54 0106 보호 함수(#164 `0106_atomic_transition.sql`, 계약 docs/T-54-atomic-transition-db.md). 이름·인자가 바뀌면 여기만 고친다.
 export const GUARDED_TRANSITION = {
-  fn: "transition_order_guarded",
+  fn: "transition_order_if_cancel_unchanged",
   expectedRequestedAt: "p_expected_cancel_requested_at",
   expectedRejectedAt: "p_expected_cancel_rejected_at",
 } as const;

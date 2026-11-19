@@ -22,12 +22,12 @@
 | "취소 요청 대기"의 뜻(T-55 새 입금 대기 주기 등) | `hasPendingCancelRequest` 한 곳. DB 보호 함수는 뜻을 판단하지 않고 "읽은 값이 그대로인가"만 보므로 바뀌지 않는다 |
 | 0106 함수·인자 이름 | `src/infra/repositories/supabaseOrderRepository.ts`의 `GUARDED_TRANSITION` 상수 한 곳(테스트도 이 상수를 씀) |
 
-## 0106 보호 함수 계약 (#155 3절 — 이름·타입은 DB1이 확정)
+## 0106 보호 함수 계약 (#164 병합 — `0106_atomic_transition.sql`, `docs/T-54-atomic-transition-db.md`)
 
-- 입력: 기존 `transition_order` 8개 + 조회 시점의 `cancel_requested_at`·`cancel_rejected_at` 기대값 2개
-- `SELECT ... FOR UPDATE` → 두 값을 NULL 포함 비교(`IS NOT DISTINCT FROM`) → 다르면 `STATE_CHANGED`(API 409), 같으면 같은 트랜잭션에서 `transition_order` 호출
-- `0009`는 수정하지 않음. `SECURITY INVOKER`, 제한된 `search_path`, `PUBLIC/anon/authenticated` EXECUTE 제거, `service_role`만
-- 현재 저장소가 쓰는 이름(초안): `transition_order_guarded(…, p_expected_cancel_requested_at, p_expected_cancel_rejected_at)` — 0106과 다르면 상수만 맞춘다
+- 함수: `transition_order_if_cancel_unchanged` — 입력은 기존 `transition_order` 8개 + `p_expected_cancel_requested_at`·`p_expected_cancel_rejected_at`, 반환 `orders` 1행
+- `SELECT ... FOR UPDATE` → 없으면 `ORDER_NOT_FOUND`(404) → 두 값을 NULL 포함 비교(`IS DISTINCT FROM`) → 다르면 `STATE_CHANGED`(409), 같으면 같은 트랜잭션에서 `transition_order` 호출
+- `0009`는 수정하지 않음. `SECURITY INVOKER`, `search_path=pg_catalog`, `PUBLIC/anon/authenticated` EXECUTE 제거, `service_role`만
+- 저장소는 이 이름을 `GUARDED_TRANSITION` 상수 한 곳에서만 쓴다. 오류 변환(`STATE_CHANGED`·`ORDER_NOT_FOUND`)은 기존 표 그대로
 
 ## 테스트
 
