@@ -17,6 +17,15 @@ INSERT INTO public.app_settings (key, value) VALUES ('purge.test', 'keep');
 INSERT INTO public.counters (key, value) VALUES ('pickup_number', 48), ('other_counter', 7);
 INSERT INTO public.shifts (person_name, date, starts_at, ends_at, role)
 VALUES ('테스트 근무자', DATE '2026-11-07', TIME '09:00', TIME '10:00', 'worker');
+-- 0108 사진 기록과 업로드 의도는 주문 파기 범위 밖에 있다.
+INSERT INTO public.inventory_photos
+    (id, storage_path, captured_by, uploaded_by, content_type, byte_size)
+VALUES
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'purge-preflight/retained.webp',
+     '테스트 촬영자', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'image/webp', 1024);
+INSERT INTO public.inventory_photo_uploads (id, storage_path, uploaded_by)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', 'purge-preflight/pending.webp',
+        'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1');
 INSERT INTO public.orders (id, pickup_number, status, payment_method,
                            total_amount, idempotency_key, status_token)
 VALUES
@@ -34,6 +43,11 @@ VALUES
   '55555555-5555-5555-5555-555555555555', 'purge-refunded-transfer'),
  ('44444444-4444-4444-4444-44444444444a', 48, 'expired', 'cash', 2000,
   '55555555-5555-5555-5555-555555555556', 'purge-expired-cash');
+-- 0107의 새 pending 주기 및 과거 송금 신고 시각도 주문 행과 함께 파기된다.
+UPDATE public.orders
+SET pending_since = now() - interval '2 hours',
+    transfer_reported_history = ARRAY[now() - interval '3 hours']
+WHERE id = '44444444-4444-4444-4444-444444444445';
 INSERT INTO public.order_items (id, order_id, menu_item_id, menu_name_ko, unit_price, quantity, line_total)
 SELECT gen_random_uuid(), id, '11111111-1111-1111-1111-111111111111', '테스트 호떡', 2000, 1, 2000
 FROM public.orders;
@@ -71,6 +85,10 @@ DO $$ BEGIN
        OR (SELECT count(*) FROM public.order_items) <> 9
        OR (SELECT count(*) FROM public.order_item_options) <> 1
        OR (SELECT count(*) FROM public.order_status_history) <> 9
+       OR (SELECT count(*) FROM public.orders WHERE pending_since IS NOT NULL
+              AND cardinality(transfer_reported_history) = 1) <> 1
+       OR (SELECT count(*) FROM public.inventory_photos) <> 1
+       OR (SELECT count(*) FROM public.inventory_photo_uploads) <> 1
        OR (SELECT stock FROM public.menu_items WHERE id = '11111111-1111-1111-1111-111111111111') <> 38 THEN
         RAISE EXCEPTION 'purge fixture does not cover all order kinds';
     END IF;

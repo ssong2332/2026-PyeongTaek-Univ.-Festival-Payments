@@ -15,8 +15,10 @@ mapfile -t migrations < <(find supabase/migrations -maxdepth 1 -type f \
   -name '[0-9][0-9][0-9][0-9]_*.sql' | LC_ALL=C sort)
 if [[ ${#migrations[@]} -eq 0 || ! -f supabase/migrations/0104_manual_orders.sql ||
       ! -f supabase/migrations/0105_create_admin_menu.sql ||
-      ! -f supabase/migrations/0106_atomic_transition.sql ]]; then
-  echo 'Expected the complete dev migration set through 0106' >&2
+      ! -f supabase/migrations/0106_atomic_transition.sql ||
+      ! -f supabase/migrations/0107_pending_cycle_revert.sql ||
+      ! -f supabase/migrations/0108_inventory_photos.sql ]]; then
+  echo 'Expected the complete isolated migration set through 0108' >&2
   exit 1
 fi
 for migration in "${migrations[@]}"; do
@@ -76,7 +78,9 @@ DO $$ BEGIN
        OR (SELECT stock FROM public.menu_items WHERE id = '11111111-1111-1111-1111-111111111111') IS DISTINCT FROM 38
        OR (SELECT value FROM public.app_settings WHERE key = 'purge.test') IS DISTINCT FROM 'keep'
        OR (SELECT count(*) FROM public.options) <> 1
-       OR (SELECT count(*) FROM public.shifts WHERE person_name = '테스트 근무자') <> 1 THEN
+       OR (SELECT count(*) FROM public.shifts WHERE person_name = '테스트 근무자') <> 1
+       OR (SELECT count(*) FROM public.inventory_photos WHERE storage_path = 'purge-preflight/retained.webp') <> 1
+       OR (SELECT count(*) FROM public.inventory_photo_uploads WHERE storage_path = 'purge-preflight/pending.webp') <> 1 THEN
         RAISE EXCEPTION 'purge result or preserved data mismatch';
     END IF;
 END $$;
@@ -115,7 +119,9 @@ psql -d postgres -v ON_ERROR_STOP=1 <<'SQL'
 DO $$ BEGIN
     IF (SELECT count(*) FROM public.orders) <> 1
        OR (SELECT stock FROM public.menu_items WHERE id = '11111111-1111-1111-1111-111111111111') IS DISTINCT FROM 38
-       OR (SELECT value FROM public.counters WHERE key = 'pickup_number') IS DISTINCT FROM 44::bigint THEN
+       OR (SELECT value FROM public.counters WHERE key = 'pickup_number') IS DISTINCT FROM 44::bigint
+       OR (SELECT count(*) FROM public.inventory_photos WHERE storage_path = 'purge-preflight/retained.webp') <> 1
+       OR (SELECT count(*) FROM public.inventory_photo_uploads WHERE storage_path = 'purge-preflight/pending.webp') <> 1 THEN
         RAISE EXCEPTION 'preservation check did not roll back the purge';
     END IF;
 END $$;
@@ -142,7 +148,9 @@ DO $$ BEGIN
     IF (SELECT count(*) FROM public.orders) <> 1
        OR (SELECT count(*) FROM public.purge_extra_child) <> 1
        OR (SELECT value FROM public.counters WHERE key = 'pickup_number') IS DISTINCT FROM 43::bigint
-       OR (SELECT count(*) FROM public.shifts WHERE person_name = '테스트 근무자') <> 1 THEN
+       OR (SELECT count(*) FROM public.shifts WHERE person_name = '테스트 근무자') <> 1
+       OR (SELECT count(*) FROM public.inventory_photos WHERE storage_path = 'purge-preflight/retained.webp') <> 1
+       OR (SELECT count(*) FROM public.inventory_photo_uploads WHERE storage_path = 'purge-preflight/pending.webp') <> 1 THEN
         RAISE EXCEPTION 'failed purge was not rolled back';
     END IF;
 END $$;
