@@ -212,6 +212,25 @@ describe("T-54 관리자 먼저 — 보호 함수가 행을 잠근 동안 고객
     expect(after.cancel_requested_at).toBeNull();
     expect(await history(order.id)).toEqual([{ from_status: "pending", to_status: "cooking", action: "confirm_payment" }]);
   }, 30_000);
+
+  // DB2 #167의 시나리오: 관리자 전환이 먼저 끝난 뒤의 고객 요청을 3개 동작 모두에서 본다.
+  test.each(GUARDED)("$action 완료 뒤 고객 취소 요청은 409 CANCEL_REQUEST_NOT_ALLOWED, 기록되지 않는다", async ({ action, status, paymentMethod }) => {
+    const order = await createOrder(status, paymentMethod);
+
+    const result = await transition({ orderId: order.id, action: action as TransitionAction, adminId }, { orderRepository });
+    const customer = await rejection(requestCancel(order.token, deps));
+
+    expect(result.status).toBe("cooking");
+    expect(customer).toEqual({ code: "CANCEL_REQUEST_NOT_ALLOWED", status: 409 });
+    // 서비스 확인을 건너뛰어도 DB 조건부 UPDATE가 0건인지(저장소 단계 방어)
+    expect(await orderRepository.setCancelRequested(order.id)).toBeNull();
+    const after = await stored(order.id);
+    expect(after.status).toBe("cooking");
+    expect(after.cancel_requested_at).toBeNull();
+    expect(after.cancel_rejected_at).toBeNull();
+    expect(await stock(order.menuId)).toBe(STOCK_AFTER_ORDER);
+    expect((await history(order.id)).map((row) => row.action)).toEqual([action]);
+  });
 });
 
 describe("T-54 진짜 동시 — 입금 확인과 고객 취소 요청을 함께 보낸다", () => {
