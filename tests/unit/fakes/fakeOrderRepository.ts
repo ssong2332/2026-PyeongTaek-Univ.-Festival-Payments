@@ -1,5 +1,6 @@
 import type { OrderForTransition, OrderRepository, TransitionCommand } from "@/services/ports";
 import { AppError } from "@/lib/api/errors";
+import { guardsCancelRequest } from "@/domain/order/stateMachine";
 
 // transition_order 함수처럼 CAS(현재 상태 = from일 때만 갱신)를 흉내 낸다. expectedCancel이 있으면 0106 보호 함수처럼 취소 요청 값도 비교한다.
 export function createFakeOrderRepository(orders: OrderForTransition[] = []) {
@@ -13,6 +14,10 @@ export function createFakeOrderRepository(orders: OrderForTransition[] = []) {
     },
     async transition(command) {
       calls.push(command);
+      // 실제 저장소와 같게: 보호 대상인데 기대값이 빠지면 멈춘다.
+      if (command.expectedCancel === undefined && guardsCancelRequest(command.action)) {
+        throw new Error(`transition ${command.action} requires expectedCancel (T-54)`);
+      }
       const order = store.get(command.orderId);
       if (!order) throw new AppError("NOT_FOUND", 404);
       if (order.status !== command.from) throw new AppError("STATE_CHANGED", 409);

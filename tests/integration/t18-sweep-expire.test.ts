@@ -292,6 +292,7 @@ describe("T-18 × 관리자 전환(T-16·T-17)", () => {
         ...orders.map((order) => orderRepository.transition({
           orderId: order.id, from: "pending", to, action,
           actorType: "admin", actorId: adminId, reason, refundChannel: null,
+          ...(action === "cancel" ? {} : { expectedCancel: { requestedAt: null, rejectedAt: null } }),
         })),
       ]);
 

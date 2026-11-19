@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseOrderRepository, GUARDED_TRANSITION } from "@/infra/repositories/supabaseOrderRepository";
 import { AppError } from "@/lib/api/errors";
@@ -13,6 +13,7 @@ describe("supabaseOrderRepository — 상태 전환 장애", () => {
     const error = await createSupabaseOrderRepository(failing).transition({
       orderId: "22222222-2222-4222-8222-222222222222", from: "pending", to: "paid", action: "confirm_payment",
       actorType: "admin", actorId: null, reason: null, refundChannel: null,
+      expectedCancel: { requestedAt: null, rejectedAt: null },
     }).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(Error);
@@ -72,3 +73,21 @@ describe("supabaseOrderRepository — 보호 함수 선택", () => {
     });
 });
 
+// #167(김 혁) 아이디어 반영: 보호 대상 동작인데 조회 시점 값이 빠지면 기존 함수로 조용히 가지 않고 바로 멈춘다.
+describe("supabaseOrderRepository — 보호 대상인데 기대값이 빠진 호출", () => {
+    it.each([
+        { action: "confirm_payment", from: "pending" },
+        { action: "confirm_cash", from: "pending" },
+        { action: "start_cooking", from: "paid" },
+    ] as const)("$action: 일반 에러로 멈추고 DB는 부르지 않는다", async ({ action, from }) => {
+        const rpc = vi.fn();
+        const error = await createSupabaseOrderRepository({ rpc } as unknown as SupabaseClient).transition({
+            orderId: "22222222-2222-4222-8222-222222222222", from, to: "cooking", action,
+            actorType: "admin", actorId: null, reason: null, refundChannel: null,
+        }).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(Error);
+        expect(error).not.toBeInstanceOf(AppError);
+        expect(rpc).not.toHaveBeenCalled();
+    });
+});

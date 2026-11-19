@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { guardsCancelRequest } from "@/domain/order/stateMachine";
 import { AppError, type ErrorCode } from "@/lib/api/errors";
 import { logger } from "@/lib/logger";
 import type { OrderRepository } from "@/services/ports";
@@ -111,6 +112,10 @@ export function createSupabaseOrderRepository(
       };
       // 값의 유무가 아니라 항목이 있는지로 고른다 — 기대값 null도 비교해야 한다(#155).
       const guarded = command.expectedCancel !== undefined;
+      // 보호 대상 동작인데 항목이 빠졌으면 기존 함수로 조용히 가지 않고 멈춘다(#167 아이디어, 호출부 실수 방지 — 500).
+      if (!guarded && guardsCancelRequest(command.action)) {
+        throw new Error(`transition ${command.action} requires expectedCancel (T-54)`);
+      }
       const fn = guarded ? GUARDED_TRANSITION.fn : "transition_order";
       const { data, error } = await client.rpc(fn, guarded ? {
         ...args,

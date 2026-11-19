@@ -24,6 +24,9 @@ async function createOrder(status: string) {
   return data.id as string;
 }
 
+// confirm_cash는 0106 보호 함수로 가므로 조회 시점 취소 요청 값(없음)을 함께 넘긴다(T-54).
+const NO_CANCEL = { requestedAt: null, rejectedAt: null };
+
 function command(orderId: string, overrides: Partial<TransitionCommand> = {}): TransitionCommand {
   return {
     orderId, from: "pending", to: "cooking", action: "confirm_cash",
@@ -74,11 +77,11 @@ describe("supabaseOrderRepository — 상태 전환", () => {
 
   test("CAS 실패는 409 STATE_CHANGED", async () => {
     const orderId = await createOrder("cooking");
-    await expectAppError(repo.transition(command(orderId)), "STATE_CHANGED", 409);
+    await expectAppError(repo.transition(command(orderId, { expectedCancel: NO_CANCEL })), "STATE_CHANGED", 409);
   });
 
   test("없는 주문은 404 NOT_FOUND", async () => {
-    await expectAppError(repo.transition(command(randomUUID())), "NOT_FOUND", 404);
+    await expectAppError(repo.transition(command(randomUUID(), { expectedCancel: NO_CANCEL })), "NOT_FOUND", 404);
   });
 
   test("종료 상태에서의 전환은 409 INVALID_TRANSITION", async () => {
