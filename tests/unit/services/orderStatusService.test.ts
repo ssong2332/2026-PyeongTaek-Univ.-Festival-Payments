@@ -100,6 +100,7 @@ describe("orderService - getOrderByToken (T-11)", () => {
             transferReportedAt: "2026-10-07T01:05:00.5+00:00",
             cancelRequestedAt: "2026-10-07T01:06:00+00:00",
             cancelRejectedAt: null,
+            pendingSince: "2026-10-07T01:10:00+00:00",
         });
         const repo = {
             findByToken: vi.fn().mockResolvedValue(mockOrder),
@@ -113,6 +114,7 @@ describe("orderService - getOrderByToken (T-11)", () => {
             transferReportedAt: "2026-10-07T01:05:00.500Z",
             cancelRequestedAt: "2026-10-07T01:06:00.000Z",
             cancelRejectedAt: null,
+            pendingSince: "2026-10-07T01:10:00.000Z",
         });
         // ms로 깎은 값을 넘기면 같은 ms 안에 먼저 생성된 주문이 대기 수에서 빠진다.
         expect(repo.countWaitingBefore).toHaveBeenCalledWith("2026-10-07T01:02:03.123456+00:00");

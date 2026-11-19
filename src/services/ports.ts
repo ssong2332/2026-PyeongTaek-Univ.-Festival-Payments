@@ -97,6 +97,7 @@ export interface OrderByTokenResult {
     transferReportedAt: string | null;
     cancelRequestedAt: string | null;
     cancelRejectedAt: string | null;
+    pendingSince?: string | null;
 }
 
 export interface OrderRepository {

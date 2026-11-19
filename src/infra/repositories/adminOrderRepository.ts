@@ -40,6 +40,7 @@ interface DbOrderRow {
     cooking_started_at: string | null;
     completed_at: string | null;
     closed_at: string | null;
+    pending_since?: string | null;
     refund_channel: RefundChannel | null;
     source?: "customer" | "manual";
     manual_number?: number | null;
@@ -81,6 +82,7 @@ export function toAdminOrderDto(row: DbOrderRow): AdminOrderDto {
         cookingStartedAt: row.cooking_started_at,
         completedAt: row.completed_at,
         closedAt: row.closed_at,
+        pendingSince: row.pending_since ?? null,
         refundChannel: row.refund_channel,
         lastReason,
         availableActions: availableActions({
