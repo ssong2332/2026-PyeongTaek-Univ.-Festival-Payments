@@ -183,6 +183,7 @@ describe("T-11 getOrderByToken — create_order로 만든 실제 주문을 실�
       transferReportedAt: null,
       cancelRequestedAt: null,
       cancelRejectedAt: null,
+      pendingSince: null,
       aheadCount: expect.any(Number),
       canTransferReport: true,
       canCancelRequest: true,

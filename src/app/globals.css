@@ -512,10 +512,6 @@ body {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 0.9  0 0 0 0 0.8  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 @media (prefers-reduced-motion: no-preference) {
-    /* 열기 아지랑이: SVG 왜곡 필터(#heat-haze, MenuHero)를 제목에 씌운다 */
-    .heat-haze {
-        filter: url(#heat-haze);
-    }
     /* 불티가 올라가며 깜빡인다 */
     .ember-flicker {
         animation:
@@ -1245,4 +1241,32 @@ html[data-fest-anim] {
     100% {
         transform: rotateY(360deg);
     }
+}
+
+/* 보급형 기기(CustomerMotion이 <html data-lite>를 단다): 스크롤을 끊기게 하는 흐림·연기·계속 도는 장식을 끈다. 기능과 글자는 그대로다 */
+[data-lite] [class*="backdrop-blur"],
+[data-lite] .fest-glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+[data-lite] .festival-root .fest-glass {
+    background: var(--color-iron-2);
+}
+[data-lite] .festival-embers,
+[data-lite] .smoke-drift,
+[data-lite] .smoke-puff {
+    display: none;
+}
+[data-lite] .syrup-flow,
+[data-lite] .jelly,
+[data-lite] .sheen::after,
+[data-lite] .glow-border::before,
+[data-lite] .fest-ticket::after,
+[data-lite] .art-float,
+[data-lite] .art-wiggle,
+[data-lite] .art-ring,
+[data-lite] .art-flip,
+[data-lite] .art-sizzle,
+[data-lite] .art-spin {
+    animation: none;
 }

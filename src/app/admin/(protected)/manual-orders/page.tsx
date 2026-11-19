@@ -26,7 +26,7 @@ export default function ManualOrdersPage() {
     return (
         <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6">
             <div className="flex items-center justify-between gap-3">
-                <h1 className="text-2xl font-bold">수기 주문 사후 입력</h1>
+                <h1 className="text-2xl font-bold">수기 주문 입력</h1>
                 <Link href="/admin" className="text-sm underline">주문 대시보드</Link>
             </div>
             {admin.status === "loading" && <p role="status">메뉴를 불러오는 중입니다…</p>}
