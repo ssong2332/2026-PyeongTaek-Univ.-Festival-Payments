@@ -9,7 +9,7 @@ import { FestivalStage } from "@/features/festival/FestivalStage";
 // festival-root: 휴대폰 시각에 따라 바탕·글씨 토큰이 아침 크림빛 → 16시 무쇠로 바뀐다(globals.css, festivalTheme).
 // 장식(하늘·연기·불티·축제 무대 캔버스)은 모두 z-0, 본문은 z-10 — 이펙트가 내용과 버튼을 가리지 않는다.
 // 불티: 위치·속도·흔들림을 고정값으로 흩어 둔다(다시 그려도 같다).
-const EMBERS = Array.from({ length: 24 }, (_, index) => ({
+const EMBERS = Array.from({ length: 12 }, (_, index) => ({
     left: `${(index * 37 + 11) % 100}%`,
     size: index % 7 === 0 ? 5 : 2 + (index % 3),
     duration: 8 + ((index * 7) % 9),

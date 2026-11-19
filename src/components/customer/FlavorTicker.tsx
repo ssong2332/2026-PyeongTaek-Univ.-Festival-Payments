@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ArtIcon } from "@/components/ui/ArtIcon";
 import type { CustomerIconName } from "@/features/customer/customerIcons";
 import type { MessageKey } from "@/lib/i18n/translate";
@@ -17,7 +18,7 @@ const ITEMS: readonly { art: CustomerIconName; key: MessageKey }[] = [
     { art: "coins", key: "ticker.pay" },
 ];
 
-export function FlavorTicker() {
+export const FlavorTicker = memo(function FlavorTicker() {
     const t = useT();
     const row = ITEMS.map((item) => (
         <span key={item.key} className="flex shrink-0 items-center gap-2 px-4">
@@ -29,7 +30,7 @@ export function FlavorTicker() {
     return (
         <div
             aria-hidden="true"
-            className="group relative -mx-4 overflow-hidden border-y border-syrup/25 bg-iron-2/70 py-2.5 backdrop-blur [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]"
+            className="group relative -mx-4 overflow-hidden border-y border-syrup/25 bg-iron-2/85 py-2.5 [mask-image:linear-gradient(90deg,transparent,#000_12%,#000_88%,transparent)]"
         >
             <div className="flex w-max motion-safe:animate-marquee group-hover:[animation-play-state:paused] group-active:[animation-play-state:paused]">
                 {row}
@@ -37,4 +38,4 @@ export function FlavorTicker() {
             </div>
         </div>
     );
-}
+});
