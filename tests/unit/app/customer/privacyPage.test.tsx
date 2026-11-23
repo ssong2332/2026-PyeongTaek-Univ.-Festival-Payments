@@ -25,13 +25,15 @@ describe("/privacy — 개인정보 고지 1차 (T-12, F-12·N-15)", () => {
     expect(device.textContent).toContain("별도로 서버에 보내지 않습니다.");
   });
 
-  it("지난 파기 예정일과 현재 완료 여부 미확인을 구분해 보여준다", () => {
+  it("지난 파기 예정일과 확인된 보관 상태를 구분해 보여준다", () => {
     render(<PrivacyPage />);
 
     const disposal = screen.getByRole("region", { name: "주문 데이터 파기" });
-    expect(disposal.textContent).toContain("완료 여부 확인 중");
+    expect(disposal.textContent).toContain("일부 데이터 보관 중");
     expect(disposal.textContent).toContain("2026-11-08");
-    expect(disposal.textContent).toContain("실제 파기 완료 여부는 아직 확인되지 않았으며");
+    expect(disposal.textContent).toContain("2026-11-23");
+    expect(disposal.textContent).toContain("그 이전에 생성된 주문 데이터가 아직 보관 중");
+    expect(disposal.textContent).toContain("파기 일정은 운영 책임자 확인 후 갱신");
   });
 
   it("동의 체크·입력·버튼이 없다 — 별도 동의 단계 0개", () => {
