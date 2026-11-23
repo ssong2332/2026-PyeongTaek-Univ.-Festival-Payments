@@ -339,6 +339,8 @@ function MenuDetail({
             }))}
             selectedIds={selection.selectedIds}
             onToggleOption={selection.toggle}
+            templates={selection.templates}
+            onApplyTemplate={selection.applyTemplate}
             quantity={selection.quantity}
             maxQuantity={selection.maxQuantity}
             onQuantityChange={selection.setQuantity}

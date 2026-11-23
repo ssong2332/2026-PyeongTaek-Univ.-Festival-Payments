@@ -11,6 +11,7 @@ const LOW = "aaaaaaaa-0000-0000-0000-00000000000a";
 const HIGH = "aaaaaaaa-0000-0000-0000-00000000000b";
 const TOPPING = "bbbbbbbb-0000-0000-0000-000000000001";
 const NUTS = "bbbbbbbb-0000-0000-0000-00000000000a";
+const TEMPLATE = "cccccccc-0000-0000-0000-000000000001";
 
 const sugar: MenuOptionGroupDto = {
     id: SUGAR,
@@ -48,6 +49,55 @@ function inCart(quantity: number, optionIds: string[] = []): CartItem {
 }
 
 describe("useMenuSelection — 메뉴 상세 시트 상태", () => {
+    it("T-39: 템플릿 한 번 적용으로 옵션 2개와 추가 가격이 장바구니에 반영된다", () => {
+        const { result } = renderHook(() => useMenuSelection(menu({
+            optionGroups: [sugar, topping],
+            optionTemplates: [{ id: TEMPLATE, name: "기본 세트", optionIds: [HIGH, NUTS] }],
+        }), []));
+        expect(result.current.templates).toHaveLength(1);
+        act(() => result.current.applyTemplate(TEMPLATE));
+        expect(result.current.selectedIds).toEqual([HIGH, NUTS]);
+        expect(result.current.total).toBe(3500);
+        expect(result.current.canAdd).toBe(true);
+        expect(result.current.cartInput().options.map((option) => option.id)).toEqual([HIGH, NUTS]);
+    });
+
+    it("T-39: 템플릿은 이전 수동 선택을 대체하고 다른 템플릿으로 다시 바꿀 수 있다", () => {
+        const otherTemplate = "cccccccc-0000-0000-0000-000000000002";
+        const { result } = renderHook(() => useMenuSelection(menu({
+            optionGroups: [sugar, topping],
+            optionTemplates: [
+                { id: TEMPLATE, name: "기본 세트", optionIds: [HIGH, NUTS] },
+                { id: otherTemplate, name: "담백 세트", optionIds: [LOW] },
+            ],
+        }), []));
+        act(() => result.current.toggle(TOPPING, NUTS));
+        act(() => result.current.applyTemplate(otherTemplate));
+        expect(result.current.selectedIds).toEqual([LOW]);
+        expect(result.current.total).toBe(2500);
+        act(() => result.current.applyTemplate(TEMPLATE));
+        expect(result.current.selectedIds).toEqual([HIGH, NUTS]);
+    });
+
+    it("T-39: 삭제된 옵션·중복·필수 그룹 누락·상한 초과 템플릿은 노출하지 않고 적용도 거부한다", () => {
+        const { result } = renderHook(() => useMenuSelection(menu({
+            optionGroups: [sugar, { ...topping, maxSelect: 1, options: [
+                ...topping.options,
+                { id: "bbbbbbbb-0000-0000-0000-00000000000b", name: "시럽", extraPrice: 300 },
+            ] }],
+            optionTemplates: [
+                { id: TEMPLATE, name: "정상", optionIds: [HIGH, NUTS] },
+                { id: "cccccccc-0000-0000-0000-000000000002", name: "삭제됨", optionIds: [HIGH, "dddddddd-0000-0000-0000-000000000001"] },
+                { id: "cccccccc-0000-0000-0000-000000000003", name: "중복", optionIds: [HIGH, HIGH] },
+                { id: "cccccccc-0000-0000-0000-000000000004", name: "필수 누락", optionIds: [NUTS] },
+                { id: "cccccccc-0000-0000-0000-000000000005", name: "상한 초과", optionIds: [HIGH, NUTS, "bbbbbbbb-0000-0000-0000-00000000000b"] },
+            ],
+        }), []));
+        expect(result.current.templates.map((template) => template.name)).toEqual(["정상"]);
+        act(() => result.current.applyTemplate("cccccccc-0000-0000-0000-000000000002"));
+        expect(result.current.selectedIds).toEqual([]);
+    });
+
     it("옵션 선택·수량 2 → 담기 가능, 금액과 장바구니 입력값에 옵션 추가 가격 반영 (F-03)", () => {
         const { result } = renderHook(() => useMenuSelection(menu(), []));
         expect(result.current.total).toBe(2500);

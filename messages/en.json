@@ -17,6 +17,7 @@
     "menu.block.soldOut": "This item is sold out.",
     "menu.block.optionsUnavailable": "No options are available right now, so this item can't be added.",
     "option.hint.any": "Optional",
+    "option.template.title": "Suggested combinations",
     "option.hint.max": "Choose up to {max}",
     "option.hint.exact": "Required · Choose {count}",
     "option.hint.range": "Required · Choose {min}–{max}",

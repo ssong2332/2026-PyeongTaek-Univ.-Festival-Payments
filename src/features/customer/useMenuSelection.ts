@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { lineTotal } from "@/domain/order/pricing";
-import type { MenuItemDto } from "@/lib/dto/menu";
+import type { MenuItemDto, MenuOptionTemplateDto } from "@/lib/dto/menu";
 import { koT, type Translate } from "@/lib/i18n/translate";
 import {
     MAX_CART_LINES,
+    applicableOptionTemplates,
     findSelectionProblem,
     getMenuBlockReason,
     maxAddableQuantity,
@@ -17,6 +18,8 @@ import { lineIdOf, type AddCartItemInput, type CartItem } from "./useCart";
 export interface MenuSelection {
     selectedIds: string[];
     toggle: (groupId: string, optionId: string) => void;
+    templates: MenuOptionTemplateDto[];
+    applyTemplate: (templateId: string) => void;
     quantity: number;
     setQuantity: (quantity: number) => void;
     maxQuantity: number;
@@ -30,6 +33,7 @@ export interface MenuSelection {
 export function useMenuSelection(menu: MenuItemDto, cartItems: readonly CartItem[], t: Translate = koT): MenuSelection {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [requestedQuantity, setRequestedQuantity] = useState(1);
+    const templates = applicableOptionTemplates(menu.optionGroups, menu.optionTemplates ?? []);
 
     const lineId = lineIdOf(menu.id, selectedIds);
     const inCartForMenu = cartItems.filter((item) => item.menuItemId === menu.id).reduce((sum, item) => sum + item.quantity, 0);
@@ -55,6 +59,11 @@ export function useMenuSelection(menu: MenuItemDto, cartItems: readonly CartItem
     return {
         selectedIds,
         toggle: (groupId, optionId) => setSelectedIds((prev) => toggleOption(menu.optionGroups, prev, groupId, optionId)),
+        templates,
+        applyTemplate: (templateId) => {
+            const template = templates.find((item) => item.id === templateId);
+            if (template) setSelectedIds([...template.optionIds]);
+        },
         quantity,
         setQuantity: setRequestedQuantity,
         maxQuantity,
