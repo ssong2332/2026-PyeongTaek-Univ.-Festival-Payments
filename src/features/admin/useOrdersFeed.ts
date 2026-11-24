@@ -129,6 +129,8 @@ export function mergeOrderUpdate(
     merged.availableActions = availableActions({
         status: merged.status,
         paymentMethod: merged.paymentMethod,
+        cancelRequestedAt: merged.cancelRequestedAt,
+        cancelRejectedAt: merged.cancelRejectedAt,
     });
 
     return merged;
