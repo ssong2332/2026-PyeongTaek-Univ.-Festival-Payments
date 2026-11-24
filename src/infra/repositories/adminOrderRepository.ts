@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/infra/supabase/server";
 import { AppError } from "@/lib/api/errors";
-import type { AdminOrderRepository, OrderListFilter } from "@/services/ports";
+import type { AdminOrderRepository, KitchenOrderRepository, OrderListFilter } from "@/services/ports";
 import type { AdminOrderDto, AdminOrderItemDto } from "@/lib/dto/adminOrder";
 import { availableActions } from "@/domain/order/stateMachine";
 import type { OrderStatus, PaymentMethod, RefundChannel } from "@/domain/order/status";
@@ -107,7 +107,7 @@ const ORDER_QUERY_SELECT = `
     order_status_history ( reason, created_at )
 `;
 
-export class SupabaseAdminOrderRepository implements AdminOrderRepository {
+export class SupabaseAdminOrderRepository implements AdminOrderRepository, KitchenOrderRepository {
     private readonly client: SupabaseClient;
 
     constructor(client?: SupabaseClient) {
@@ -154,6 +154,23 @@ export class SupabaseAdminOrderRepository implements AdminOrderRepository {
         }
 
         return ((data as unknown as DbOrderRow[]) ?? []).map(toAdminOrderDto);
+    }
+
+    async listKitchen(limit: number): Promise<{ orders: AdminOrderDto[]; total: number }> {
+        // 정렬은 domain/order/kitchenQueue의 compareKitchenOrder와 같아야 한다.
+        const { data, error, count } = await this.client
+            .from("orders")
+            .select(ORDER_QUERY_SELECT, { count: "exact" })
+            .eq("status", "cooking")
+            .order("cooking_started_at", { ascending: true, nullsFirst: true })
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .limit(limit);
+        if (error) {
+            throw new AppError("INTERNAL_ERROR", 500);
+        }
+        const orders = ((data as unknown as DbOrderRow[]) ?? []).map(toAdminOrderDto);
+        return { orders, total: count ?? orders.length };
     }
 
     async acknowledge(id: string, actorId?: string): Promise<AdminOrderDto> {

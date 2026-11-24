@@ -167,6 +167,10 @@ export function mergeOrdersSnapshot(
 
 export interface UseOrdersFeedOptions {
     initialDate?: string;
+    // "kitchen": 날짜와 상관없이 조리중 주문만 불러온다(GET /api/admin/orders?scope=kitchen).
+    scope?: "kitchen";
+    // scope=kitchen에서 불러올 최대 건수(서버 기본 200).
+    limit?: number;
     onNewOrder?: (order: AdminOrderDto) => void;
 }
 
@@ -176,6 +180,8 @@ export interface UseOrdersFeedReturn {
     unacknowledgedCount: number;
     isLoading: boolean;
     error: string | null;
+    // 서버가 알려 준 조건에 맞는 전체 건수(scope=kitchen만). 모르면 null.
+    total: number | null;
     channelStatus: string | null;
     acknowledge: (id: string) => Promise<void>;
     reload: () => Promise<void>;
@@ -187,10 +193,11 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         ? { initialDate: optionsOrDate }
         : optionsOrDate ?? {};
 
-    const { initialDate, onNewOrder } = options;
+    const { initialDate, onNewOrder, scope, limit } = options;
 
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [total, setTotal] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [channelStatus, setChannelStatus] = useState<string | null>(null);
     const onNewOrderRef = useRef(onNewOrder);
@@ -217,7 +224,9 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
 
     const loadOrders = useCallback(async () => {
         try {
-            const query = dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
+            const query = scope
+                ? `?scope=${scope}${limit !== undefined ? `&limit=${limit}` : ""}`
+                : dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
             const res = await fetch(`/api/admin/orders${query}`);
             if (!res.ok) {
                 throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -227,14 +236,15 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
             for (const order of data.orders as AdminOrderDto[]) {
                 newMap.set(order.id, order);
             }
-            return { map: newMap, error: null };
+            return { map: newMap, total: typeof data.total === "number" ? data.total : null, error: null };
         } catch (err) {
             return {
                 map: null,
+                total: null,
                 error: err instanceof Error ? err.message : "Unknown error",
             };
         }
-    }, []);
+    }, [scope, limit]);
 
     const hydrateOrder = useCallback(async (id: string, notify = false) => {
         try {
@@ -302,6 +312,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
             if (isCancelled) return;
             if (result.map) {
                 applySnapshot(result.map, loadStartSeq);
+                setTotal(result.total);
                 setError(null);
             } else {
                 setError(result.error);
@@ -362,6 +373,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         const result = await loadOrders();
         if (result.map) {
             applySnapshot(result.map, loadStartSeq);
+                setTotal(result.total);
             setError(null);
         } else {
             setError(result.error);
@@ -374,6 +386,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         const result = await loadOrders();
         if (result.map) {
             applySnapshot(result.map, loadStartSeq);
+                setTotal(result.total);
             setError(null);
         } else {
             setError(result.error);
@@ -393,6 +406,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         unacknowledgedCount,
         isLoading,
         error,
+        total,
         channelStatus,
         acknowledge,
         reload,
