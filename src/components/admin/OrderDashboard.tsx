@@ -12,6 +12,7 @@ import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { OrderRevertToPending } from "./OrderRevertToPending";
 import { CancelRequestDecision, type CancelRequestDecisionKind } from "./CancelRequestDecision";
 import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
@@ -69,7 +70,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     const [pendingAction, setPendingAction] = useState<TransitionAction | null>(null);
     const [notice, setNotice] = useState("");
     const [actionError, setActionError] = useState("");
-    const [transitionError, setTransitionError] = useState<{ id: string; message: string } | null>(null);
+    const [transitionError, setTransitionError] = useState<{ id: string; action: TransitionAction; message: string } | null>(null);
     const searchVersion = useRef(0);
     const acknowledging = useRef(false);
     const transitioning = useRef(false);
@@ -156,10 +157,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             }
         } catch (error) {
             const message = error instanceof TransitionRequestError
-                ? error.message
+                ? action === "revert_to_pending" && error.code === "REASON_REQUIRED"
+                    ? "되돌리기 사유가 필요합니다."
+                    : error.message
                 : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.";
             if (action === "cancel" || action === "refund") setActionError(message);
-            else setTransitionError({ id: order.id, message });
+            else setTransitionError({ id: order.id, action, message });
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }
@@ -290,8 +293,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                             <OrderActionButtons availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
                                 disabled={pendingId !== null}
-                                error={transitionError?.id === selected.id ? transitionError.message : undefined}
+                                error={transitionError?.id === selected.id && transitionError.action !== "revert_to_pending" ? transitionError.message : undefined}
                                 onAction={action => transitionOrder(selected, action)} />
+                            <OrderRevertToPending key={`revert-${selected.id}`} availableActions={selected.availableActions}
+                                pendingAction={pendingId === selected.id ? pendingAction : null}
+                                disabled={pendingId !== null}
+                                error={transitionError?.id === selected.id && transitionError.action === "revert_to_pending" ? transitionError.message : undefined}
+                                onAction={reason => transitionOrder(selected, "revert_to_pending", { reason })} />
                             <OrderCancelRefund key={selected.id} paymentMethod={selected.paymentMethod}
                                 availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
