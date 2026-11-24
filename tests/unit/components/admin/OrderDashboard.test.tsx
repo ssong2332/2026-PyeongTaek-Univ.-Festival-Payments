@@ -119,6 +119,28 @@ describe("T-15 order dashboard", () => {
 });
 
 describe("T-16 order actions", () => {
+    it("되돌린 결제대기 주문은 pendingSince부터 만료 막대를 계산하고 레거시는 createdAt을 쓴다", () => {
+        const now = Date.now();
+        const createdAt = new Date(now - 30 * 60_000).toISOString();
+        const pendingSince = new Date(now - 5 * 60_000).toISOString();
+        const order = { ...base().orders[1], createdAt, pendingSince };
+        const props = { ...base(), orders: [order] };
+        const { rerender } = render(<OrderDashboard {...props} />);
+        const remainingSeconds = () => {
+            const label = within(screen.getByRole("button", { name: "픽업 002 주문 상세" }))
+                .getByText(/만료까지/).textContent ?? "";
+            const match = label.match(/만료까지 (\d+):(\d{2})/);
+            expect(match).not.toBeNull();
+            return Number(match![1]) * 60 + Number(match![2]);
+        };
+        expect(remainingSeconds()).toBeGreaterThan(4 * 60);
+        expect(remainingSeconds()).toBeLessThanOrEqual(5 * 60);
+
+        rerender(<OrderDashboard {...props} orders={[{ ...order, createdAt: new Date(now - 2 * 60_000).toISOString(), pendingSince: null }]} />);
+        expect(remainingSeconds()).toBeGreaterThan(7 * 60);
+        expect(remainingSeconds()).toBeLessThanOrEqual(8 * 60);
+    });
+
     it("shows only server-provided actions as enabled and does not treat acknowledgement as payment", () => {
         render(<OrderDashboard {...base()} />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));

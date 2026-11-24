@@ -55,6 +55,11 @@ export function mapPayloadToOrderPatch(raw: Record<string, unknown>): Partial<Ad
     } else if ("transferReportedAt" in raw) {
         patch.transferReportedAt = (raw.transferReportedAt as string | null) ?? null;
     }
+    if ("pending_since" in raw) {
+        patch.pendingSince = (raw.pending_since as string | null) ?? null;
+    } else if ("pendingSince" in raw) {
+        patch.pendingSince = (raw.pendingSince as string | null) ?? null;
+    }
     if ("cancel_requested_at" in raw) {
         patch.cancelRequestedAt = (raw.cancel_requested_at as string | null) ?? null;
     } else if ("cancelRequestedAt" in raw) {

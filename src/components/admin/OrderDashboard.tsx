@@ -365,7 +365,7 @@ function Clock3Text() {
 // 반죽색 종이 주문표: 집게 · 큰 픽업 번호 · 몇 분 전 · 메뉴 · 결제 · (결제대기면) 만료 막대 · (끝났으면) 도장
 function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now: number; selected: boolean; onSelect: () => void }) {
     const minutesAgo = Math.max(0, Math.floor((now - new Date(orderTime(order)).getTime()) / 60000));
-    const left = EXPIRE_MS - (now - new Date(order.createdAt).getTime());
+    const left = EXPIRE_MS - (now - new Date(order.pendingSince ?? order.createdAt).getTime());
     const stamp = STAMP[order.status];
     const unread = isUnacknowledged(order);
     return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
