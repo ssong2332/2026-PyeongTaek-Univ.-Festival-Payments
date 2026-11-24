@@ -1,12 +1,14 @@
 export type TransitionErrorCode =
     | "REASON_REQUIRED"
     | "REFUND_CHANNEL_REQUIRED"
+    | "VALIDATION_ERROR"
     | "INVALID_TRANSITION"
     | "STATE_CHANGED";
 
 const errorMessages: Record<TransitionErrorCode, string> = {
     REASON_REQUIRED: "취소·환불 사유가 필요합니다. 사유를 입력한 뒤 다시 시도해 주세요.",
     REFUND_CHANNEL_REQUIRED: "환불 경로 정보가 누락됐습니다. 주문을 다시 확인한 뒤 시도해 주세요.",
+    VALIDATION_ERROR: "입력한 사유를 확인해 주세요. 사유는 최대 200자입니다.",
     INVALID_TRANSITION: "현재 주문 상태에서는 이 작업을 할 수 없습니다. 최신 주문 상태를 확인해 주세요.",
     STATE_CHANGED: "다른 요청으로 주문 상태가 변경됐습니다. 최신 주문 상태를 확인해 주세요.",
 };

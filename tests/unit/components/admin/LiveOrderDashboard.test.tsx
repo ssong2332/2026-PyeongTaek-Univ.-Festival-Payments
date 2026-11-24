@@ -120,6 +120,47 @@ it("sends only the allowed transition action and applies the validated server re
     expect((screen.getByRole("button", { name: "조리 완료" }) as HTMLButtonElement).disabled).toBe(false);
 });
 
+it("T-55 sends a trimmed revert reason and removes the button after the server returns pending", async () => {
+    const before: AdminOrderDto = { ...makePreviewOrders()[2], id: "00000000-0000-4000-8000-000000000009",
+        pickupNumber: 9, paymentMethod: "transfer", availableActions: ["revert_to_pending", "complete", "refund"] };
+    const updated: AdminOrderDto = { ...before, status: "pending", pendingSince: "2026-11-24T09:00:00.000Z",
+        transferReportedAt: null, paidAt: null, cookingStartedAt: null, lastReason: "입금 확인 실수",
+        updatedAt: "2026-11-24T09:00:00.000Z", availableActions: ["confirm_payment", "cancel"] };
+    const request = vi.fn(async () => new Response(JSON.stringify(updated), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    render(<LiveOrderDashboard />);
+    act(() => feedControls.pushOrder?.(before));
+    fireEvent.click(screen.getByRole("button", { name: "픽업 009 주문 상세" }));
+    const panel = screen.getByRole("region", { name: "입금 확인 되돌리기" });
+    fireEvent.click(within(panel).getByRole("button", { name: "입금 대기로 되돌리기" }));
+    fireEvent.change(within(panel).getByLabelText("되돌리기 사유 (필수, 최대 200자)"), { target: { value: "  입금 확인 실수  " } });
+    fireEvent.click(within(panel).getByRole("button", { name: "되돌리기 확정" }));
+    await waitFor(() => expect(request).toHaveBeenCalledWith(`/api/admin/orders/${before.id}/transition`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revert_to_pending", reason: "입금 확인 실수" }),
+    }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "입금 확인 되돌리기" })).toBeNull());
+    expect(screen.getByText("처리 사유: 입금 확인 실수")).toBeTruthy();
+});
+
+it("T-55 reloads the latest order after another admin wins the revert race", async () => {
+    const before: AdminOrderDto = { ...makePreviewOrders()[2], id: "00000000-0000-4000-8000-000000000010",
+        pickupNumber: 10, paymentMethod: "transfer", availableActions: ["revert_to_pending", "complete", "refund"] };
+    server.orders = [{ ...before, status: "pending", updatedAt: "2026-11-24T09:01:00.000Z",
+        availableActions: ["confirm_payment", "cancel"] }, ...makePreviewOrders()];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: "INVALID_TRANSITION" } }), { status: 409 })));
+    render(<LiveOrderDashboard />);
+    act(() => feedControls.pushOrder?.(before));
+    fireEvent.click(screen.getByRole("button", { name: "픽업 010 주문 상세" }));
+    const panel = screen.getByRole("region", { name: "입금 확인 되돌리기" });
+    fireEvent.click(within(panel).getByRole("button", { name: "입금 대기로 되돌리기" }));
+    fireEvent.change(within(panel).getByLabelText("되돌리기 사유 (필수, 최대 200자)"), { target: { value: "실수" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "되돌리기 확정" }));
+    await waitFor(() => expect(reloadOrders).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "입금 확인 되돌리기" })).toBeNull());
+    expect(within(screen.getByRole("region", { name: "주문 상세" })).getByText("결제대기")).toBeTruthy();
+});
+
 it.each([
     ["INVALID_TRANSITION", "현재 주문 상태에서는 이 작업을 할 수 없습니다"],
     ["STATE_CHANGED", "다른 요청으로 주문 상태가 변경됐습니다"],

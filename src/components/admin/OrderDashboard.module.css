@@ -175,6 +175,10 @@
 .cancelRefundControls span { margin-right: auto; color: var(--dim); font-size: 12px; }
 .cancelRefundControls button { border: 1px solid var(--line); border-radius: 10px; background: var(--iron3); padding: 9px 12px; font-weight: 700; }
 .cancelRefundControls button[type=submit] { background: var(--chili); border-color: var(--chili); color: var(--iron) !important; }
+.revertPanel { border-color: rgba(255, 181, 71, .5); background: rgba(255, 181, 71, .06); }
+.revertToggle { width: 100%; min-height: 44px; border: 1px solid var(--syrup); border-radius: 12px; background: transparent; color: var(--syrup); font-weight: 800; }
+.revertToggle:disabled { border-color: var(--line); color: var(--dim); opacity: .55; }
+.revertPanel .cancelRefundControls button[type=submit] { background: var(--syrup); border-color: var(--syrup); color: var(--molasses) !important; }
 
 @keyframes okPulse { 0% { box-shadow: 0 0 0 0 rgba(166, 219, 134, .6); } 80%, 100% { box-shadow: 0 0 0 9px rgba(166, 219, 134, 0); } }
 @keyframes newTicket { 0%, 100% { transform: rotate(0deg); } 4% { transform: rotate(-2.5deg); } 8% { transform: rotate(2deg); } 12% { transform: rotate(-1deg); } 16% { transform: rotate(0deg); } }
