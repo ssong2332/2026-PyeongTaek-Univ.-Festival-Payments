@@ -89,6 +89,7 @@ const TRANSITION_ERROR_STATUS = {
     INVALID_TRANSITION: 409,
     REASON_REQUIRED: 400,
     REFUND_CHANNEL_REQUIRED: 400,
+    VALIDATION_ERROR: 400,
 } as const;
 
 // Architecture "관리자 상태 전환" 흐름. 관리자 인증(requireAdmin)은 Route Handler가 먼저 한다.
@@ -101,6 +102,7 @@ export async function transition(
 
     // expire·auto_complete 같은 시스템 전용 동작은 관리자 버튼 목록에 없으므로 거부된다.
     if (!availableActions(order).includes(input.action)) throw new AppError("INVALID_TRANSITION", 409);
+    if (input.action === "revert_to_pending" && !input.adminId) throw new AppError("VALIDATION_ERROR", 400);
 
     const result = resolveTransition(order, input.action, input);
     if (!result.ok) throw new AppError(result.code, TRANSITION_ERROR_STATUS[result.code]);

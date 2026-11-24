@@ -199,7 +199,7 @@ export function LiveOrderDashboard() {
                         });
                         await feed.reload().catch(() => undefined);
                     }
-                    if (code && ((response.status === 400 && (code === "REASON_REQUIRED" || code === "REFUND_CHANNEL_REQUIRED"))
+                    if (code && ((response.status === 400 && (code === "REASON_REQUIRED" || code === "REFUND_CHANNEL_REQUIRED" || code === "VALIDATION_ERROR"))
                         || (response.status === 409 && (code === "INVALID_TRANSITION" || code === "STATE_CHANGED")))) {
                         throw new TransitionRequestError(code);
                     }

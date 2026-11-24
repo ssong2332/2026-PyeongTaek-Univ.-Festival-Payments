@@ -209,6 +209,27 @@ describe("adminOrderService.transition — 취소 요청 값 재확인", () => {
 });
 
 describe("adminOrderService.transition", () => {
+    it("T-55 되돌리기는 사유를 다듬어 계좌이체 조리중 주문에 전달한다", async () => {
+        const { repo, calls } = setup({ status: "cooking" });
+        const result = await transition({ orderId: ORDER_ID, action: "revert_to_pending", adminId: ADMIN_ID, reason: "  입금 확인 실수  " }, { orderRepository: repo });
+        expect(result.status).toBe("pending");
+        expect(calls).toEqual([{ orderId: ORDER_ID, from: "cooking", to: "pending", action: "revert_to_pending", actorType: "admin", actorId: ADMIN_ID, reason: "입금 확인 실수", refundChannel: null }]);
+    });
+
+    it("T-55 되돌리기는 현금·완료 주문과 빈 사유·200자 초과·빈 관리자 ID를 거부한다", async () => {
+        for (const input of [
+            { order: { status: "cooking" as const, paymentMethod: "cash" as const }, reason: "실수", adminId: ADMIN_ID, code: "INVALID_TRANSITION", status: 409 },
+            { order: { status: "completed" as const }, reason: "실수", adminId: ADMIN_ID, code: "INVALID_TRANSITION", status: 409 },
+            { order: { status: "cooking" as const }, reason: "  ", adminId: ADMIN_ID, code: "REASON_REQUIRED", status: 400 },
+            { order: { status: "cooking" as const }, reason: "가".repeat(201), adminId: ADMIN_ID, code: "VALIDATION_ERROR", status: 400 },
+            { order: { status: "cooking" as const }, reason: "실수", adminId: "", code: "VALIDATION_ERROR", status: 400 },
+        ]) {
+            const { repo, calls } = setup(input.order);
+            await expectAppError(transition({ orderId: ORDER_ID, action: "revert_to_pending", adminId: input.adminId, reason: input.reason }, { orderRepository: repo }), input.code, input.status);
+            expect(calls).toHaveLength(0);
+        }
+    });
+
     it("허용 전환이면 repo.transition에 from·to·주체를 넘기고 갱신본을 돌려준다", async () => {
         const { repo, calls } = setup();
         const result = await transition({ orderId: ORDER_ID, action: "confirm_payment", adminId: ADMIN_ID }, { orderRepository: repo });

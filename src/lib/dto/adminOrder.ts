@@ -64,7 +64,7 @@ export const AdminOrdersResponseSchema = z.object({
 export type AdminOrdersResponse = z.infer<typeof AdminOrdersResponseSchema>;
 
 export const AdminTransitionRequestSchema = z.object({
-    // 공용 TRANSITION_ACTIONS가 아닌 관리자 6종만 허용(auto_complete·expire → 400 VALIDATION_ERROR).
+    // 시스템 전용 auto_complete·expire를 제외한 관리자 동작만 허용.
     action: z.enum(ADMIN_TRANSITION_ACTIONS),
     reason: z.string().min(1).max(200).optional(),
     refundChannel: z.enum(REFUND_CHANNELS).optional(),
