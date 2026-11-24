@@ -194,6 +194,23 @@ describe("POST /api/admin/orders/[id]/transition", () => {
     });
 
     describe("성공 시나리오 (200 OK)", () => {
+        it("T-55 되돌리기 요청을 관리자 ID·사유와 함께 서비스에 전달한다", async () => {
+            const reverted = createMockAdminOrder(ORDER_ID_1, "pending", "confirm_payment");
+            reverted.paymentMethod = "transfer";
+            vi.mocked(transition).mockResolvedValueOnce({ id: ORDER_ID_1, status: "pending", paymentMethod: "transfer" });
+            vi.mocked(getAdminOrderById).mockResolvedValueOnce(reverted);
+
+            const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID_1}/transition`, {
+                method: "POST", body: JSON.stringify({ action: "revert_to_pending", reason: "입금 확인 실수" }),
+            });
+            const res = await postTransition(req, { params: Promise.resolve({ id: ORDER_ID_1 }) });
+            expect(res.status).toBe(200);
+            expect((await res.json()).status).toBe("pending");
+            expect(transition).toHaveBeenCalledWith(expect.objectContaining({
+                orderId: ORDER_ID_1, action: "revert_to_pending", adminId: "admin-user-123", reason: "입금 확인 실수",
+            }), expect.any(Object));
+        });
+
         it("현금 확인(confirm_cash) 성공 시 200과 갱신된 주문 DTO를 반환한다", async () => {
             const updatedOrder = createMockAdminOrder(ORDER_ID_1, "cooking", "complete");
             vi.mocked(transition).mockResolvedValueOnce({

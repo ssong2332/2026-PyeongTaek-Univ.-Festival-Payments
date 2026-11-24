@@ -24,6 +24,9 @@ const DB_ERRORS: Record<string, { code: ErrorCode; status: number }> = {
   ORDER_NOT_FOUND: { code: "NOT_FOUND", status: 404 },
   // 종료 상태는 상태 머신이 먼저 막는다. 여기까지 왔다면 불허 전환과 같다.
   TERMINAL_STATE: { code: "INVALID_TRANSITION", status: 409 },
+  INVALID_TRANSITION: { code: "INVALID_TRANSITION", status: 409 },
+  REASON_REQUIRED: { code: "REASON_REQUIRED", status: 400 },
+  VALIDATION_ERROR: { code: "VALIDATION_ERROR", status: 400 },
 };
 
 type DbError = { message: string; code?: string; details?: string | null };
@@ -100,6 +103,17 @@ export function createSupabaseOrderRepository(
     },
 
     async transition(command) {
+      if (command.action === "revert_to_pending") {
+        if (!command.actorId) throw new AppError("VALIDATION_ERROR", 400);
+        if (!command.reason?.trim()) throw new AppError("REASON_REQUIRED", 400);
+        const { data, error } = await client.rpc("revert_transfer_order_to_pending", {
+          p_order_id: command.orderId,
+          p_actor_id: command.actorId,
+          p_reason: command.reason,
+        });
+        if (error) throw toError("revert_transfer_order_to_pending", error);
+        return toOrderForTransition(data);
+      }
       const args = {
         p_order_id: command.orderId,
         p_from: command.from,
