@@ -3,11 +3,11 @@ import { availableActions, guardsCancelRequest, hasPendingCancelRequest, resolve
 import { ADMIN_TRANSITION_ACTIONS, type OrderStatus, type RefundChannel, type TransitionAction } from "@/domain/order/status";
 
 const statuses: OrderStatus[] = ["pending", "paid", "cooking", "completed", "cancelled", "refunded", "expired"];
-const actions: TransitionAction[] = ["confirm_payment", "confirm_cash", "start_cooking", "complete", "auto_complete", "cancel", "refund", "expire"];
+const actions: TransitionAction[] = ["confirm_payment", "confirm_cash", "start_cooking", "revert_to_pending", "complete", "auto_complete", "cancel", "refund", "expire"];
 const allowed: Partial<Record<OrderStatus, Partial<Record<TransitionAction, OrderStatus>>>> = {
   pending: { confirm_payment: "cooking", confirm_cash: "cooking", cancel: "cancelled", expire: "expired" },
   paid: { start_cooking: "cooking", cancel: "cancelled" },
-  cooking: { complete: "completed", auto_complete: "completed", refund: "refunded" },
+  cooking: { revert_to_pending: "pending", complete: "completed", auto_complete: "completed", refund: "refunded" },
 };
 
 function order(status: OrderStatus) {
@@ -26,7 +26,7 @@ describe("주문 상태 전환 표", () => {
         expect(result).toEqual(to ? {
           ok: true, to,
           restoreStock: ["cancel", "refund", "expire"].includes(action),
-          needsReason: ["cancel", "refund"].includes(action),
+          needsReason: ["cancel", "refund", "revert_to_pending"].includes(action),
           needsRefundChannel: action === "refund",
         } : { ok: false, code: "INVALID_TRANSITION" });
       });
@@ -60,6 +60,20 @@ it("환불수단이 없으면 거부한다", () => {
     .toEqual({ ok: false, code: "REFUND_CHANNEL_REQUIRED" });
 });
 
+it("T-55 되돌리기는 계좌이체 조리중에만 허용하고 공백 제거 사유를 검증한다", () => {
+  expect(resolveTransition(order("cooking"), "revert_to_pending", { reason: "  입금 확인 실수  " }))
+    .toEqual({ ok: true, to: "pending", restoreStock: false, needsReason: true, needsRefundChannel: false });
+  expect(resolveTransition({ status: "cooking", paymentMethod: "cash" }, "revert_to_pending", { reason: "실수" }))
+    .toEqual({ ok: false, code: "INVALID_TRANSITION" });
+  expect(resolveTransition(order("completed"), "revert_to_pending", { reason: "실수" }))
+    .toEqual({ ok: false, code: "INVALID_TRANSITION" });
+  expect(resolveTransition(order("cooking"), "revert_to_pending", { reason: " \n " }))
+    .toEqual({ ok: false, code: "REASON_REQUIRED" });
+  expect(resolveTransition(order("cooking"), "revert_to_pending", { reason: ` ${"가".repeat(200)} ` }).ok).toBe(true);
+  expect(resolveTransition(order("cooking"), "revert_to_pending", { reason: "가".repeat(201) }))
+    .toEqual({ ok: false, code: "VALIDATION_ERROR" });
+});
+
 it.each(["cash", "bank"] as const)("원래 결제 경로 %s로만 환불한다", (channel) => {
   const current = channel === "cash"
     ? { status: "cooking" as const, paymentMethod: "cash" as const }
@@ -74,7 +88,8 @@ it("관리자 버튼은 시스템 동작을 제외하고 사유 입력 전에도
   expect(availableActions(order("pending"))).toEqual(["confirm_payment", "cancel"]);
   expect(availableActions({ status: "pending", paymentMethod: "cash" })).toEqual(["confirm_cash", "cancel"]);
   expect(availableActions(order("paid"))).toEqual(["start_cooking", "cancel"]);
-  expect(availableActions(order("cooking"))).toEqual(["complete", "refund"]);
+  expect(availableActions(order("cooking"))).toEqual(["revert_to_pending", "complete", "refund"]);
+  expect(availableActions({ status: "cooking", paymentMethod: "cash" })).toEqual(["complete", "refund"]);
   for (const status of ["completed", "cancelled", "refunded", "expired"] as const) {
     expect(availableActions(order(status))).toEqual([]);
   }
