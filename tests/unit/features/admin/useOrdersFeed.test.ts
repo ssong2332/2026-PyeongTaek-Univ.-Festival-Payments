@@ -87,6 +87,22 @@ describe("T-15 / ADR-0003: useOrdersFeed 로직 검증", () => {
     });
 
     describe("mergeOrderUpdate (ADR-0003)", () => {
+        it("되돌리기 Realtime 이벤트의 새 입금 대기 시작 시각을 반영한다", () => {
+            const current = createSampleOrder({
+                status: "cooking",
+                pendingSince: null,
+                updatedAt: "2026-09-25T10:00:00.000Z",
+            });
+            const updated = mergeOrderUpdate(current, {
+                status: "pending",
+                pending_since: "2026-09-25T10:05:00.000Z",
+                updated_at: "2026-09-25T10:05:00.000Z",
+            });
+
+            expect(updated.status).toBe("pending");
+            expect(updated.pendingSince).toBe("2026-09-25T10:05:00.000Z");
+        });
+
         it("다른 관리자 세션이 확인(acknowledged_at)한 Realtime DB 이벤트가 오면 acknowledgedAt이 반영되어 미확인 수가 감소한다", () => {
             const current = createSampleOrder({
                 id: "1",

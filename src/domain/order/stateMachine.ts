@@ -12,7 +12,7 @@ type CancelRequestState = Pick<TransitionOrder, "cancelRequestedAt" | "cancelRej
 
 export type TransitionResult =
   | { ok: true; to: OrderStatus; restoreStock: boolean; needsReason: boolean; needsRefundChannel: boolean }
-  | { ok: false; code: "INVALID_TRANSITION" | "REASON_REQUIRED" | "REFUND_CHANNEL_REQUIRED" };
+  | { ok: false; code: "INVALID_TRANSITION" | "REASON_REQUIRED" | "REFUND_CHANNEL_REQUIRED" | "VALIDATION_ERROR" };
 
 type TransitionRule = {
   from: readonly OrderStatus[];
@@ -29,6 +29,7 @@ const TRANSITIONS: Record<TransitionAction, TransitionRule> = {
   confirm_payment: { from: ["pending"], to: "cooking", actor: "admin", paymentMethod: "transfer", restoreStock: false, needsReason: false, needsRefundChannel: false },
   confirm_cash: { from: ["pending"], to: "cooking", actor: "admin", paymentMethod: "cash", restoreStock: false, needsReason: false, needsRefundChannel: false },
   start_cooking: { from: ["paid"], to: "cooking", actor: "admin", restoreStock: false, needsReason: false, needsRefundChannel: false },
+  revert_to_pending: { from: ["cooking"], to: "pending", actor: "admin", paymentMethod: "transfer", restoreStock: false, needsReason: true, needsRefundChannel: false },
   complete: { from: ["cooking"], to: "completed", actor: "admin", restoreStock: false, needsReason: false, needsRefundChannel: false },
   auto_complete: { from: ["cooking"], to: "completed", actor: "system", restoreStock: false, needsReason: false, needsRefundChannel: false },
   cancel: { from: ["pending", "paid"], to: "cancelled", actor: "admin", restoreStock: true, needsReason: true, needsRefundChannel: false },
@@ -64,6 +65,7 @@ export function resolveTransition(
   const rule = TRANSITIONS[action];
   if (!rule || !isAllowed(order, action)) return { ok: false, code: "INVALID_TRANSITION" };
   if (rule.needsReason && !input.reason?.trim()) return { ok: false, code: "REASON_REQUIRED" };
+  if (action === "revert_to_pending" && input.reason!.trim().length > 200) return { ok: false, code: "VALIDATION_ERROR" };
   if (rule.needsRefundChannel) {
     if (!input.refundChannel) return { ok: false, code: "REFUND_CHANNEL_REQUIRED" };
     const expectedChannel = order.paymentMethod === "cash" ? "cash" : "bank";

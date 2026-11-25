@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { createServiceClient } from "@/infra/supabase/server";
 import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrderRepository";
+import { transition } from "@/services/adminOrderService";
 
 // Disposable Supabase only (tests/integration/setup.ts); never target the live project.
 const db = createServiceClient();
@@ -169,6 +170,19 @@ afterAll(async () => {
 });
 
 describe("T-55 new pending cycle DB contract", () => {
+  test("admin service calls the 0107 RPC and exposes the new pending cycle", async () => {
+    const order = await fixture({ reportedAt: age(15) });
+    const result = await transition({
+      orderId: order.id, action: "revert_to_pending", adminId: actorId, reason: "  입금 확인 실수  ",
+    }, { orderRepository: repo });
+    expect(result).toMatchObject({ id: order.id, status: "pending", paymentMethod: "transfer" });
+    const after = await snapshot(order.id, order.menuId);
+    expect(after.order.pending_since).not.toBeNull();
+    expect(after.order.transfer_reported_at).toBeNull();
+    expect(after.menu.stock).toBe(8);
+    expect(after.history).toEqual([{ from_status: "cooking", to_status: "pending", action: "revert_to_pending", actor_type: "admin", actor_id: actorId, reason: "입금 확인 실수" }]);
+  });
+
   test("transfer cooking -> pending resets current marks, keeps stock and old report/rejection history", async () => {
     const reportedAt = age(40);
     const cancelledAt = age(38);

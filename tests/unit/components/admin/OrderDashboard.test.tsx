@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { OrderDashboard } from "@/components/admin/OrderDashboard";
 import { DashboardPreview, makePreviewOrders } from "@/features/admin/DashboardPreview";
+import { TransitionRequestError } from "@/features/admin/transitionError";
 
 afterEach(cleanup);
 const base = () => ({ orders: makePreviewOrders(), onReload: vi.fn(async () => {}),
@@ -118,6 +119,28 @@ describe("T-15 order dashboard", () => {
 });
 
 describe("T-16 order actions", () => {
+    it("되돌린 결제대기 주문은 pendingSince부터 만료 막대를 계산하고 레거시는 createdAt을 쓴다", () => {
+        const now = Date.now();
+        const createdAt = new Date(now - 30 * 60_000).toISOString();
+        const pendingSince = new Date(now - 5 * 60_000).toISOString();
+        const order = { ...base().orders[1], createdAt, pendingSince };
+        const props = { ...base(), orders: [order] };
+        const { rerender } = render(<OrderDashboard {...props} />);
+        const remainingSeconds = () => {
+            const label = within(screen.getByRole("button", { name: "픽업 002 주문 상세" }))
+                .getByText(/만료까지/).textContent ?? "";
+            const match = label.match(/만료까지 (\d+):(\d{2})/);
+            expect(match).not.toBeNull();
+            return Number(match![1]) * 60 + Number(match![2]);
+        };
+        expect(remainingSeconds()).toBeGreaterThan(4 * 60);
+        expect(remainingSeconds()).toBeLessThanOrEqual(5 * 60);
+
+        rerender(<OrderDashboard {...props} orders={[{ ...order, createdAt: new Date(now - 2 * 60_000).toISOString(), pendingSince: null }]} />);
+        expect(remainingSeconds()).toBeGreaterThan(7 * 60);
+        expect(remainingSeconds()).toBeLessThanOrEqual(8 * 60);
+    });
+
     it("shows only server-provided actions as enabled and does not treat acknowledgement as payment", () => {
         render(<OrderDashboard {...base()} />);
         fireEvent.click(screen.getByRole("button", { name: "픽업 001 주문 상세" }));
@@ -296,6 +319,57 @@ describe("T-17 cancel and refund controls", () => {
         });
         await waitFor(() => expect(screen.getByText("픽업 #003 주문 상태를 변경했습니다.")).toBeTruthy());
         expect(screen.queryByRole("alert")).toBeNull();
+    });
+});
+
+describe("T-55 입금 확인 되돌리기", () => {
+    const transferCooking = () => {
+        const order = makePreviewOrders()[2];
+        return { ...order, paymentMethod: "transfer" as const,
+            availableActions: ["revert_to_pending", "complete", "refund"] as typeof order.availableActions };
+    };
+
+    it("계좌이체 조리중 주문에만 표시하고 사유를 다듬어 전송한다", async () => {
+        const props = base();
+        props.orders = [transferCooking(), makePreviewOrders()[3]];
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "입금 확인 되돌리기" });
+        fireEvent.click(within(panel).getByRole("button", { name: "입금 대기로 되돌리기" }));
+        const submit = within(panel).getByRole("button", { name: "되돌리기 확정" }) as HTMLButtonElement;
+        expect(submit.disabled).toBe(true);
+        fireEvent.change(within(panel).getByLabelText("되돌리기 사유 (필수, 최대 200자)"), { target: { value: "  입금 확인 실수  " } });
+        expect(submit.disabled).toBe(false);
+        fireEvent.click(submit);
+        await waitFor(() => expect(props.onTransition).toHaveBeenCalledExactlyOnceWith(props.orders[0].id, "revert_to_pending", { reason: "입금 확인 실수" }));
+        fireEvent.click(screen.getByRole("button", { name: "픽업 004 주문 상세" }));
+        expect(screen.queryByRole("region", { name: "입금 확인 되돌리기" })).toBeNull();
+    });
+
+    it("실패하면 사유를 유지하고 중복 요청을 막으며 같은 패널에 오류를 표시한다", async () => {
+        let reject!: (error: Error) => void;
+        const props = base();
+        props.orders = [transferCooking()];
+        props.onTransition.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+        render(<OrderDashboard {...props} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        const panel = screen.getByRole("region", { name: "입금 확인 되돌리기" });
+        fireEvent.click(within(panel).getByRole("button", { name: "입금 대기로 되돌리기" }));
+        const reason = within(panel).getByLabelText("되돌리기 사유 (필수, 최대 200자)") as HTMLTextAreaElement;
+        fireEvent.change(reason, { target: { value: "재확인 필요" } });
+        fireEvent.click(within(panel).getByRole("button", { name: "되돌리기 확정" }));
+        expect((within(panel).getByRole("button", { name: "처리 중…" }) as HTMLButtonElement).disabled).toBe(true);
+        reject(new TransitionRequestError("INVALID_TRANSITION"));
+        await waitFor(() => expect(within(panel).getByRole("alert").textContent).toContain("현재 주문 상태"));
+        expect(reason.value).toBe("재확인 필요");
+        expect(props.onTransition).toHaveBeenCalledTimes(1);
+    });
+
+    it("현금 조리중 주문에는 표시하지 않는다", () => {
+        const props = base();
+        render(<OrderDashboard {...props} orders={[makePreviewOrders()[2]]} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 003 주문 상세" }));
+        expect(screen.queryByRole("region", { name: "입금 확인 되돌리기" })).toBeNull();
     });
 });
 

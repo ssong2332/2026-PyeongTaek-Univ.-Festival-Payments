@@ -12,6 +12,7 @@ import type { StatsDto } from "@/lib/dto/stats";
 import { StatsPanel } from "./StatsPanel";
 import { OrderActionButtons } from "./OrderActionButtons";
 import { OrderCancelRefund, type CancelRefundInput } from "./OrderCancelRefund";
+import { OrderRevertToPending } from "./OrderRevertToPending";
 import { CancelRequestDecision, type CancelRequestDecisionKind } from "./CancelRequestDecision";
 import { TransitionRequestError } from "@/features/admin/transitionError";
 import styles from "./OrderDashboard.module.css";
@@ -69,7 +70,7 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
     const [pendingAction, setPendingAction] = useState<TransitionAction | null>(null);
     const [notice, setNotice] = useState("");
     const [actionError, setActionError] = useState("");
-    const [transitionError, setTransitionError] = useState<{ id: string; message: string } | null>(null);
+    const [transitionError, setTransitionError] = useState<{ id: string; action: TransitionAction; message: string } | null>(null);
     const searchVersion = useRef(0);
     const acknowledging = useRef(false);
     const transitioning = useRef(false);
@@ -156,10 +157,12 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
             }
         } catch (error) {
             const message = error instanceof TransitionRequestError
-                ? error.message
+                ? action === "revert_to_pending" && error.code === "REASON_REQUIRED"
+                    ? "되돌리기 사유가 필요합니다."
+                    : error.message
                 : "상태 변경에 실패했습니다. 주문 상태를 확인하고 다시 시도해 주세요.";
             if (action === "cancel" || action === "refund") setActionError(message);
-            else setTransitionError({ id: order.id, message });
+            else setTransitionError({ id: order.id, action, message });
         } finally {
             transitioning.current = false; setPendingId(null); setPendingAction(null);
         }
@@ -290,8 +293,13 @@ export function OrderDashboard({ orders, isLoading = false, error, preview = fal
                             <OrderActionButtons availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
                                 disabled={pendingId !== null}
-                                error={transitionError?.id === selected.id ? transitionError.message : undefined}
+                                error={transitionError?.id === selected.id && transitionError.action !== "revert_to_pending" ? transitionError.message : undefined}
                                 onAction={action => transitionOrder(selected, action)} />
+                            <OrderRevertToPending key={`revert-${selected.id}`} availableActions={selected.availableActions}
+                                pendingAction={pendingId === selected.id ? pendingAction : null}
+                                disabled={pendingId !== null}
+                                error={transitionError?.id === selected.id && transitionError.action === "revert_to_pending" ? transitionError.message : undefined}
+                                onAction={reason => transitionOrder(selected, "revert_to_pending", { reason })} />
                             <OrderCancelRefund key={selected.id} paymentMethod={selected.paymentMethod}
                                 availableActions={selected.availableActions}
                                 pendingAction={pendingId === selected.id ? pendingAction : null}
@@ -357,7 +365,7 @@ function Clock3Text() {
 // 반죽색 종이 주문표: 집게 · 큰 픽업 번호 · 몇 분 전 · 메뉴 · 결제 · (결제대기면) 만료 막대 · (끝났으면) 도장
 function Ticket({ order, now, selected, onSelect }: { order: AdminOrderDto; now: number; selected: boolean; onSelect: () => void }) {
     const minutesAgo = Math.max(0, Math.floor((now - new Date(orderTime(order)).getTime()) / 60000));
-    const left = EXPIRE_MS - (now - new Date(order.createdAt).getTime());
+    const left = EXPIRE_MS - (now - new Date(order.pendingSince ?? order.createdAt).getTime());
     const stamp = STAMP[order.status];
     const unread = isUnacknowledged(order);
     return <button type="button" className={`${styles.card} ${unread ? styles.unread : ""}`} aria-pressed={selected}
