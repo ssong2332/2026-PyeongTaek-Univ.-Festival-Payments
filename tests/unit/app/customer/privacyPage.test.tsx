@@ -10,13 +10,16 @@ afterEach(() => {
 });
 
 describe("/privacy — 개인정보 고지 1차 (T-12, F-12·N-15)", () => {
-  it("제목과 '수집하는 개인정보: 없음'을 보여준다", () => {
+  it("이름·전화번호 미입력과 실제 처리 항목을 구분해 보여준다", () => {
     render(<PrivacyPage />);
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("개인정보 고지");
-    const collected = screen.getByRole("region", { name: "수집하는 개인정보" });
-    expect(collected.textContent).toContain("없음");
-    expect(collected.textContent).toContain("개인정보를 수집하지 않습니다");
+    const collected = screen.getByRole("region", { name: "주문 관련 정보" });
+    expect(collected.textContent).toContain("이름·전화번호 입력 없음");
+    expect(collected.textContent).toContain("주문 상태 확인용 토큰");
+    expect(collected.textContent).toContain("IP 주소에서 만든 주문 제한 키");
+    expect(collected.textContent).toContain("별점과 입력한 내용");
+    expect(screen.getByRole("heading", { level: 2, name: "이름·전화번호 없이 주문해요" })).toBeTruthy();
   });
 
   it("기기에 저장하는 주문 링크·픽업 번호·후기 표시와 24시간 뒤 정리 시점을 알린다", () => {
@@ -50,6 +53,10 @@ describe("/privacy — 개인정보 고지 1차 (T-12, F-12·N-15)", () => {
     expect(disposal.textContent).toContain("Order records retained");
     expect(disposal.textContent).toContain("decided not to delete order data");
     expect(disposal.textContent).toContain("No new deletion date has been set");
+    const collected = screen.getByRole("region", { name: "Order-related information" });
+    expect(collected.textContent).toContain("No name or phone number entered");
+    expect(collected.textContent).toContain("order status token");
+    expect(collected.textContent).toContain("rate-limit key derived from your IP address");
   });
 
   it("동의 체크·입력·버튼이 없다 — 별도 동의 단계 0개", () => {
