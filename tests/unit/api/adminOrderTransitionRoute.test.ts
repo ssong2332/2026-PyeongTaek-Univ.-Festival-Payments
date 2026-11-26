@@ -171,7 +171,7 @@ describe("POST /api/admin/orders/[id]/transition", () => {
 
         // 요청 규격은 reason: string(1..200). 빈 문자열은 서비스(→ 400 REASON_REQUIRED)까지 가지 않고
         // 요청 검증에서 거부돼야 한다(T-17).
-        it.each(["cancel", "refund"])(
+        it.each(["cancel", "refund", "revert_to_pending"])(
             "%s의 사유가 빈 문자열이면 400 VALIDATION_ERROR를 반환하고 서비스를 호출하지 않는다",
             async (action) => {
                 const req = new NextRequest(`http://localhost:3000/api/admin/orders/${ORDER_ID_1}/transition`, {

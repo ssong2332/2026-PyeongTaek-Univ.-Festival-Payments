@@ -169,7 +169,7 @@ describe("guardsCancelRequest", () => {
   it.each(["confirm_payment", "confirm_cash", "start_cooking"] as const)("%s는 보호 대상", (action) => {
     expect(guardsCancelRequest(action)).toBe(true);
   });
-  it.each(["complete", "auto_complete", "cancel", "refund", "expire"] as const)("%s는 보호 대상 아님", (action) => {
+  it.each(["revert_to_pending", "complete", "auto_complete", "cancel", "refund", "expire"] as const)("%s는 보호 대상 아님", (action) => {
     expect(guardsCancelRequest(action)).toBe(false);
   });
 });
