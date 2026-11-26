@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import type { AdminOrderDto } from "@/lib/dto/adminOrder";
 import { availableActions } from "@/domain/order/stateMachine";
 import { createAdminBrowserClient } from "@/infra/supabase/browser";
@@ -169,6 +169,10 @@ export function mergeOrdersSnapshot(
 
 export interface UseOrdersFeedOptions {
     initialDate?: string;
+    // "kitchen": 날짜와 상관없이 조리중 주문만 불러온다(GET /api/admin/orders?scope=kitchen).
+    scope?: "kitchen";
+    // scope=kitchen에서 불러올 최대 건수(서버 기본 200).
+    limit?: number;
     onNewOrder?: (order: AdminOrderDto) => void;
 }
 
@@ -178,6 +182,8 @@ export interface UseOrdersFeedReturn {
     unacknowledgedCount: number;
     isLoading: boolean;
     error: string | null;
+    // 서버가 알려 준 조건에 맞는 전체 건수(scope=kitchen만). 모르면 null.
+    total: number | null;
     channelStatus: string | null;
     acknowledge: (id: string) => Promise<void>;
     reload: () => Promise<void>;
@@ -189,12 +195,20 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         ? { initialDate: optionsOrDate }
         : optionsOrDate ?? {};
 
-    const { initialDate, onNewOrder } = options;
+    const { initialDate, onNewOrder, scope, limit } = options;
 
     const [ordersMap, setOrdersMap] = useState<Map<string, AdminOrderDto>>(new Map());
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [total, setTotal] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [channelStatus, setChannelStatus] = useState<string | null>(null);
+    const queryKey = scope === "kitchen" ? `kitchen:${limit ?? 200}` : "dashboard";
+    const currentQueryKeyRef = useRef(queryKey);
+    const latestRequestIdRef = useRef(0);
+    // A changed kitchen limit invalidates responses before the new effect starts its fetch.
+    useLayoutEffect(() => {
+        currentQueryKeyRef.current = queryKey;
+    }, [queryKey]);
     const onNewOrderRef = useRef(onNewOrder);
     useEffect(() => {
         onNewOrderRef.current = onNewOrder;
@@ -218,8 +232,12 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
     }, []);
 
     const loadOrders = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
+        const requestedQueryKey = queryKey;
         try {
-            const query = dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
+            const query = scope
+                ? `?scope=${scope}${limit !== undefined ? `&limit=${limit}` : ""}`
+                : dateRef.current ? `?date=${encodeURIComponent(dateRef.current)}` : "";
             const res = await fetch(`/api/admin/orders${query}`);
             if (!res.ok) {
                 throw new Error(`Failed to fetch orders: ${res.status}`);
@@ -229,14 +247,30 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
             for (const order of data.orders as AdminOrderDto[]) {
                 newMap.set(order.id, order);
             }
-            return { map: newMap, error: null };
+            return { requestId, requestedQueryKey, map: newMap, total: typeof data.total === "number" ? data.total : null, error: null };
         } catch (err) {
             return {
+                requestId,
+                requestedQueryKey,
                 map: null,
+                total: null,
                 error: err instanceof Error ? err.message : "Unknown error",
             };
         }
-    }, []);
+    }, [scope, limit, queryKey]);
+
+    const applyLoaded = useCallback((result: Awaited<ReturnType<typeof loadOrders>>, loadStartSeq: number) => {
+        if (result.requestId !== latestRequestIdRef.current ||
+            result.requestedQueryKey !== currentQueryKeyRef.current) return;
+        if (result.map) {
+            applySnapshot(result.map, loadStartSeq);
+            setTotal(result.total);
+            setError(null);
+        } else {
+            setError(result.error);
+        }
+        setIsLoading(false);
+    }, [applySnapshot]);
 
     const hydrateOrder = useCallback(async (id: string, notify = false) => {
         try {
@@ -302,18 +336,12 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         const loadStartSeq = liveSeqRef.current;
         loadOrders().then((result) => {
             if (isCancelled) return;
-            if (result.map) {
-                applySnapshot(result.map, loadStartSeq);
-                setError(null);
-            } else {
-                setError(result.error);
-            }
-            setIsLoading(false);
+            applyLoaded(result, loadStartSeq);
         });
         return () => {
             isCancelled = true;
         };
-    }, [loadOrders, applySnapshot]);
+    }, [loadOrders, applyLoaded]);
 
     // 2. Realtime 구독 설정 (ADR-0003)
     useEffect(() => {
@@ -362,26 +390,15 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
     const refresh = useCallback(async () => {
         const loadStartSeq = liveSeqRef.current;
         const result = await loadOrders();
-        if (result.map) {
-            applySnapshot(result.map, loadStartSeq);
-            setError(null);
-        } else {
-            setError(result.error);
-        }
-    }, [loadOrders, applySnapshot]);
+        applyLoaded(result, loadStartSeq);
+    }, [loadOrders, applyLoaded]);
 
     const reload = useCallback(async () => {
         setIsLoading(true);
         const loadStartSeq = liveSeqRef.current;
         const result = await loadOrders();
-        if (result.map) {
-            applySnapshot(result.map, loadStartSeq);
-            setError(null);
-        } else {
-            setError(result.error);
-        }
-        setIsLoading(false);
-    }, [loadOrders, applySnapshot]);
+        applyLoaded(result, loadStartSeq);
+    }, [loadOrders, applyLoaded]);
 
     const sortedOrders = Array.from(ordersMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -395,6 +412,7 @@ export function useOrdersFeed(optionsOrDate?: string | UseOrdersFeedOptions): Us
         unacknowledgedCount,
         isLoading,
         error,
+        total,
         channelStatus,
         acknowledge,
         reload,
