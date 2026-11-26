@@ -17,6 +17,12 @@ export interface OrderListFilter {
     pickupNumber?: number;
 }
 
+// 조리 화면(GET /api/admin/orders?scope=kitchen): 날짜와 상관없이 조리중 주문을
+// 조리 시작 시각 오래된 순(없으면 맨 앞) → 생성 시각 → id 순으로 limit건, 그리고 조리중 전체 건수.
+export interface KitchenOrderRepository {
+    listKitchen(limit: number): Promise<{ orders: AdminOrderDto[]; total: number }>;
+}
+
 export interface AdminOrderRepository {
     findById(id: string): Promise<AdminOrderDto | null>;
     list(filter?: OrderListFilter): Promise<AdminOrderDto[]>;
@@ -59,9 +65,13 @@ export type OrderForTransition = {
     id: string;
     status: OrderStatus;
     paymentMethod: PaymentMethod;
+    // DECISIONS #71: 취소 요청 대기 중이면 조리중 진입을 막기 위해 함께 읽는다.
+    cancelRequestedAt?: string | null;
+    cancelRejectedAt?: string | null;
 };
 
 // DB 함수 transition_order 인자와 1:1 (Architecture "DB 함수" 표).
+// expectedCancel이 있으면 0106 보호 함수가 이 값을 현재 값과 비교한다. 둘 다 null이어도 비교 대상이다(#155).
 export type TransitionCommand = {
     orderId: string;
     from: OrderStatus;
@@ -71,6 +81,7 @@ export type TransitionCommand = {
     actorId: string | null;
     reason: string | null;
     refundChannel: RefundChannel | null;
+    expectedCancel?: { requestedAt: string | null; rejectedAt: string | null };
 };
 
 export interface OrderItemDetail {

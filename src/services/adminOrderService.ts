@@ -1,7 +1,8 @@
-import { availableActions, resolveTransition } from "@/domain/order/stateMachine";
+import { availableActions, guardsCancelRequest, hasPendingCancelRequest, resolveTransition } from "@/domain/order/stateMachine";
 import type { RefundChannel, TransitionAction } from "@/domain/order/status";
 import { kstDate } from "@/domain/time/kst";
-import type { AdminOrderRepository, Clock, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
+import type { AdminOrderRepository, Clock, KitchenOrderRepository, OrderListFilter, OrderForTransition, OrderRepository } from "./ports";
+import { KITCHEN_PAGE_SIZE } from "@/domain/order/kitchenQueue";
 import type { AdminOrderDto, AdminOrdersResponse } from "@/lib/dto/adminOrder";
 import { AppError } from "@/lib/api/errors";
 
@@ -28,6 +29,21 @@ export async function listAdminOrders(
     return {
         orders,
         unacknowledgedCount,
+    };
+}
+
+// 조리 화면(/admin/kitchen)은 날짜와 상관없이 지금 조리중인 주문을 본다.
+// 자정 전에 들어와 자정 뒤에도 조리중인 주문이 오늘 범위에서 빠지지 않게 날짜를 채우지 않는다.
+// 상한(limit)을 넘는 주문은 total로 알려 화면이 "더 불러오기"를 보이게 한다.
+export async function listKitchenOrders(
+    repository: KitchenOrderRepository,
+    limit: number = KITCHEN_PAGE_SIZE,
+): Promise<AdminOrdersResponse> {
+    const { orders, total } = await repository.listKitchen(limit);
+    return {
+        orders,
+        unacknowledgedCount: orders.filter((o) => o.acknowledgedAt === null).length,
+        total,
     };
 }
 
@@ -98,6 +114,10 @@ export async function transition(
         actorId: input.adminId,
         reason: result.needsReason ? input.reason!.trim() : null,
         refundChannel: result.needsRefundChannel ? input.refundChannel! : null,
+        // 조회 뒤 고객 취소 요청이 끼어들면 DB가 막는다(409 STATE_CHANGED). 값이 null이어도 그대로 넘긴다.
+        ...(guardsCancelRequest(input.action) && {
+            expectedCancel: { requestedAt: order.cancelRequestedAt ?? null, rejectedAt: order.cancelRejectedAt ?? null },
+        }),
     });
 }
 
@@ -121,9 +141,7 @@ export async function resolveCancelRequest(
 
     // 요청이 없거나, 이미 거절됐거나, 조리가 시작된 주문은 승인·거절 대상이 아니다.
     const resolvable =
-        (order.status === "pending" || order.status === "paid") &&
-        order.cancelRequestedAt !== null &&
-        order.cancelRejectedAt === null;
+        (order.status === "pending" || order.status === "paid") && hasPendingCancelRequest(order);
     if (!resolvable) throw new AppError("INVALID_TRANSITION", 409);
 
     const reason = input.reason.trim();

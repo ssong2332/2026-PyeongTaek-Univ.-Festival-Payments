@@ -71,4 +71,25 @@ describe("toAdminOrderDto (T-55 pendingSince 및 관리자 DTO 매핑)", () => {
         expect(dtoUndefined.pendingSince).toBeNull();
         expect(AdminOrderDtoSchema.safeParse(dtoUndefined).success).toBe(true);
     });
+
+    it.each([
+        ["계좌이체 결제대기", "pending", "transfer", "confirm_payment"],
+        ["현금 결제대기", "pending", "cash", "confirm_cash"],
+        ["기존 결제확인", "paid", "transfer", "start_cooking"],
+    ] as const)("%s 목록 DTO는 취소 요청 대기·거절에 맞춰 조리 진입 버튼을 갱신한다",
+        (_label, status, paymentMethod, action) => {
+            const row = { ...baseRow, status, payment_method: paymentMethod };
+            const before = toAdminOrderDto(row);
+            const requested = toAdminOrderDto({
+                ...row, cancel_requested_at: "2026-10-07T01:05:00.000Z", cancel_rejected_at: null,
+            });
+            const rejected = toAdminOrderDto({
+                ...row, cancel_requested_at: "2026-10-07T01:05:00.000Z",
+                cancel_rejected_at: "2026-10-07T01:06:00.000Z",
+            });
+            expect(before.availableActions).toContain(action);
+            expect(requested.availableActions).not.toContain(action);
+            expect(requested.availableActions).toContain("cancel");
+            expect(rejected.availableActions).toContain(action);
+        });
 });

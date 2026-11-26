@@ -78,43 +78,37 @@ test("현금 수령 확인은 결제대기 → 조리중으로 바로 바꾸고,
     ]);
 });
 
-test("계좌이체 입금 확인 → 조리 시작 → 완료를 처리하고 이력을 순서대로 남긴다", async () => {
+// DECISIONS #64(T-54): 계좌이체도 입금 확인 한 번으로 조리중 — 현금 수령 확인과 같은 흐름.
+test("계좌이체 입금 확인은 결제대기 → 조리중으로 바로 바꾸고, 이어서 완료 처리까지 이력을 남긴다", async () => {
     const id = await createOrder("transfer");
 
-    expect(await transitionAndRead(id, "confirm_payment")).toMatchObject({ id, status: "paid",
-        paymentMethod: "transfer", availableActions: expect.arrayContaining(["start_cooking"]) });
-    const { data: paid, error: paidError } = await db.from("orders")
+    expect(await transitionAndRead(id, "confirm_payment")).toMatchObject({
+        id, status: "cooking", paymentMethod: "transfer",
+        availableActions: expect.arrayContaining(["complete"]),
+    });
+    const { data: cooking, error: cookingError } = await db.from("orders")
         .select("paid_at, cooking_started_at, completed_at").eq("id", id).single();
-    if (paidError) throw paidError;
-    expect(paid.paid_at).not.toBeNull();
-    expect(paid.cooking_started_at).toBeNull();
-
-    expect(await transitionAndRead(id, "start_cooking")).toMatchObject({ id, status: "cooking",
-        availableActions: expect.arrayContaining(["complete"]) });
-    const { data: started, error: startedError } = await db.from("orders")
-        .select("paid_at, cooking_started_at, completed_at").eq("id", id).single();
-    if (startedError) throw startedError;
-    expect(started.paid_at).toBe(paid.paid_at);
-    expect(started.cooking_started_at).not.toBeNull();
-    expect(started.completed_at).toBeNull();
+    if (cookingError) throw cookingError;
+    expect(cooking.paid_at).not.toBeNull();
+    expect(cooking.paid_at).toBe(cooking.cooking_started_at);
+    expect(cooking.completed_at).toBeNull();
 
     expect(await transitionAndRead(id, "complete")).toMatchObject({ id, status: "completed", availableActions: [] });
     const { data: finished, error: finishedError } = await db.from("orders")
         .select("status, paid_at, cooking_started_at, completed_at").eq("id", id).single();
     if (finishedError) throw finishedError;
-    expect(finished).toMatchObject({ status: "completed", paid_at: paid.paid_at,
-        cooking_started_at: started.cooking_started_at });
+    expect(finished).toMatchObject({ status: "completed", paid_at: cooking.paid_at,
+        cooking_started_at: cooking.cooking_started_at });
     expect(finished.completed_at).not.toBeNull();
     expect(await readHistory(id)).toEqual([
-        { from_status: "pending", to_status: "paid", action: "confirm_payment", actor_type: "admin", actor_id: adminId },
-        { from_status: "paid", to_status: "cooking", action: "start_cooking", actor_type: "admin", actor_id: adminId },
+        { from_status: "pending", to_status: "cooking", action: "confirm_payment", actor_type: "admin", actor_id: adminId },
         { from_status: "cooking", to_status: "completed", action: "complete", actor_type: "admin", actor_id: adminId },
     ]);
 });
 
 test.each([
     { paymentMethod: "cash", forbidden: "confirm_payment", allowed: "confirm_cash", to: "cooking" },
-    { paymentMethod: "transfer", forbidden: "confirm_cash", allowed: "confirm_payment", to: "paid" },
+    { paymentMethod: "transfer", forbidden: "confirm_cash", allowed: "confirm_payment", to: "cooking" },
 ] as const)("$paymentMethod 주문: 불허 전환($forbidden)과 동시 중복 요청($allowed)은 409로 거절하고 한 번만 반영한다",
     async ({ paymentMethod, forbidden, allowed, to }) => {
         const id = await createOrder(paymentMethod);
