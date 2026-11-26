@@ -47,7 +47,7 @@ function toError(operation: string, error: DbError): Error {
 
 const ORDER_BY_TOKEN_SELECT = `
   id, pickup_number, status, payment_method, total_amount, locale, created_at,
-  transfer_reported_at, cancel_requested_at, cancel_rejected_at,
+  transfer_reported_at, cancel_requested_at, cancel_rejected_at, pending_since,
   order_items (
     menu_name_ko, menu_name_en, quantity, line_total, sort_order,
     order_item_options ( option_name_ko, option_name_en )

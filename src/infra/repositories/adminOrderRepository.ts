@@ -99,7 +99,7 @@ const ORDER_QUERY_SELECT = `
     id, pickup_number, status, payment_method, total_amount,
     created_at, updated_at, acknowledged_at, transfer_reported_at,
     cancel_requested_at, cancel_rejected_at, paid_at, cooking_started_at,
-    completed_at, closed_at, refund_channel, source, manual_number, manual_ordered_at,
+    completed_at, closed_at, refund_channel, source, manual_number, manual_ordered_at, pending_since,
     order_items (
         menu_name_ko, quantity, line_total,
         order_item_options ( option_name_ko, extra_price )
