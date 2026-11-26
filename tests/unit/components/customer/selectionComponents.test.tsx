@@ -124,6 +124,23 @@ describe("MenuDetailSheet", () => {
         };
     }
 
+    it("T-39: 템플릿 0개면 프리셋 영역을 표시하지 않는다", () => {
+        render(<MenuDetailSheet {...props()} />);
+        expect(screen.queryByRole("group", { name: "추천 옵션 조합" })).toBeNull();
+    });
+
+    it("T-39: 프리셋을 누르면 적용 이벤트가 발생하고 현재 조합을 표시한다", () => {
+        const onApplyTemplate = vi.fn();
+        const template = { id: "cccccccc-0000-0000-0000-000000000001", name: "기본 세트", optionIds: [topping.options[1].id] };
+        const { rerender } = render(<MenuDetailSheet {...props({ templates: [template], onApplyTemplate })} />);
+        const button = screen.getByRole("button", { name: "기본 세트" });
+        expect(button.getAttribute("aria-pressed")).toBe("false");
+        fireEvent.click(button);
+        expect(onApplyTemplate).toHaveBeenCalledWith(template.id);
+        rerender(<MenuDetailSheet {...props({ templates: [template], selectedIds: template.optionIds, onApplyTemplate })} />);
+        expect(screen.getByRole("button", { name: "기본 세트" }).getAttribute("aria-pressed")).toBe("true");
+    });
+
     it("대화상자로 이름·가격·설명·옵션·수량을 보이고, 담기 버튼에 금액", () => {
         const p = props({ total: 6000 });
         render(<MenuDetailSheet {...p} />);

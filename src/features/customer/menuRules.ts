@@ -1,4 +1,4 @@
-import type { MenuItemDto, MenuOptionGroupDto } from "@/lib/dto/menu";
+import type { MenuItemDto, MenuOptionGroupDto, MenuOptionTemplateDto } from "@/lib/dto/menu";
 
 // CreateOrderRequestSchema의 items[].quantity 상한·items 개수 상한과 같은 값(tests/unit/features/customer/menuRules.test.ts가 대조).
 export const MAX_ITEM_QUANTITY = 99;
@@ -29,6 +29,18 @@ export function findSelectionProblem(groups: readonly MenuOptionGroupDto[], sele
         if (count > group.maxSelect) return { kind: "tooMany", groupId: group.id };
     }
     return null;
+}
+
+// 메뉴에서 실제로 고를 수 있는 옵션만 프리셋에 사용한다. 비활성/삭제된 옵션이나
+// 그룹 선택 수 제한을 어긴 오래된 프리셋은 고객에게 노출하지 않는다.
+export function applicableOptionTemplates(
+    groups: readonly MenuOptionGroupDto[],
+    templates: readonly MenuOptionTemplateDto[],
+): MenuOptionTemplateDto[] {
+    return templates.filter((template) =>
+        new Set(template.optionIds).size === template.optionIds.length &&
+        findSelectionProblem(groups, template.optionIds) === null,
+    );
 }
 
 export function toggleOption(

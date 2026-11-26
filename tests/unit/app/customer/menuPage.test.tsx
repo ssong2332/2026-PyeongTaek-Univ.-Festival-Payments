@@ -139,6 +139,31 @@ describe("메뉴판(/) — PRD 화면 표 111행", () => {
         expect(useCart.getState().items).toHaveLength(1);
     });
 
+    it("T-39: 메뉴 응답의 템플릿을 1탭 적용하면 두 옵션과 합계가 장바구니에 전달된다", async () => {
+        const templateMenu: MenuItemDto = {
+            ...cheese,
+            optionGroups: [{ ...cheese.optionGroups[0], options: [
+                ...cheese.optionGroups[0].options,
+                { id: "bbbbbbbb-0000-0000-0000-00000000000b", name: "시럽 추가", extraPrice: 300 },
+            ] }],
+            optionTemplates: [{ id: "cccccccc-0000-0000-0000-000000000001", name: "달콤 세트", optionIds: [
+                "bbbbbbbb-0000-0000-0000-00000000000a",
+                "bbbbbbbb-0000-0000-0000-00000000000b",
+            ] }],
+        };
+        serveMenu([templateMenu]);
+        render(<MenuPage />);
+        fireEvent.click(await screen.findByRole("button", { name: /치즈 호떡/ }));
+        const dialog = screen.getByRole("dialog", { name: "치즈 호떡" });
+        fireEvent.click(within(dialog).getByRole("button", { name: "달콤 세트" }));
+        expect((within(dialog).getByRole("checkbox", { name: /견과류 추가/ }) as HTMLInputElement).checked).toBe(true);
+        expect((within(dialog).getByRole("checkbox", { name: /시럽 추가/ }) as HTMLInputElement).checked).toBe(true);
+        const add = within(dialog).getByRole("button", { name: /담기/ });
+        expect(add.textContent).toContain("3,300원");
+        fireEvent.click(add);
+        expect(useCart.getState().items[0].options.map((option) => option.id)).toEqual(templateMenu.optionTemplates?.[0].optionIds);
+    });
+
     it("F-02: 상세의 수량 상한은 재고(3) — 3에서 늘리기 비활성", async () => {
         serveMenu([cheese]);
         render(<MenuPage />);

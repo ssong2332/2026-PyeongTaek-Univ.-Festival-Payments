@@ -27,6 +27,13 @@ export const MenuOptionGroupDtoSchema = z.object({
 });
 export type MenuOptionGroupDto = z.infer<typeof MenuOptionGroupDtoSchema>;
 
+export const MenuOptionTemplateDtoSchema = z.object({
+    id: z.guid(),
+    name: z.string().min(1),
+    optionIds: z.array(z.guid()),
+});
+export type MenuOptionTemplateDto = z.infer<typeof MenuOptionTemplateDtoSchema>;
+
 export const MenuItemDtoSchema = z.object({
     id: z.guid(),
     name: z.string().min(1),
@@ -38,6 +45,8 @@ export const MenuItemDtoSchema = z.object({
     isSoldOut: z.boolean(),
     imageUrl: z.string().nullable(),
     optionGroups: z.array(MenuOptionGroupDtoSchema),
+    // T-39 DB/API 연결 전에도 기존 메뉴 응답을 그대로 읽을 수 있다.
+    optionTemplates: z.array(MenuOptionTemplateDtoSchema).optional(),
 });
 export type MenuItemDto = z.infer<typeof MenuItemDtoSchema>;
 

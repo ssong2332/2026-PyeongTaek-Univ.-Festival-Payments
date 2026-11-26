@@ -5,6 +5,7 @@ import { useEffect, useId, useRef } from "react";
 import { RollingNumber } from "@/components/motion/RollingNumber";
 import { CTA_DISABLED, CTA_ENABLED } from "@/components/ui/cta";
 import { CartIcon, CloseIcon } from "@/components/ui/icons";
+import type { MenuOptionTemplateDto } from "@/lib/dto/menu";
 import { formatOptionPrice, formatWon } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/locale";
 import { MenuThumbnail } from "./MenuThumbnail";
@@ -19,6 +20,8 @@ export interface MenuDetailSheetProps {
     groups: readonly OptionGroupView[];
     selectedIds: readonly string[];
     onToggleOption: (groupId: string, optionId: string) => void;
+    templates?: readonly MenuOptionTemplateDto[];
+    onApplyTemplate?: (templateId: string) => void;
     quantity: number;
     maxQuantity: number;
     onQuantityChange: (quantity: number) => void;
@@ -151,6 +154,31 @@ export function MenuDetailSheet(props: MenuDetailSheetProps) {
                         <p className="font-num mt-1.5 text-2xl text-syrup">{formatWon(price, locale)}</p>
                         {description && <p className="mt-2 text-sm leading-relaxed text-dough-dim">{description}</p>}
                     </motion.div>
+
+                    {(props.templates?.length ?? 0) > 0 && (
+                        <div className="mt-6" role="group" aria-label={t("option.template.title")}>
+                            <p className="mb-2.5 font-display text-lg text-dough">{t("option.template.title")}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {props.templates?.map((template) => {
+                                    const active = template.optionIds.length === props.selectedIds.length &&
+                                        template.optionIds.every((id) => props.selectedIds.includes(id));
+                                    return (
+                                        <button
+                                            key={template.id}
+                                            type="button"
+                                            aria-pressed={active}
+                                            onClick={() => props.onApplyTemplate?.(template.id)}
+                                            className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-syrup ${
+                                                active ? "border-syrup bg-syrup text-molasses" : "border-iron-line bg-iron text-dough"
+                                            }`}
+                                        >
+                                            {template.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {props.groups.length > 0 && (
                         <motion.div

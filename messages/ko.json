@@ -17,6 +17,7 @@
     "menu.block.soldOut": "품절된 메뉴예요.",
     "menu.block.optionsUnavailable": "지금은 고를 수 있는 옵션이 없어 담을 수 없어요.",
     "option.hint.any": "원하는 것만 선택",
+    "option.template.title": "추천 옵션 조합",
     "option.hint.max": "최대 {max}개 선택",
     "option.hint.exact": "필수 · {count}개 선택",
     "option.hint.range": "필수 · {min}~{max}개 선택",
