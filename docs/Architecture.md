@@ -175,8 +175,13 @@ POST /api/orders (Route Handler)
   │    ├─ {to, restoreStock, needsReason} = stateMachine.resolveTransition(order, action)  → 불허: 409 INVALID_TRANSITION
   │    ├─ reason 필수인데 빈값                        → 400 REASON_REQUIRED
   │    └─ repo.transition(id, from=order.status, to, action, actor, reason, refundChannel)
-  │         → rpc('transition_order') [CAS: status = from 아니면 예외 STATE_CHANGED(409)]
-  │           재고 복구(to ∈ cancelled/refunded/expired), 타임스탬프, history INSERT
+  │         ├─ confirm_payment/confirm_cash/start_cooking:
+  │         │    조회한 취소 요청·거절 시각(둘 다 null이어도 포함)을 전달해
+  │         │    rpc('transition_order_if_cancel_unchanged') 호출 (0106)
+  │         │    → 취소 요청 값 변경 또는 상태 경합: 409 STATE_CHANGED
+  │         └─ 그 밖의 action: rpc('transition_order') 호출
+  │              [CAS: status = from 아니면 예외 STATE_CHANGED(409)]
+  │           성공 시 재고 복구(to ∈ cancelled/refunded/expired), 타임스탬프, history INSERT
   ▼
 200 AdminOrderDto (갱신본)  +  Realtime UPDATE가 모든 대시보드에 전파  +  고객 상태 페이지는 다음 폴링(≤5초)에 반영
 ```
