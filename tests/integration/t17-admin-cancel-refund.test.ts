@@ -106,7 +106,7 @@ describe("T-17 취소 (결제대기·결제확인)", () => {
 
     const result = await requestTransition(id, { action: "cancel", reason: "  고객 요청  " });
 
-    expect(result).toEqual({ id, status: "cancelled", paymentMethod });
+    expect(result).toEqual({ id, status: "cancelled", paymentMethod, cancelRequestedAt: null, cancelRejectedAt: null });
     expect(await stocks(menuIds)).toEqual([10, 10]);
     expect(await storedOrder(id)).toMatchObject({ status: "cancelled", refund_channel: null });
     expect((await storedOrder(id)).closed_at).not.toBeNull();
@@ -126,7 +126,7 @@ describe("T-17 환불 (조리중)", () => {
 
     const result = await requestTransition(id, { action: "refund", reason: "재료 소진", refundChannel });
 
-    expect(result).toEqual({ id, status: "refunded", paymentMethod });
+    expect(result).toEqual({ id, status: "refunded", paymentMethod, cancelRequestedAt: null, cancelRejectedAt: null });
     expect(await stocks(menuIds)).toEqual([10, 10]);
     expect(await storedOrder(id)).toMatchObject({ status: "refunded", refund_channel: refundChannel });
     expect(await history(id)).toEqual([{

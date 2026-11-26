@@ -24,6 +24,9 @@ async function createOrder(status: string) {
   return data.id as string;
 }
 
+// confirm_cash는 0106 보호 함수로 가므로 조회 시점 취소 요청 값(없음)을 함께 넘긴다(T-54).
+const NO_CANCEL = { requestedAt: null, rejectedAt: null };
+
 function command(orderId: string, overrides: Partial<TransitionCommand> = {}): TransitionCommand {
   return {
     orderId, from: "pending", to: "cooking", action: "confirm_cash",
@@ -42,9 +45,9 @@ afterEach(async () => {
 });
 
 describe("supabaseOrderRepository — 상태 전환", () => {
-  test("findById는 상태·결제수단을 돌려준다", async () => {
+  test("findById는 상태·결제수단·취소 요청 시각을 돌려준다", async () => {
     const orderId = await createOrder("paid");
-    expect(await repo.findById(orderId)).toEqual({ id: orderId, status: "paid", paymentMethod: "cash" });
+    expect(await repo.findById(orderId)).toEqual({ id: orderId, status: "paid", paymentMethod: "cash", cancelRequestedAt: null, cancelRejectedAt: null });
   });
 
   test("findById는 없는 주문이면 null", async () => {
@@ -58,7 +61,7 @@ describe("supabaseOrderRepository — 상태 전환", () => {
       from: "paid", to: "cancelled", action: "cancel", actorId, reason: "고객 요청",
     }));
 
-    expect(result).toEqual({ id: orderId, status: "cancelled", paymentMethod: "cash" });
+    expect(result).toEqual({ id: orderId, status: "cancelled", paymentMethod: "cash", cancelRequestedAt: null, cancelRejectedAt: null });
     const { data } = await db.from("order_status_history").select("action, actor_id, reason").eq("order_id", orderId);
     expect(data).toEqual([{ action: "cancel", actor_id: actorId, reason: "고객 요청" }]);
   });
@@ -74,11 +77,11 @@ describe("supabaseOrderRepository — 상태 전환", () => {
 
   test("CAS 실패는 409 STATE_CHANGED", async () => {
     const orderId = await createOrder("cooking");
-    await expectAppError(repo.transition(command(orderId)), "STATE_CHANGED", 409);
+    await expectAppError(repo.transition(command(orderId, { expectedCancel: NO_CANCEL })), "STATE_CHANGED", 409);
   });
 
   test("없는 주문은 404 NOT_FOUND", async () => {
-    await expectAppError(repo.transition(command(randomUUID())), "NOT_FOUND", 404);
+    await expectAppError(repo.transition(command(randomUUID(), { expectedCancel: NO_CANCEL })), "NOT_FOUND", 404);
   });
 
   test("종료 상태에서의 전환은 409 INVALID_TRANSITION", async () => {

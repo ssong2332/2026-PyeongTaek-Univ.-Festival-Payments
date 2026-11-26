@@ -121,6 +121,21 @@ describe("toOrderByTokenResult — 행 모양", () => {
       transferReportedAt: null,
       cancelRequestedAt: null,
       cancelRejectedAt: null,
+      pendingSince: null,
     });
+  });
+
+  it("T-55 pending_since가 비-null 시각 문자열이면 그대로 매핑하고, 없으면 null이다", () => {
+    const nonNullRow = {
+      ...orderRow("ko"),
+      pending_since: "2026-10-07T01:10:00.000000+00:00",
+    };
+    expect(toOrderByTokenResult(nonNullRow).pendingSince).toBe("2026-10-07T01:10:00.000000+00:00");
+
+    const undefinedRow = {
+      ...orderRow("ko"),
+      pending_since: undefined,
+    };
+    expect(toOrderByTokenResult(undefinedRow).pendingSince).toBeNull();
   });
 });
