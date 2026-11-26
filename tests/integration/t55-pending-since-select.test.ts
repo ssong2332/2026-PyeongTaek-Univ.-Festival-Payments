@@ -5,7 +5,7 @@ import { createSupabaseOrderRepository } from "@/infra/repositories/supabaseOrde
 import { SupabaseSweepRepository } from "@/infra/repositories/supabaseSweepRepository";
 import { createServiceClient } from "@/infra/supabase/server";
 import { getAdminOrderById, listAdminOrders } from "@/services/adminOrderService";
-import { getOrderByToken, requestCancel } from "@/services/orderService";
+import { getOrderByToken, reportTransfer, requestCancel } from "@/services/orderService";
 import { sweepOrders } from "@/services/sweepService";
 
 // T-55 후속(#159 팀장 최종 승인 2026-11-12 "후속 필수" 1~3, #155 2026-11-12 인계 2·3번):
@@ -113,6 +113,36 @@ describe("T-55 pending_since 조회 연결 — 고객 상태·관리자 목록·
     expect((await getOrderByToken(order.token, deps)).status).toBe("pending");
     expect(afterSweep.canCancelRequest).toBe(true);
     expect((await requestCancel(order.token, deps)).cancelRequestedAt).not.toBeNull();
+  });
+
+  // #155 팀장 결정(2026-11-11) 4번·Tasks T-55 테스트 "이전 주기 송금 신고가 새 주기 만료를 막지 않음":
+  // 고객 응답에서 이전 신고는 사라지고(재신고 버튼 다시 보임), 새 주기 기한이 지나면 만료된다.
+  test("이전 주기 송금 신고는 새 주기를 막지 않는다 — 고객 응답 신고 없음·재신고 가능, 기한이 지나면 만료", async () => {
+    const order = await createOrder({ status: "cooking" });
+    await must(db.from("orders").update({ transfer_reported_at: minutesAgo(5) }).eq("id", order.id).select("id"));
+    await revert(order.id);
+
+    const afterRevert = await getOrderByToken(order.token, deps);
+    expect(afterRevert).toMatchObject({ status: "pending", transferReportedAt: null, canTransferReport: true });
+
+    await must(db.from("orders").update({ pending_since: minutesAgo(LONG_AGO_MINUTES) }).eq("id", order.id).select("id"));
+    await sweepOrders(sweepRepository);
+    expect((await getOrderByToken(order.token, deps)).status).toBe("expired");
+  });
+
+  test("새 주기에 다시 송금 신고하면 고객 응답에 새 신고가 보이고, 기한이 지나도 만료되지 않는다", async () => {
+    const order = await createOrder({ status: "cooking" });
+    await must(db.from("orders").update({ transfer_reported_at: minutesAgo(5) }).eq("id", order.id).select("id"));
+    await revert(order.id);
+    await must(db.from("orders").update({ pending_since: minutesAgo(LONG_AGO_MINUTES) }).eq("id", order.id).select("id"));
+
+    const { transferReportedAt } = await reportTransfer(order.token, deps);
+    const reported = await getOrderByToken(order.token, deps);
+    expect(reported).toMatchObject({ status: "pending", canTransferReport: false });
+    expect(Date.parse(reported.transferReportedAt!)).toBe(Date.parse(transferReportedAt));
+
+    await sweepOrders(sweepRepository);
+    expect((await getOrderByToken(order.token, deps)).status).toBe("pending");
   });
 
   test("새 주기도 되돌린 시각에서 만료 시간이 지나면 만료된다 — 응답의 pendingSince가 만료 기준과 같은 값", async () => {
