@@ -157,6 +157,30 @@ describe("T-16 order actions", () => {
         await waitFor(() => expect(props.onTransition).toHaveBeenCalledWith(paid.id, "start_cooking"));
     });
 
+    it("취소 요청 대기 중 입금 확인을 막고 거절 후 다시 활성화한다", () => {
+        const props = base();
+        const pending = props.orders[1];
+        const requested = {
+            ...pending,
+            cancelRequestedAt: "2026-09-25T10:31:00.000Z",
+            availableActions: ["cancel" as const],
+        };
+        const { rerender } = render(<OrderDashboard {...props} orders={[requested]} />);
+        fireEvent.click(screen.getByRole("button", { name: "픽업 002 주문 상세" }));
+        const confirm = screen.getByRole("button", { name: "입금 확인" }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        fireEvent.click(confirm);
+        expect(props.onTransition).not.toHaveBeenCalled();
+
+        const rejected = {
+            ...requested,
+            cancelRejectedAt: "2026-09-25T10:32:00.000Z",
+            availableActions: ["confirm_payment" as const, "cancel" as const],
+        };
+        rerender(<OrderDashboard {...props} orders={[rejected]} />);
+        expect((screen.getByRole("button", { name: "입금 확인" }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
     it("keeps the old status until the transition succeeds and blocks duplicate clicks", async () => {
         let finish!: () => void;
         const props = base();
