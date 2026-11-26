@@ -17,6 +17,9 @@ export function AdminShell({ email, emergency, children }: { email?: string | nu
                     <Link href="/admin" className="text-dough-dim transition-colors hover:text-syrup">
                         주문 관리
                     </Link>
+                    <Link href="/admin/kitchen" className="text-dough-dim transition-colors hover:text-syrup">
+                        조리 화면
+                    </Link>
                     <Link href="/admin/manual-orders" className="text-dough-dim transition-colors hover:text-syrup">
                         수기 주문
                     </Link>
